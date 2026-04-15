@@ -1,0 +1,17 @@
+<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" fill="none">
+  <!-- Fondo círculo -->
+  <circle cx="50" cy="50" r="48" fill="#C8FF00" opacity="0.1" stroke="#C8FF00" stroke-width="2"/>
+
+  <!-- Balón de fútbol estilizado -->
+  <circle cx="50" cy="50" r="28" fill="none" stroke="#C8FF00" stroke-width="2"/>
+
+  <!-- Pentágonos/líneas de balón -->
+  <path d="M 50 30 L 60 38 L 65 50 L 60 62 L 50 70 L 40 62 L 35 50 L 40 38 Z"
+        fill="none" stroke="#C8FF00" stroke-width="1.5"/>
+
+  <!-- Línea horizontal -->
+  <line x1="30" y1="50" x2="70" y2="50" stroke="#C8FF00" stroke-width="1" opacity="0.5"/>
+
+  <!-- Línea vertical -->
+  <line x1="50" y1="30" x2="50" y2="70" stroke="#C8FF00" stroke-width="1" opacity="0.5"/>
+</svg>

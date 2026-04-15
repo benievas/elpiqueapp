@@ -1,0 +1,26 @@
+# ElPiqueApp robots.txt
+
+User-agent: *
+Allow: /
+Disallow: /admin/
+Disallow: /owner/
+Disallow: /api/
+Disallow: /auth/
+Disallow: /*.pdf$
+Disallow: /*.json$
+
+# Google
+User-agent: Googlebot
+Allow: /
+Crawl-delay: 0
+
+# Bing
+User-agent: Bingbot
+Allow: /
+Crawl-delay: 1
+
+# Sitemap
+Sitemap: https://matchpro.ar/sitemap.xml
+
+# Regla general de espera
+Request-rate: 1/1s

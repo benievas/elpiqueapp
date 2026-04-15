@@ -1,0 +1,65 @@
+@import "tailwindcss";
+
+@theme {
+  --color-rodeo-dark: #1A120B;
+  --color-rodeo-brown: #1A1A1A;
+  --color-rodeo-cream: #E1D4C2;
+  --color-rodeo-terracotta: #00D455;
+
+  --radius-liquid: 24px;
+  --radius-liquid-lg: 30px;
+
+  --shadow-glass: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+}
+
+:root {
+  --foreground-rgb: 225, 212, 194;
+  /* rodeo-cream */
+  --background-start-rgb: 26, 18, 11;
+  /* rodeo-dark */
+  --background-end-rgb: 26, 26, 26;
+  /* rodeo-brown */
+}
+
+body {
+  color: rgb(var(--foreground-rgb));
+  background: linear-gradient(to bottom,
+      transparent,
+      rgb(var(--background-end-rgb))) rgb(var(--background-start-rgb));
+  /* overflow: hidden se aplica por página, no globalmente */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+@utility liquid-panel {
+  @apply bg-white/5 backdrop-blur-2xl border border-white/10 rounded-liquid-lg shadow-glass;
+}
+
+@utility liquid-button {
+  @apply px-6 py-3 rounded-liquid border border-white/30 bg-white/10 hover:bg-white/20 transition-all duration-300 backdrop-blur-md;
+}
+
+@utility no-scrollbar {
+  &::-webkit-scrollbar {
+    display: none;
+  }
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+@utility scrollbar-thin {
+  &::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+  }
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  &::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 2px;
+  }
+  &::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.4);
+  }
+}
