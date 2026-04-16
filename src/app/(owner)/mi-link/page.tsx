@@ -24,7 +24,8 @@ export default function MiLinkPage() {
       .order("created_at", { ascending: true })
       .limit(1)
       .single()
-      .then(({ data }) => {
+      .then((response) => {
+        const data = response.data as any;
         if (data) { setSlug(data.slug); setComplexName(data.nombre); }
         setLoadingSlug(false);
       });

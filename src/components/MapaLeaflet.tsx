@@ -17,6 +17,8 @@ type Complejo = {
   lat: number;
   lng: number;
   slug: string;
+  ciudad?: string;
+  provincia?: string;
 };
 
 interface MapaLeafletProps {

@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/lib/hooks/useAuth";
-import { supabase } from "@/lib/supabase";
+import { supabase, supabaseMut } from "@/lib/supabase";
 import { MapPin, Phone, Clock, Star, Edit, Plus, Loader, X, Save } from "lucide-react";
 
 interface Complex {
@@ -75,10 +75,10 @@ export default function OwnerComplejoPage() {
     try {
       const payload = { ...form, slug: slugify(form.nombre), owner_id: user!.id, activo: true, lat: -28.4696, lng: -65.7852 };
       if (editing) {
-        const { error: e } = await supabase.from("complexes").update(payload).eq("id", editing.id);
+        const { error: e } = await supabaseMut.from("complexes").update(payload).eq("id", editing.id);
         if (e) throw e;
       } else {
-        const { error: e } = await supabase.from("complexes").insert(payload);
+        const { error: e } = await supabaseMut.from("complexes").insert(payload);
         if (e) throw e;
       }
       await fetchComplejos();
@@ -173,7 +173,7 @@ export default function OwnerComplejoPage() {
                   ].map(({label,key,type,placeholder})=>(
                     <div key={key} className="space-y-1.5">
                       <label className="text-xs font-bold text-rodeo-cream/40 uppercase tracking-widest">{label}</label>
-                      <input type={type} placeholder={placeholder} value={(form as Record<string,string>)[key]} onChange={e=>setForm(f=>({...f,[key]:e.target.value}))} style={glassInput}/>
+                      <input type={type} placeholder={placeholder} value={(form as Record<string,any>)[key]} onChange={e=>setForm(f=>({...f,[key]:e.target.value}))} style={glassInput}/>
                     </div>
                   ))}
 
@@ -186,7 +186,7 @@ export default function OwnerComplejoPage() {
                     {[{label:"Abre",key:"horario_abierto"},{label:"Cierra",key:"horario_cierre"}].map(({label,key})=>(
                       <div key={key} className="space-y-1.5">
                         <label className="text-xs font-bold text-rodeo-cream/40 uppercase tracking-widest">{label}</label>
-                        <input type="time" value={(form as Record<string,string>)[key]} onChange={e=>setForm(f=>({...f,[key]:e.target.value}))} style={glassInput}/>
+                        <input type="time" value={(form as Record<string,any>)[key]} onChange={e=>setForm(f=>({...f,[key]:e.target.value}))} style={glassInput}/>
                       </div>
                     ))}
                   </div>

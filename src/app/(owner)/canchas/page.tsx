@@ -14,7 +14,7 @@ import {
   ToggleRight,
   ChevronDown,
 } from "lucide-react";
-import { supabase } from "@/lib/supabase";
+import { supabase, supabaseMut } from "@/lib/supabase";
 import { useAuth } from "@/lib/hooks/useAuth";
 import type { Court, CourtInsert, Complex, Deporte, EstadoCancha } from "@/types/database";
 
@@ -220,9 +220,22 @@ function CourtModal({
     };
 
     if (editingCourt) {
-      const { data, error: supaErr } = await supabase
+      // Para update no incluir complex_id (solo campos editables)
+      const updatePayload = {
+        nombre: form.nombre.trim(),
+        deporte: form.deporte,
+        precio_por_hora: form.precio_por_hora,
+        capacidad_jugadores: form.capacidad_jugadores,
+        superficie: form.superficie,
+        tiene_iluminacion: form.tiene_iluminacion,
+        descripcion: form.descripcion.trim() || null,
+        estado: form.estado,
+        activa: true,
+      };
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data, error: supaErr } = await (supabase as any)
         .from("courts")
-        .update(payload)
+        .update(updatePayload)
         .eq("id", editingCourt.id)
         .select()
         .single();
@@ -234,7 +247,7 @@ function CourtModal({
       }
       onSaved(data as Court);
     } else {
-      const { data, error: supaErr } = await supabase
+      const { data, error: supaErr } = await supabaseMut
         .from("courts")
         .insert(payload)
         .select()
@@ -816,7 +829,7 @@ export default function CanchasPage() {
       prev.map((c) => (c.id === court.id ? { ...c, activa: !c.activa } : c))
     );
 
-    const { error } = await supabase
+    const { error } = await supabaseMut
       .from("courts")
       .update({ activa: !court.activa })
       .eq("id", court.id);
@@ -833,7 +846,7 @@ export default function CanchasPage() {
     // Optimistic removal
     setCourts((prev) => prev.filter((c) => c.id !== courtId));
 
-    const { error } = await supabase.from("courts").delete().eq("id", courtId);
+    const { error } = await supabaseMut.from("courts").delete().eq("id", courtId);
 
     if (error) {
       // Revert — refetch

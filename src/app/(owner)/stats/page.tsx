@@ -158,7 +158,7 @@ export default function StatsPage() {
         .limit(5);
 
       // Supabase returns the joined field as an object or null
-      const mappedReviews: ReviewRow[] = (reviewData ?? []).map((r) => ({
+      const mappedReviews: ReviewRow[] = ((reviewData as any[]) ?? []).map((r: any) => ({
         id: r.id as string,
         estrellas: r.estrellas as number,
         texto: r.texto as string | null,

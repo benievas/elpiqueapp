@@ -6,6 +6,8 @@ import Image from "next/image";
 import { motion } from "framer-motion";
 import { supabase } from "@/lib/supabase";
 import { Heart, MessageCircle, Share2, Loader, ChevronLeft } from "lucide-react";
+import CityBanner from "@/components/CityBanner";
+import { useCityContext } from "@/components/CityProvider";
 
 interface Post {
   id: string;
@@ -25,10 +27,11 @@ export default function FeedPage() {
   const [filtroTipo, setFiltroTipo] = useState("todos");
   const [loading, setLoading] = useState(true);
   const [likedPosts, setLikedPosts] = useState<Set<string>>(new Set());
+  const { city } = useCityContext();
 
   useEffect(() => {
     fetchPosts();
-  }, [filtroTipo]);
+  }, [filtroTipo, city]);
 
   const fetchPosts = async () => {
     try {
@@ -37,10 +40,11 @@ export default function FeedPage() {
         .select(
           `
           *,
-          complex_name:complexes(nombre)
+          complex_name:complexes!inner(nombre, ciudad)
         `
         )
         .eq("visible", true)
+        .eq("complexes.ciudad", city)
         .order("created_at", { ascending: false });
 
       if (filtroTipo !== "todos") {
@@ -50,7 +54,16 @@ export default function FeedPage() {
       const { data, error } = await query;
 
       if (error) throw error;
-      setPosts(data || []);
+      
+      // Mapear el nombre del complejo desde el objeto anidado o array
+      const postsMapeados = (data || []).map((p: any) => ({
+        ...p,
+        complex_name: Array.isArray(p.complex_name) 
+          ? p.complex_name[0]?.nombre 
+          : p.complex_name?.nombre
+      }));
+      
+      setPosts(postsMapeados as Post[]);
     } catch (err) {
       console.error("Error fetching posts:", err);
     } finally {
@@ -98,6 +111,8 @@ export default function FeedPage() {
           <p className="text-xs text-rodeo-cream/50">Noticias, promos y eventos</p>
         </div>
       </header>
+      
+      <CityBanner />
 
       <div className="max-w-2xl mx-auto px-5 pt-6 space-y-8">
         {/* Filtros */}

@@ -14,7 +14,7 @@ import {
   DollarSign,
   Calendar,
 } from "lucide-react";
-import { supabase } from "@/lib/supabase";
+import { supabase, supabaseMut } from "@/lib/supabase";
 import { useAuth } from "@/lib/hooks/useAuth";
 import type { Reservation, EstadoReserva } from "@/types/database";
 
@@ -160,7 +160,7 @@ export default function ReservasPage() {
 
         if (complejosError) throw complejosError;
 
-        const complexIds = complejos?.map((c) => c.id) ?? [];
+        const complexIds = ((complejos as any[]) ?? []).map((c) => c.id);
 
         if (complexIds.length === 0) {
           setReservations([]);
@@ -184,7 +184,7 @@ export default function ReservasPage() {
 
         if (resError) throw resError;
 
-        setReservations((data as ReservationWithDetails[]) ?? []);
+        setReservations((data as any) ?? []);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Error al cargar reservas");
       } finally {
@@ -199,7 +199,7 @@ export default function ReservasPage() {
 
   async function handleConfirm(id: string) {
     setActionLoading(id + "_confirm");
-    const { error } = await supabase
+    const { error } = await supabaseMut
       .from("reservations")
       .update({ estado: "confirmada", confirmada_por_propietario: true })
       .eq("id", id);
@@ -218,7 +218,7 @@ export default function ReservasPage() {
 
   async function handleCancel(id: string) {
     setActionLoading(id + "_cancel");
-    const { error } = await supabase
+    const { error } = await supabaseMut
       .from("reservations")
       .update({ estado: "cancelada" })
       .eq("id", id);

@@ -6,6 +6,8 @@ import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { supabase } from "@/lib/supabase";
 import { Trophy, Users, Calendar, Filter, Loader, ChevronLeft, Rss } from "lucide-react";
+import CityBanner from "@/components/CityBanner";
+import { useCityContext } from "@/components/CityProvider";
 
 interface Torneo {
   id: string;
@@ -25,16 +27,18 @@ export default function TorneosPage() {
   const [torneos, setTorneos] = useState<Torneo[]>([]);
   const [filtroDeporte, setFiltroDeporte] = useState("todos");
   const [loading, setLoading] = useState(true);
+  const { city } = useCityContext();
 
   useEffect(() => {
     fetchTorneos();
-  }, [filtroDeporte]);
+  }, [filtroDeporte, city]);
 
   const fetchTorneos = async () => {
     try {
       let query = supabase
         .from("tournaments")
-        .select("*")
+        .select(`*, complex:complexes!inner(ciudad)`)
+        .eq("complexes.ciudad", city)
         .order("fecha_inicio", { ascending: true });
 
       if (filtroDeporte !== "todos") {
@@ -130,6 +134,8 @@ export default function TorneosPage() {
           </div>
           <p className="text-rodeo-cream/70 text-base">Participa en emocionantes torneos deportivos</p>
         </motion.div>
+        
+        <CityBanner />
 
         {/* Filtros */}
         <motion.div
