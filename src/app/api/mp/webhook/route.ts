@@ -2,14 +2,19 @@ import { NextRequest, NextResponse } from "next/server";
 import { MercadoPagoConfig, Payment } from "mercadopago";
 import { createClient } from "@supabase/supabase-js";
 
-const mp = new MercadoPagoConfig({
-  accessToken: process.env.MP_ACCESS_TOKEN || "",
-});
+// Clientes lazy — se inicializan en runtime, no en build time
+function getMPClient() {
+  return new MercadoPagoConfig({
+    accessToken: process.env.MP_ACCESS_TOKEN || "",
+  });
+}
 
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL || "",
-  process.env.SUPABASE_SERVICE_ROLE_KEY || ""
-);
+function getSupabaseAdmin() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
+}
 
 const PLAN_DURATIONS: Record<string, number> = {
   monthly: 30,
@@ -17,6 +22,8 @@ const PLAN_DURATIONS: Record<string, number> = {
 };
 
 export async function POST(req: NextRequest) {
+  const mp = getMPClient();
+  const supabaseAdmin = getSupabaseAdmin();
   try {
     const body = await req.json();
     const { type, data } = body as { type: string; data: { id: string } };
