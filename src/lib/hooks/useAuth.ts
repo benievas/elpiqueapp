@@ -35,16 +35,11 @@ export function useAuth() {
           setUser(session.user);
 
           // Obtener perfil del usuario
-          const { data: profileData, error: profileError } = await supabase
+          const { data: profileData } = await supabase
             .from('profiles')
             .select('*')
             .eq('id', session.user.id)
-            .single();
-
-          if (profileError && profileError.code !== 'PGRST116') {
-            // PGRST116 = no rows returned (primera vez)
-            throw profileError;
-          }
+            .maybeSingle();
 
           if (profileData) {
             setProfile(profileData);
@@ -74,7 +69,7 @@ export function useAuth() {
           .from('profiles')
           .select('*')
           .eq('id', session.user.id)
-          .single();
+          .maybeSingle();
 
         if (profileData) {
           setProfile(profileData);

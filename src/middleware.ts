@@ -34,18 +34,19 @@ export async function middleware(request: NextRequest) {
 
   // Obtener sesión de las cookies
   const cookieHeader = request.headers.get('cookie') ?? '';
-  const cookies = parseCookieHeader(cookieHeader);
+  const parsedCookies = parseCookieHeader(cookieHeader);
+  // parseCookieHeader puede devolver array u objeto según la versión
+  const cookieList: { name: string; value: string }[] = Array.isArray(parsedCookies)
+    ? parsedCookies
+    : Object.entries(parsedCookies as Record<string, string>).map(([name, value]) => ({ name, value }));
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
-        getAll: () =>
-          Object.entries(cookies).map(([name, value]) => ({ name, value })),
-        setAll: () => {
-          // Las cookies se setean en la response
-        },
+        getAll: () => cookieList,
+        setAll: () => {},
       },
     }
   );
@@ -78,7 +79,7 @@ export async function middleware(request: NextRequest) {
       .from('profiles')
       .select('rol')
       .eq('id', user.id)
-      .single();
+      .maybeSingle();
 
     if (pathname.startsWith('/admin')) {
       // Solo admin y superadmin
