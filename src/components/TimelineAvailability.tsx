@@ -7,12 +7,14 @@ interface TimelineAvailabilityProps {
   disponibilidad: Record<string, boolean>;
   selectedHora: string | null;
   onSelectHora: (hora: string) => void;
+  horasEnRango?: string[];
 }
 
 export default function TimelineAvailability({
   disponibilidad,
   selectedHora,
   onSelectHora,
+  horasEnRango,
 }: TimelineAvailabilityProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const ahora = new Date().getHours();
@@ -40,6 +42,7 @@ export default function TimelineAvailability({
             const disponible = disponibilidad[hora];
             const isNow = parseInt(hora) === ahora;
             const isSelected = selectedHora === hora;
+            const isInRange = horasEnRango?.includes(hora) && !isSelected;
 
             return (
               <motion.button
@@ -54,6 +57,8 @@ export default function TimelineAvailability({
                   ${
                     isSelected
                       ? "bg-rodeo-lime text-rodeo-dark border border-rodeo-lime shadow-lg shadow-rodeo-lime/40"
+                      : isInRange
+                      ? "bg-rodeo-lime/70 text-rodeo-dark/80 border border-rodeo-lime/60"
                       : disponible
                       ? "bg-rodeo-lime/10 border border-rodeo-lime/40 text-rodeo-lime hover:bg-rodeo-lime/20"
                       : "bg-red-500/10 border border-red-500/30 text-red-400/50 cursor-not-allowed opacity-50"
@@ -87,6 +92,10 @@ export default function TimelineAvailability({
         <div className="flex items-center gap-2">
           <div className="w-2 h-2 rounded-full bg-rodeo-lime" />
           Disponible
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="w-2 h-2 rounded-full bg-rodeo-lime/70" />
+          En reserva
         </div>
         <div className="flex items-center gap-2">
           <div className="w-2 h-2 rounded-full bg-red-400" />

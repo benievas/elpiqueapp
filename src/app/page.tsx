@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Search,
@@ -22,6 +22,43 @@ import {
   MessageCircle,
 } from "lucide-react";
 import Link from "next/link";
+
+// --- SLIDES PROMOCIONALES (sobre ElPiqueApp) ---
+const PROMO_SLIDES = [
+  {
+    id: "p1",
+    isPromo: true,
+    title: "RESERVÁ EN SEGUNDOS",
+    subtitle: "CONFIRMACIÓN VÍA WHATSAPP",
+    description: "Elegí la cancha, seleccioná el horario disponible y confirmá con el dueño directo por WhatsApp. Sin apps extra, sin esperas ni complicaciones.",
+    bgImage: "https://images.unsplash.com/photo-1508098682722-e99c43a406b2?q=80&w=2000&auto=format&fit=crop",
+    cardImage: "https://images.unsplash.com/photo-1508098682722-e99c43a406b2?q=80&w=600&auto=format&fit=crop",
+    ctaLink: "/explorar",
+    ctaLabel: "Explorar canchas",
+  },
+  {
+    id: "p2",
+    isPromo: true,
+    title: "TORNEOS Y LIGAS",
+    subtitle: "COMPETÍ CON TU EQUIPO",
+    description: "Anotate en torneos activos en tu ciudad. Seguí el bracket, resultados y clasificaciones. Organización completa, gratis para jugadores.",
+    bgImage: "https://images.unsplash.com/photo-1542144582-1ba00456b5e3?q=80&w=2000&auto=format&fit=crop",
+    cardImage: "https://images.unsplash.com/photo-1542144582-1ba00456b5e3?q=80&w=600&auto=format&fit=crop",
+    ctaLink: "/torneos",
+    ctaLabel: "Ver torneos",
+  },
+  {
+    id: "p3",
+    isPromo: true,
+    title: "MAPA INTERACTIVO",
+    subtitle: "ENCONTRÁ CANCHAS CERCA",
+    description: "Explorá todos los complejos deportivos en el mapa. Filtrá por deporte y disponibilidad. El GPS muestra los más cercanos a vos.",
+    bgImage: "https://images.unsplash.com/photo-1579952363873-27f3bade9f55?q=80&w=2000&auto=format&fit=crop",
+    cardImage: "https://images.unsplash.com/photo-1579952363873-27f3bade9f55?q=80&w=600&auto=format&fit=crop",
+    ctaLink: "/mapa",
+    ctaLabel: "Ver mapa",
+  },
+];
 
 // --- DATOS MOCK DEL SLIDER ---
 const MOCK_DESTINATIONS = [
@@ -66,6 +103,14 @@ const MOCK_DESTINATIONS = [
   },
 ];
 
+// Interleaved: [promo, complex, promo, complex, promo, complex]
+const ALL_SLIDES = PROMO_SLIDES.flatMap((promo, i) => {
+  const complex = MOCK_DESTINATIONS[i];
+  return complex
+    ? [promo, { ...complex, isPromo: false, ctaLink: `/complejo/${complex.slug}`, ctaLabel: "Reservar Cancha" }]
+    : [promo];
+});
+
 const MOCK_ALERTA_ACTIVA = {
   activa: false,
   nivel: "amarillo" as "amarillo" | "rojo",
@@ -105,20 +150,25 @@ export default function Home() {
   const [currentIndex, setCurrentIndex] = useState(0);
 
   const handleNext = useCallback(() => {
-    setCurrentIndex((prev) => (prev + 1) % MOCK_DESTINATIONS.length);
+    setCurrentIndex((prev) => (prev + 1) % ALL_SLIDES.length);
   }, []);
 
   const handlePrev = useCallback(() => {
-    setCurrentIndex((prev) => (prev - 1 + MOCK_DESTINATIONS.length) % MOCK_DESTINATIONS.length);
+    setCurrentIndex((prev) => (prev - 1 + ALL_SLIDES.length) % ALL_SLIDES.length);
   }, []);
 
   useEffect(() => {
-    setCurrentIndex(Math.floor(Math.random() * MOCK_DESTINATIONS.length));
+    setCurrentIndex(Math.floor(Math.random() * ALL_SLIDES.length));
     const timer = setInterval(handleNext, 7000);
     return () => clearInterval(timer);
   }, [handleNext]);
 
-  const activeItem = MOCK_DESTINATIONS[currentIndex];
+  const activeItem = ALL_SLIDES[currentIndex];
+
+  const destacadosAleatorios = useMemo(
+    () => [...MOCK_LUGARES_DESTACADOS].sort(() => Math.random() - 0.5),
+    []
+  );
 
   const alertaColor = MOCK_ALERTA_ACTIVA.nivel === "rojo"
     ? { bg: "bg-red-500/20 border-y border-red-400/30", icono: "text-red-400", badge: "bg-red-500/20 text-red-400 border border-red-400/30" }
@@ -213,11 +263,16 @@ export default function Home() {
                 <p className="text-base md:text-lg text-rodeo-cream/90 max-w-md mt-2 font-light leading-relaxed">
                   {activeItem.description}
                 </p>
-                <div className="mt-6">
-                  <Link href={`/complejo/${activeItem.slug}`} className="liquid-button inline-flex items-center gap-3 text-sm font-bold tracking-widest uppercase w-fit">
+                <div className="mt-6 flex items-center gap-3">
+                  <Link href={(activeItem as { ctaLink: string }).ctaLink} className="liquid-button inline-flex items-center gap-3 text-sm font-bold tracking-widest uppercase w-fit">
                     <MapPin size={18} />
-                    Reservar Cancha
+                    {(activeItem as { ctaLabel: string }).ctaLabel}
                   </Link>
+                  {(activeItem as { isPromo?: boolean }).isPromo && (
+                    <span className="text-[10px] font-bold tracking-widest text-rodeo-lime/60 uppercase px-2 py-1 rounded-full border border-rodeo-lime/20 bg-rodeo-lime/5">
+                      ElPiqueApp
+                    </span>
+                  )}
                 </div>
               </motion.div>
             </AnimatePresence>
@@ -233,21 +288,34 @@ export default function Home() {
               animate={{ x: `calc(-${currentIndex * 320}px - ${currentIndex * 24}px)` }}
               transition={{ type: "spring", stiffness: 300, damping: 30 }}
             >
-              {MOCK_DESTINATIONS.map((dest, index) => {
+              {ALL_SLIDES.map((slide, index) => {
                 const isActive = index === currentIndex;
+                const isPromo = (slide as { isPromo?: boolean }).isPromo;
                 return (
                   <motion.div
-                    key={dest.id}
+                    key={slide.id}
                     animate={{ scale: isActive ? 1 : 0.85, opacity: isActive ? 1 : 0.5 }}
                     transition={{ duration: 0.4 }}
                     className="w-[320px] h-[460px] shrink-0 rounded-liquid-lg overflow-hidden relative cursor-pointer group shadow-glass border border-white/20"
                     onClick={() => setCurrentIndex(index)}
                   >
-                    <img src={dest.cardImage} alt={dest.title} className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+                    <img src={(slide as { cardImage: string }).cardImage} alt={slide.title} className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
+                    <div className={`absolute inset-0 ${isPromo ? "bg-gradient-to-t from-black/90 via-rodeo-dark/60 to-rodeo-lime/10" : "bg-gradient-to-t from-black/80 via-black/20 to-transparent"}`} />
+                    {isPromo && (
+                      <div className="absolute top-4 left-4">
+                        <span className="text-[10px] font-black tracking-widest uppercase px-2.5 py-1 rounded-full bg-rodeo-lime text-rodeo-dark">
+                          ElPiqueApp
+                        </span>
+                      </div>
+                    )}
                     <div className="absolute bottom-0 left-0 p-8">
-                      <span className="text-xs font-bold tracking-widest text-rodeo-cream/80 uppercase mb-2 block">{dest.subtitle}</span>
-                      <h3 className="text-2xl font-black text-white uppercase tracking-tight">{dest.title}</h3>
+                      <span className="text-xs font-bold tracking-widest text-rodeo-cream/80 uppercase mb-2 block">{slide.subtitle}</span>
+                      <h3 className="text-2xl font-black text-white uppercase tracking-tight">{slide.title}</h3>
+                      {isPromo && (
+                        <span className="mt-3 inline-block text-xs text-rodeo-lime font-bold">
+                          {(slide as { ctaLabel: string }).ctaLabel} →
+                        </span>
+                      )}
                     </div>
                   </motion.div>
                 );
@@ -256,8 +324,8 @@ export default function Home() {
           </div>
         </main>
 
-        {/* CONTROLES */}
-        <footer className="absolute bottom-10 w-full px-6 md:px-24 flex justify-between items-end z-20">
+        {/* CONTROLES — en mobile subimos para que no queden tapados por el BottomNav */}
+        <footer className="absolute bottom-28 md:bottom-10 w-full px-6 md:px-24 flex justify-between items-end z-20">
           <div className="flex gap-4">
             <button onClick={handlePrev} className="w-12 h-12 rounded-full border border-white/30 bg-white/5 hover:bg-white/20 backdrop-blur-md flex items-center justify-center transition-colors">
               <ChevronLeft size={24} />
@@ -271,7 +339,7 @@ export default function Home() {
           </div>
         </footer>
 
-        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center gap-1.5">
+        <div className="absolute hidden md:flex bottom-6 left-1/2 -translate-x-1/2 z-20 flex-col items-center gap-1.5">
           <motion.div animate={{ y: [0, 8, 0] }} transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}>
             <ChevronDown size={20} className="text-white/40" />
           </motion.div>
@@ -336,7 +404,7 @@ export default function Home() {
         <div className="max-w-4xl mx-auto">
           <h2 className="text-2xl font-black uppercase tracking-tight text-white px-6 mb-6">Complejos Destacados</h2>
           <div className="flex gap-4 overflow-x-auto px-6 pb-4 snap-x snap-mandatory scroll-smooth scrollbar-thin">
-            {MOCK_LUGARES_DESTACADOS.map((lugar, i) => (
+            {destacadosAleatorios.map((lugar, i) => (
               <Link key={i} href={`/complejo/${lugar.slug}`} className="w-64 shrink-0 liquid-panel overflow-hidden hover:bg-white/10 transition-colors snap-start">
                 <div className="h-40 overflow-hidden">
                   <img src={lugar.imagen} alt={lugar.nombre} className="w-full h-full object-cover hover:scale-105 transition-transform duration-500" />

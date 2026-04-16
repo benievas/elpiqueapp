@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { motion } from "framer-motion";
-import { ArrowRight, Clock } from "lucide-react";
+import { ArrowRight, Clock, Minus, Plus } from "lucide-react";
 import TimelineAvailability from "./TimelineAvailability";
 import DatePickerCustom from "./DatePickerCustom";
 
@@ -50,26 +50,30 @@ function sumarHoras(hora: string, cantidad: number): string {
   return `${nuevaHora.toString().padStart(2, "0")}:00`;
 }
 
+// Retorna el array de horas cubiertas por el rango (sin incluir la hora de fin)
+function horasEnRango(inicio: string, duracion: number): string[] {
+  const slots: string[] = [];
+  for (let i = 0; i < duracion; i++) {
+    slots.push(sumarHoras(inicio, i));
+  }
+  return slots;
+}
+
 // Verifica que todas las horas en el rango estén disponibles
-function rangoDisponible(
-  horaInicio: string,
+function horasLibres(
+  inicio: string,
   duracion: number,
   disponibilidad: Record<string, boolean>
 ): boolean {
   for (let i = 0; i < duracion; i++) {
-    const h = sumarHoras(horaInicio, i);
+    const h = sumarHoras(inicio, i);
     if (!disponibilidad[h]) return false;
   }
   return true;
 }
 
-const DURACIONES = [
-  { valor: 1, label: "1 hora" },
-  { valor: 1.5, label: "1h 30m" },
-  { valor: 2, label: "2 horas" },
-  { valor: 2.5, label: "2h 30m" },
-  { valor: 3, label: "3 horas" },
-];
+const MAX_DURACION = 6;
+const MIN_DURACION = 1;
 
 export default function AvailabilityWidget({
   complejo,
@@ -98,17 +102,35 @@ export default function AvailabilityWidget({
   // Calcular hora de fin
   const horaFin = horaSeleccionada ? sumarHoras(horaSeleccionada, duracion) : null;
 
+  // Array de horas cubiertas por el rango actual
+  const horasEnRangoActual: string[] = horaSeleccionada
+    ? horasEnRango(horaSeleccionada, duracion)
+    : [];
+
   // Verificar si el rango seleccionado es válido
   const rangoValido = horaSeleccionada
-    ? rangoDisponible(horaSeleccionada, Math.ceil(duracion), disponibilidad)
+    ? horasLibres(horaSeleccionada, duracion, disponibilidad)
     : false;
+
+  // Cambiar duración solo si el nuevo rango está disponible
+  function handleSetDuracion(delta: number) {
+    if (!horaSeleccionada) return;
+    const nuevaDuracion = duracion + delta;
+    if (nuevaDuracion < MIN_DURACION || nuevaDuracion > MAX_DURACION) return;
+    const fueraDeRango =
+      parseInt(sumarHoras(horaSeleccionada, nuevaDuracion).split(":")[0]) > 24;
+    if (fueraDeRango) return;
+    if (horasLibres(horaSeleccionada, nuevaDuracion, disponibilidad)) {
+      setDuracion(nuevaDuracion);
+    }
+  }
 
   const generarLinkWhatsApp = () => {
     if (!horaSeleccionada || !horaFin) return "";
     const mensaje = encodeURIComponent(
       `Hola! Quiero reservar la cancha *${canchaNombre}* en *${complejo.nombre}*.\n` +
         `📅 Fecha: ${fechaFormato}\n` +
-        `🕐 Horario: ${horaSeleccionada} a ${horaFin} (${duracion}h)\n` +
+        `🕐 Horario: de ${horaSeleccionada} a ${horaFin} (${duracion}h)\n` +
         `💰 Precio estimado: $${precioTotal.toLocaleString()}\n` +
         `Confirmarme disponibilidad. ¡Gracias!`
     );
@@ -129,26 +151,27 @@ export default function AvailabilityWidget({
         <div className="flex flex-col gap-2">
           {canchas
             .filter((c) => c.disponible)
-            .map((cancha) => (
+            .map((c) => (
               <motion.button
-                key={cancha.id}
+                key={c.id}
                 onClick={() => {
-                  setCanchaSeleccionada(cancha.id);
+                  setCanchaSeleccionada(c.id);
                   setHoraSeleccionada(null);
+                  setDuracion(1);
                 }}
                 whileHover={{ scale: 1.01 }}
                 whileTap={{ scale: 0.99 }}
                 className={`w-full px-4 py-3 rounded-liquid border transition-all text-left flex items-center justify-between gap-3 ${
-                  canchaSeleccionada === cancha.id
+                  canchaSeleccionada === c.id
                     ? "bg-rodeo-lime text-rodeo-dark border-rodeo-lime shadow-lg shadow-rodeo-lime/40"
                     : "bg-white/5 border-white/10 text-rodeo-cream hover:bg-white/10"
                 }`}
               >
-                <span className="text-sm font-bold">{cancha.nombre}</span>
+                <span className="text-sm font-bold">{c.nombre}</span>
                 <span className={`text-xs font-bold shrink-0 ${
-                  canchaSeleccionada === cancha.id ? "text-rodeo-dark/70" : "text-rodeo-lime"
+                  canchaSeleccionada === c.id ? "text-rodeo-dark/70" : "text-rodeo-lime"
                 }`}>
-                  ${(cancha.precio / 1000).toFixed(0)}K/h
+                  ${(c.precio / 1000).toFixed(0)}K/h
                 </span>
               </motion.button>
             ))}
@@ -163,7 +186,11 @@ export default function AvailabilityWidget({
       >
         <DatePickerCustom
           selectedDate={fechaSeleccionada}
-          onSelectDate={(d) => { setFechaSeleccionada(d); setHoraSeleccionada(null); }}
+          onSelectDate={(d) => {
+            setFechaSeleccionada(d);
+            setHoraSeleccionada(null);
+            setDuracion(1);
+          }}
           availableDates={proximosDias}
         />
       </motion.div>
@@ -177,7 +204,11 @@ export default function AvailabilityWidget({
         <TimelineAvailability
           disponibilidad={disponibilidad}
           selectedHora={horaSeleccionada}
-          onSelectHora={setHoraSeleccionada}
+          onSelectHora={(hora) => {
+            setHoraSeleccionada(hora);
+            setDuracion(1);
+          }}
+          horasEnRango={horasEnRangoActual}
         />
       </motion.div>
 
@@ -194,56 +225,81 @@ export default function AvailabilityWidget({
               ¿Cuántas horas?
             </h3>
           </div>
-          <div className="flex gap-2 flex-wrap">
-            {DURACIONES.map((d) => {
-              const esValido = rangoDisponible(
-                horaSeleccionada,
-                Math.ceil(d.valor),
-                disponibilidad
-              );
-              const fueraDeRango = horaSeleccionada
-                ? parseInt(sumarHoras(horaSeleccionada, d.valor).split(":")[0]) > 24
-                : false;
+
+          {/* Contador +/- */}
+          <div className="flex items-center gap-4 mb-4">
+            <button
+              onClick={() => handleSetDuracion(-1)}
+              disabled={duracion <= MIN_DURACION}
+              className={`w-10 h-10 rounded-full border flex items-center justify-center transition-all ${
+                duracion <= MIN_DURACION
+                  ? "border-white/10 text-rodeo-cream/20 cursor-not-allowed"
+                  : "border-rodeo-lime/40 text-rodeo-lime hover:bg-rodeo-lime/10 active:scale-95"
+              }`}
+            >
+              <Minus size={16} />
+            </button>
+
+            <div className="flex-1 text-center">
+              <span className="text-2xl font-black text-rodeo-lime">
+                {duracion}
+              </span>
+              <span className="text-rodeo-cream/50 text-sm ml-1.5">
+                hora{duracion !== 1 ? "s" : ""}
+              </span>
+            </div>
+
+            <button
+              onClick={() => handleSetDuracion(1)}
+              disabled={
+                duracion >= MAX_DURACION ||
+                !horasLibres(horaSeleccionada, duracion + 1, disponibilidad) ||
+                parseInt(sumarHoras(horaSeleccionada, duracion + 1).split(":")[0]) > 24
+              }
+              className={`w-10 h-10 rounded-full border flex items-center justify-center transition-all ${
+                duracion >= MAX_DURACION ||
+                !horasLibres(horaSeleccionada, duracion + 1, disponibilidad) ||
+                parseInt(sumarHoras(horaSeleccionada, duracion + 1).split(":")[0]) > 24
+                  ? "border-white/10 text-rodeo-cream/20 cursor-not-allowed"
+                  : "border-rodeo-lime/40 text-rodeo-lime hover:bg-rodeo-lime/10 active:scale-95"
+              }`}
+            >
+              <Plus size={16} />
+            </button>
+          </div>
+
+          {/* Barra visual 1-6 horas */}
+          <div className="flex gap-1">
+            {Array.from({ length: MAX_DURACION }, (_, i) => i + 1).map((slot) => {
+              const isFilled = slot <= duracion;
+              const isReachable =
+                horasLibres(horaSeleccionada, slot, disponibilidad) &&
+                parseInt(sumarHoras(horaSeleccionada, slot).split(":")[0]) <= 24;
 
               return (
                 <button
-                  key={d.valor}
-                  onClick={() => esValido && !fueraDeRango && setDuracion(d.valor)}
-                  disabled={!esValido || fueraDeRango}
-                  style={
-                    duracion === d.valor
-                      ? {
-                          background: "linear-gradient(135deg, #C8FF00, #A8D800)",
-                          borderRadius: "12px",
-                          boxShadow: "0 4px 16px rgba(200,255,0,0.35)",
-                          border: "1px solid rgba(200,255,0,0.6)",
-                        }
-                      : !esValido || fueraDeRango
-                      ? {
-                          background: "rgba(255,60,60,0.06)",
-                          border: "1px solid rgba(255,60,60,0.15)",
-                          borderRadius: "12px",
-                          opacity: 0.4,
-                        }
-                      : {
-                          background: "rgba(200,255,0,0.08)",
-                          border: "1px solid rgba(200,255,0,0.2)",
-                          borderRadius: "12px",
-                        }
-                  }
-                  className={`px-4 py-2 text-sm font-bold transition-all ${
-                    duracion === d.valor
-                      ? "text-rodeo-dark"
-                      : !esValido || fueraDeRango
-                      ? "text-red-400 cursor-not-allowed"
-                      : "text-rodeo-lime hover:bg-rodeo-lime/15"
+                  key={slot}
+                  onClick={() => {
+                    if (isReachable) setDuracion(slot);
+                  }}
+                  disabled={!isReachable}
+                  title={`${slot}h`}
+                  className={`flex-1 h-2.5 rounded-full transition-all ${
+                    isFilled && isReachable
+                      ? "bg-rodeo-lime shadow-sm shadow-rodeo-lime/40"
+                      : isReachable
+                      ? "bg-rodeo-lime/20 hover:bg-rodeo-lime/40"
+                      : "bg-red-500/20 cursor-not-allowed"
                   }`}
-                >
-                  {d.label}
-                </button>
+                />
               );
             })}
           </div>
+          <div className="flex justify-between mt-1 text-[10px] text-rodeo-cream/30 px-0.5">
+            <span>1h</span>
+            <span>6h</span>
+          </div>
+
           {!rangoValido && horaSeleccionada && (
             <p className="text-xs text-red-400/80 mt-3 flex items-center gap-1.5">
               <span>⚠</span>
@@ -261,17 +317,11 @@ export default function AvailabilityWidget({
           transition={{ type: "spring", stiffness: 200 }}
           className="liquid-panel p-6 bg-rodeo-lime/10 border-rodeo-lime/40 space-y-6"
         >
-          {/* Resumen */}
+          {/* Resumen — 4 celdas: Cancha / Inicio / Fin / Duración */}
           <div className="grid grid-cols-4 gap-3 text-center">
             <div>
               <p className="text-xs text-rodeo-cream/60 mb-1">Cancha</p>
               <p className="text-sm font-bold text-rodeo-lime truncate">{canchaNombre}</p>
-            </div>
-            <div>
-              <p className="text-xs text-rodeo-cream/60 mb-1">Fecha</p>
-              <p className="text-sm font-bold text-rodeo-lime">
-                {new Date(fechaSeleccionada + "T00:00:00").toLocaleDateString("es-AR", { day: "numeric", month: "short" })}
-              </p>
             </div>
             <div>
               <p className="text-xs text-rodeo-cream/60 mb-1">Inicio</p>
@@ -281,9 +331,13 @@ export default function AvailabilityWidget({
               <p className="text-xs text-rodeo-cream/60 mb-1">Fin</p>
               <p className="text-sm font-bold text-rodeo-lime">{horaFin}</p>
             </div>
+            <div>
+              <p className="text-xs text-rodeo-cream/60 mb-1">Duración</p>
+              <p className="text-sm font-bold text-rodeo-lime">{duracion}h</p>
+            </div>
           </div>
 
-          {/* Duración + Precio */}
+          {/* Precio por hora × N = total */}
           <div
             style={{
               background: "rgba(200,255,0,0.06)",
@@ -293,8 +347,10 @@ export default function AvailabilityWidget({
             className="flex justify-between items-center px-5 py-4"
           >
             <div>
-              <p className="text-xs text-rodeo-cream/50">Duración total</p>
-              <p className="text-white font-bold">{duracion} hora{duracion !== 1 ? "s" : ""}</p>
+              <p className="text-xs text-rodeo-cream/50">Precio</p>
+              <p className="text-white font-bold">
+                ${cancha?.precio.toLocaleString()}/h × {duracion}h
+              </p>
             </div>
             <div className="text-right">
               <p className="text-xs text-rodeo-cream/50">Total estimado</p>

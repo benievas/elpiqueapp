@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Building2, BarChart3, Calendar, ClipboardList, Settings, Crown, ArrowRight } from "lucide-react";
+import { Building2, BarChart3, Calendar, ClipboardList, Crown, ArrowRight, Wallet } from "lucide-react";
 
 export default function OwnerPage() {
   return (
@@ -43,11 +43,11 @@ export default function OwnerPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           {[
             { icon: Building2, label: "Mi Complejo", desc: "Información y datos del complejo", href: "/complejo" },
-            { icon: Crown, label: "Suscripción", desc: "Plan activo y facturación", href: "/suscripcion" },
+            { icon: Wallet, label: "Caja y Cierre", desc: "Registrá ingresos y egresos del día", href: "/owner/caja" },
             { icon: Calendar, label: "Canchas", desc: "Gestión de canchas y horarios", href: "/owner/canchas" },
             { icon: ClipboardList, label: "Reservas", desc: "Ver y gestionar reservas entrantes", href: "/owner/reservas" },
             { icon: BarChart3, label: "Estadísticas", desc: "Rendimiento y métricas del complejo", href: "/owner/stats" },
-            { icon: Settings, label: "Configuración", desc: "Ajustes de tu cuenta", href: "/owner/settings" },
+            { icon: Crown, label: "Suscripción", desc: "Plan activo y facturación", href: "/suscripcion" },
           ].map((item) => (
             <Link key={item.href} href={item.href}>
               <div

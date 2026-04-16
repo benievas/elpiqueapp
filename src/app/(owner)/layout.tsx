@@ -14,6 +14,8 @@ import {
   Settings,
   LogOut,
   Crown,
+  Wallet,
+  QrCode,
 } from "lucide-react";
 import { useAuth } from "@/lib/hooks/useAuth";
 
@@ -21,6 +23,8 @@ const OWNER_MENU = [
   { icon: Building2, label: "Mi Complejo", href: "/owner/complejo" },
   { icon: Calendar, label: "Canchas", href: "/owner/canchas" },
   { icon: ClipboardList, label: "Reservas", href: "/owner/reservas" },
+  { icon: Wallet, label: "Caja y Cierre", href: "/owner/caja" },
+  { icon: QrCode, label: "Mi Link / QR", href: "/owner/mi-link" },
   { icon: BarChart3, label: "Estadísticas", href: "/owner/stats" },
   { icon: Settings, label: "Configuración", href: "/owner/settings" },
   { icon: Crown, label: "Suscripción", href: "/owner/suscripcion" },
@@ -33,7 +37,7 @@ export default function OwnerLayout({
 }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { signOut, profile, loading } = useAuth();
+  const { signOut, profile, loading, user, isOwner, isAdmin } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
   const handleSignOut = async () => {
@@ -44,9 +48,21 @@ export default function OwnerLayout({
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-rodeo-dark">
-        <div className="text-rodeo-cream animate-pulse">Cargando...</div>
+        <div className="w-8 h-8 border-2 border-rodeo-lime/30 border-t-rodeo-lime rounded-full animate-spin" />
       </div>
     );
+  }
+
+  // Redirect if not authenticated
+  if (!user) {
+    router.replace("/login");
+    return null;
+  }
+
+  // Redirect if not owner/admin (only check once profile is loaded)
+  if (profile && !isOwner && !isAdmin) {
+    router.replace("/perfil");
+    return null;
   }
 
   return (

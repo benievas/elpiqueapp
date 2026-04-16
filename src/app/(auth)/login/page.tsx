@@ -161,10 +161,21 @@ export default function LoginPage() {
             </p>
           </motion.div>
 
+          {/* Owner note */}
+          <div
+            className="text-center px-4 py-3 rounded-[16px]"
+            style={{ background: "rgba(200,255,0,0.05)", border: "1px solid rgba(200,255,0,0.15)" }}
+          >
+            <p className="text-xs text-rodeo-cream/60">
+              <span className="text-rodeo-lime font-bold">¿Sos dueño de un complejo?</span>{" "}
+              Iniciá sesión con el mismo email de registro y accedé automáticamente a tu panel de gestión.
+            </p>
+          </div>
+
           {/* Guest Link */}
           <div className="text-center">
             <p className="text-sm text-rodeo-cream/60 mb-3">
-              ¿Prefieres explorar primero?
+              ¿Preferís explorar primero?
             </p>
             <Link
               href="/explorar"

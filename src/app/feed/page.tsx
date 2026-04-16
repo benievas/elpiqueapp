@@ -5,7 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { motion } from "framer-motion";
 import { supabase } from "@/lib/supabase";
-import { Heart, MessageCircle, Share2, Loader } from "lucide-react";
+import { Heart, MessageCircle, Share2, Loader, ChevronLeft } from "lucide-react";
 
 interface Post {
   id: string;
@@ -87,22 +87,19 @@ export default function FeedPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-rodeo-dark via-rodeo-brown to-rodeo-dark py-12 px-6">
-      <div className="max-w-2xl mx-auto space-y-8">
-        {/* Header */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="space-y-4"
-        >
-          <h1 className="text-4xl font-black text-white uppercase tracking-tight">
-            Feed 📰
-          </h1>
-          <p className="text-rodeo-cream/70">
-            Mantente actualizado con noticias, promos y eventos
-          </p>
-        </motion.div>
+    <div className="min-h-screen bg-gradient-to-b from-rodeo-dark via-rodeo-brown to-rodeo-dark pb-28">
+      {/* Header sticky */}
+      <header className="sticky top-0 z-30 px-5 py-4 flex items-center gap-4 bg-rodeo-dark/60 backdrop-blur-md border-b border-white/5">
+        <Link href="/" className="w-10 h-10 rounded-full border border-white/20 bg-white/8 hover:bg-white/15 flex items-center justify-center transition-all shrink-0">
+          <ChevronLeft className="text-rodeo-cream" size={20} />
+        </Link>
+        <div>
+          <h1 className="text-lg font-black text-white tracking-wide">Feed</h1>
+          <p className="text-xs text-rodeo-cream/50">Noticias, promos y eventos</p>
+        </div>
+      </header>
 
+      <div className="max-w-2xl mx-auto px-5 pt-6 space-y-8">
         {/* Filtros */}
         <motion.div
           initial={{ opacity: 0 }}

@@ -8,6 +8,7 @@ import {
   ChevronLeft,
   Heart,
   Share2,
+  Check,
   Star,
   MapPin,
   Clock,
@@ -286,6 +287,18 @@ export default function ComplejoPage({
 
   const [favorito, setFavorito] = useState(false);
   const [imagenActiva, setImagenActiva] = useState(0);
+  const [linkCopiado, setLinkCopiado] = useState(false);
+
+  const handleShare = async () => {
+    const url = `${typeof window !== "undefined" ? window.location.origin : "https://elpique.app"}/complejo/${slug}`;
+    if (navigator.share) {
+      await navigator.share({ title: complejo?.nombre, text: `Reservá canchas en ${complejo?.nombre}`, url });
+    } else {
+      await navigator.clipboard.writeText(url);
+      setLinkCopiado(true);
+      setTimeout(() => setLinkCopiado(false), 2000);
+    }
+  };
 
   const todasLasImagenes = complejo
     ? [complejo.imagenPrincipal, ...complejo.galeria]
@@ -353,8 +366,12 @@ export default function ComplejoPage({
               >
                 <Heart size={18} className={favorito ? "fill-red-400 text-red-400" : "text-white"} />
               </button>
-              <button className="w-10 h-10 rounded-full bg-black/40 backdrop-blur-md border border-white/20 flex items-center justify-center hover:bg-black/60 transition-colors">
-                <Share2 size={18} className="text-white" />
+              <button
+                onClick={handleShare}
+                title={linkCopiado ? "¡Link copiado!" : "Compartir"}
+                className="w-10 h-10 rounded-full bg-black/40 backdrop-blur-md border border-white/20 flex items-center justify-center hover:bg-black/60 transition-colors"
+              >
+                {linkCopiado ? <Check size={18} className="text-rodeo-lime" /> : <Share2 size={18} className="text-white" />}
               </button>
             </div>
           </div>
