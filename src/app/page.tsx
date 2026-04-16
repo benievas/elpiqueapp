@@ -1,5 +1,6 @@
 "use client";
 
+// Home page for ElPiqueApp
 import Link from "next/link";
 
 export default function Home() {
