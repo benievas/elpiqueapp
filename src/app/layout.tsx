@@ -80,7 +80,7 @@ export default function RootLayout({
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://generativelanguage.googleapis.com" />
       </head>
-      <body className="antialiased bg-gradient-to-b from-rodeo-dark via-rodeo-brown to-rodeo-dark min-h-screen">
+      <body className="antialiased min-h-screen" style={{ background: "linear-gradient(160deg, #040D07 0%, #081810 40%, #050F09 70%, #030A06 100%)" }}>
         <DeviceDetection />
         {children}
         <BottomNav />

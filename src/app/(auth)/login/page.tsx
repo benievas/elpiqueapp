@@ -74,7 +74,7 @@ export default function LoginPage() {
             <motion.img
               src="/assets/logo-main.png"
               alt="ElPiqueApp"
-              className="h-14 w-auto"
+              className="h-16 w-auto"
               whileHover={{ scale: 1.05 }}
             />
             <p className="text-rodeo-cream/70 text-sm">

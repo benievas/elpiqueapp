@@ -1,65 +1,139 @@
 @import "tailwindcss";
 
 @theme {
-  --color-rodeo-dark: #1A120B;
-  --color-rodeo-brown: #1A1A1A;
-  --color-rodeo-cream: #E1D4C2;
-  --color-rodeo-terracotta: #00D455;
+  /* ── Paleta Verde Galáctico Deportivo ── */
+  --color-rodeo-dark:       #040D07;   /* negro verdoso profundo */
+  --color-rodeo-brown:      #081810;   /* verde muy oscuro */
+  --color-rodeo-surface:    #0D2016;   /* superficie elevada */
+  --color-rodeo-cream:      #E8F0E4;   /* blanco verdoso suave */
+  --color-rodeo-muted:      #7A9B82;   /* texto secundario */
+  --color-rodeo-lime:       #C8FF00;   /* acento lima neón */
+  --color-rodeo-terracotta: #00E676;   /* verde éxito */
 
-  --radius-liquid: 24px;
+  --radius-liquid:    22px;
   --radius-liquid-lg: 30px;
 
-  --shadow-glass: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+  --shadow-glass: 0 8px 40px 0 rgba(0, 0, 0, 0.6), 0 2px 8px 0 rgba(0,0,0,0.4);
+  --shadow-glass-lg: 0 24px 64px 0 rgba(0, 0, 0, 0.7), 0 4px 16px 0 rgba(0,0,0,0.5);
 }
 
 :root {
-  --foreground-rgb: 225, 212, 194;
-  /* rodeo-cream */
-  --background-start-rgb: 26, 18, 11;
-  /* rodeo-dark */
-  --background-end-rgb: 26, 26, 26;
-  /* rodeo-brown */
+  --foreground-rgb: 232, 240, 228;
+  --background-start-rgb: 4, 13, 7;
+  --background-end-rgb: 8, 24, 16;
+}
+
+* {
+  box-sizing: border-box;
 }
 
 body {
   color: rgb(var(--foreground-rgb));
-  background: linear-gradient(to bottom,
-      transparent,
-      rgb(var(--background-end-rgb))) rgb(var(--background-start-rgb));
-  /* overflow: hidden se aplica por página, no globalmente */
+  background: rgb(var(--background-start-rgb));
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* ── Apple Liquid Glass — Panel ── */
 @utility liquid-panel {
-  @apply bg-white/5 backdrop-blur-2xl border border-white/10 rounded-liquid-lg shadow-glass;
+  position: relative;
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.09) 0%,
+    rgba(255, 255, 255, 0.04) 50%,
+    rgba(255, 255, 255, 0.02) 100%
+  );
+  backdrop-filter: blur(40px) saturate(180%);
+  -webkit-backdrop-filter: blur(40px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-top-color: rgba(255, 255, 255, 0.22);
+  border-left-color: rgba(255, 255, 255, 0.18);
+  border-radius: var(--radius-liquid-lg);
+  box-shadow:
+    var(--shadow-glass),
+    inset 0 1px 0 rgba(255, 255, 255, 0.15),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.2),
+    inset 1px 0 0 rgba(255, 255, 255, 0.08);
 }
 
-@utility liquid-button {
-  @apply px-6 py-3 rounded-liquid border border-white/30 bg-white/10 hover:bg-white/20 transition-all duration-300 backdrop-blur-md;
-}
-
-@utility no-scrollbar {
-  &::-webkit-scrollbar {
-    display: none;
+/* Reflejo especular superior (highlight de Apple) */
+@utility liquid-panel-shine {
+  @apply liquid-panel;
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: linear-gradient(
+      160deg,
+      rgba(255,255,255,0.12) 0%,
+      rgba(255,255,255,0.04) 30%,
+      transparent 60%
+    );
+    pointer-events: none;
+    z-index: 0;
   }
+}
+
+/* ── Apple Liquid Glass — Button ── */
+@utility liquid-button {
+  position: relative;
+  padding: 0.75rem 1.5rem;
+  border-radius: var(--radius-liquid);
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.12) 0%,
+    rgba(255, 255, 255, 0.06) 100%
+  );
+  backdrop-filter: blur(32px) saturate(180%);
+  -webkit-backdrop-filter: blur(32px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-top-color: rgba(255, 255, 255, 0.28);
+  box-shadow:
+    0 4px 16px rgba(0,0,0,0.3),
+    inset 0 1px 0 rgba(255,255,255,0.2),
+    inset 0 -1px 0 rgba(0,0,0,0.15);
+  transition: all 0.2s ease;
+  &:hover {
+    background: linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.18) 0%,
+      rgba(255, 255, 255, 0.1) 100%
+    );
+    box-shadow:
+      0 6px 24px rgba(0,0,0,0.4),
+      inset 0 1px 0 rgba(255,255,255,0.3),
+      inset 0 -1px 0 rgba(0,0,0,0.1);
+    transform: translateY(-1px);
+  }
+}
+
+/* ── Lime Button ── */
+@utility lime-button {
+  padding: 0.75rem 1.5rem;
+  border-radius: var(--radius-liquid);
+  background: linear-gradient(135deg, #C8FF00 0%, #A8D800 100%);
+  color: #040D07;
+  font-weight: 700;
+  box-shadow: 0 4px 20px rgba(200, 255, 0, 0.35), inset 0 1px 0 rgba(255,255,255,0.4);
+  transition: all 0.2s ease;
+  &:hover {
+    background: linear-gradient(135deg, #D8FF20 0%, #B8E800 100%);
+    box-shadow: 0 6px 28px rgba(200, 255, 0, 0.5), inset 0 1px 0 rgba(255,255,255,0.5);
+    transform: translateY(-1px);
+  }
+}
+
+/* ── Scrollbars ── */
+@utility no-scrollbar {
+  &::-webkit-scrollbar { display: none; }
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
 
 @utility scrollbar-thin {
-  &::-webkit-scrollbar {
-    width: 4px;
-    height: 4px;
-  }
-  &::-webkit-scrollbar-track {
-    background: transparent;
-  }
-  &::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.2);
-    border-radius: 2px;
-  }
-  &::-webkit-scrollbar-thumb:hover {
-    background: rgba(255, 255, 255, 0.4);
-  }
+  &::-webkit-scrollbar { width: 4px; height: 4px; }
+  &::-webkit-scrollbar-track { background: transparent; }
+  &::-webkit-scrollbar-thumb { background: rgba(200,255,0,0.2); border-radius: 2px; }
+  &::-webkit-scrollbar-thumb:hover { background: rgba(200,255,0,0.4); }
 }
