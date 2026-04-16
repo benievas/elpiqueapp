@@ -72,9 +72,9 @@ export default function LoginPage() {
           {/* Logo */}
           <div className="flex flex-col items-center gap-3 mb-2">
             <motion.img
-              src="/assets/logo-main.png"
+              src="/assets/elpique.png"
               alt="ElPiqueApp"
-              className="h-16 w-auto"
+              className="h-20 w-auto"
               whileHover={{ scale: 1.05 }}
             />
             <p className="text-rodeo-cream/70 text-sm">
@@ -154,7 +154,10 @@ export default function LoginPage() {
 
             {/* Info */}
             <p className="text-xs text-rodeo-cream/50 text-center">
-              Al continuar, aceptas nuestros Términos y Política de Privacidad
+              Al continuar, aceptás nuestros{" "}
+              <Link href="/terminos" className="underline hover:text-rodeo-cream transition-colors">Términos</Link>
+              {" y "}
+              <Link href="/privacidad" className="underline hover:text-rodeo-cream transition-colors">Política de Privacidad</Link>
             </p>
           </motion.div>
 

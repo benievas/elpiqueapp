@@ -11,6 +11,8 @@ const PUBLIC_ROUTES = [
   '/auth/callback',
   '/torneos',
   '/feed',
+  '/privacidad',
+  '/terminos',
 ];
 
 // Rutas protegidas por rol

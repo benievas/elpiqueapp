@@ -13,6 +13,7 @@ import {
   ClipboardList,
   Settings,
   LogOut,
+  Crown,
 } from "lucide-react";
 import { useAuth } from "@/lib/hooks/useAuth";
 
@@ -22,6 +23,7 @@ const OWNER_MENU = [
   { icon: ClipboardList, label: "Reservas", href: "/owner/reservas" },
   { icon: BarChart3, label: "Estadísticas", href: "/owner/stats" },
   { icon: Settings, label: "Configuración", href: "/owner/settings" },
+  { icon: Crown, label: "Suscripción", href: "/owner/suscripcion" },
 ];
 
 export default function OwnerLayout({

@@ -144,26 +144,65 @@ export default function Home() {
         <div className="absolute inset-0 bg-black/50 z-0 backdrop-blur-sm" />
 
         {/* NAVBAR */}
-        <header className="absolute top-0 w-full px-6 md:px-12 py-6 flex justify-between items-center z-20">
-          <img src="/assets/logo-main.png" alt="ElPiqueApp" className="h-10 w-auto" />
-          <nav className="hidden md:flex gap-10 text-sm font-medium tracking-wide text-rodeo-cream/80">
+        <header
+          style={{
+            background: "linear-gradient(180deg, rgba(4,13,7,0.90) 0%, rgba(4,13,7,0.70) 100%)",
+            backdropFilter: "blur(40px) saturate(200%) brightness(1.1)",
+            WebkitBackdropFilter: "blur(40px) saturate(200%) brightness(1.1)",
+            borderBottom: "1px solid rgba(255,255,255,0.12)",
+            boxShadow: "0 1px 0 rgba(255,255,255,0.08), 0 8px 32px rgba(0,0,0,0.3)",
+          }}
+          className="absolute top-0 w-full px-6 md:px-12 py-4 flex justify-between items-center z-20"
+        >
+          {/* Reflejo superior tipo Apple */}
+          <div
+            style={{
+              position: "absolute",
+              top: 0,
+              left: 0,
+              right: 0,
+              height: "1px",
+              background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.35) 30%, rgba(255,255,255,0.5) 50%, rgba(255,255,255,0.35) 70%, transparent)",
+            }}
+          />
+          <img src="/assets/logo-main.png" alt="ElPiqueApp" className="h-14 md:h-18 w-auto" />
+          <nav className="hidden md:flex gap-10 text-xs font-bold tracking-[0.2em] text-rodeo-cream/70">
             <Link href="/explorar" className="hover:text-white transition-colors">EXPLORAR</Link>
             <Link href="/mapa" className="hover:text-white transition-colors">MAPA</Link>
             <Link href="/torneos" className="hover:text-white transition-colors">TORNEOS</Link>
-            <Link href="/dueno/dashboard" className="hover:text-white transition-colors">PANEL DUEÑO</Link>
+            <Link href="/owner" className="hover:text-rodeo-lime transition-colors text-rodeo-lime/80">PANEL DUEÑO</Link>
           </nav>
           <div className="flex gap-3">
-            <button className="p-2 rounded-full hover:bg-white/10 transition-colors">
-              <Search size={20} />
+            <button
+              style={{
+                background: "rgba(255,255,255,0.08)",
+                border: "1px solid rgba(255,255,255,0.15)",
+                borderTopColor: "rgba(255,255,255,0.25)",
+                borderRadius: "12px",
+                boxShadow: "inset 0 1px 0 rgba(255,255,255,0.12)",
+              }}
+              className="p-2.5 hover:bg-white/15 transition-all"
+            >
+              <Search size={18} className="text-white/80" />
             </button>
-            <Link href="/perfil" className="p-2 rounded-full hover:bg-white/10 transition-colors bg-white/5 border border-white/10">
-              <User size={20} />
+            <Link
+              href="/perfil"
+              style={{
+                background: "rgba(200,255,0,0.12)",
+                border: "1px solid rgba(200,255,0,0.25)",
+                borderTopColor: "rgba(200,255,0,0.4)",
+                borderRadius: "12px",
+                boxShadow: "inset 0 1px 0 rgba(255,255,255,0.15)",
+              }}
+              className="p-2.5 hover:bg-white/15 transition-all"
+            >
+              <User size={18} className="text-rodeo-lime" />
             </Link>
           </div>
         </header>
 
         {/* CONTENIDO PRINCIPAL */}
-        <main className="absolute inset-0 z-10 flex pt-28 pb-24">
+        <main className="absolute inset-0 z-10 flex pt-36 pb-28">
           {/* PANEL IZQUIERDO */}
           <div className="w-full md:w-[45%] pl-6 md:pl-24 flex flex-col justify-center pr-6 md:pr-0">
             <AnimatePresence mode="wait">
@@ -472,25 +511,30 @@ export default function Home() {
             </div>
           </motion.div>
 
-          {/* Qué incluye */}
-          <div className="max-w-2xl mx-auto">
-            <p className="text-xs font-bold tracking-widest uppercase text-rodeo-cream/40 mb-4 text-center">Todo incluido en la licencia</p>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+          {/* Ventajas competitivas */}
+          <div className="max-w-3xl mx-auto">
+            <p className="text-xs font-bold tracking-widest uppercase text-rodeo-cream/40 mb-6 text-center">¿Por qué ElPiqueApp y no otra plataforma?</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-8">
               {[
-                { icon: CalendarDays, text: "Gestión de disponibilidad de canchas" },
-                { icon: MessageCircle, text: "Reservas automáticas por WhatsApp" },
-                { icon: Trophy, text: "Creación y gestión de torneos" },
-                { icon: QrCode, text: "QR + link público de tu complejo" },
-                { icon: BarChart3, text: "Estadísticas y reportes de uso" },
-                { icon: MapPin, text: "Perfil visible en el mapa de Catamarca" },
-                { icon: Star, text: "Sistema de reseñas verificadas" },
-                { icon: Zap, text: "Panel de dueño completo 24/7" },
+                { icon: Zap, highlight: "Canchas ilimitadas", text: "Sin límite de canchas por complejo. Agregá todas las que tenés." },
+                { icon: MessageCircle, highlight: "Feed publicitario gratis", text: "Publicá novedades, promos y torneos en el feed visible para todos los jugadores." },
+                { icon: Trophy, highlight: "Torneos gratis incluidos", text: "Creá y gestioná torneos desde el panel sin costo adicional." },
+                { icon: QrCode, highlight: "QR + link propio", text: "Tu complejo con URL propia y código QR descargable para compartir." },
+                { icon: CalendarDays, highlight: "Disponibilidad en tiempo real", text: "Los jugadores ven qué canchas están libres en cada horario, sin llamadas." },
+                { icon: MapPin, highlight: "Visibilidad en el mapa", text: "Aparecé en el mapa de ElPiqueApp con toda la info de tu complejo." },
+                { icon: BarChart3, highlight: "Estadísticas y reportes", text: "Visualizá ocupación, canchas más reservadas y tendencias de uso." },
+                { icon: Star, highlight: "Reseñas verificadas", text: "Acumulá reseñas reales de jugadores que refuercen tu reputación." },
               ].map((item, i) => {
                 const Icono = item.icon;
                 return (
-                  <div key={i} className="flex items-center gap-3 px-3 py-2">
-                    <Icono size={14} className="text-rodeo-lime shrink-0" />
-                    <span className="text-xs text-rodeo-cream/70">{item.text}</span>
+                  <div key={i} className="flex items-start gap-3 px-4 py-3 rounded-xl bg-white/3 border border-white/5">
+                    <div className="p-1.5 rounded-lg bg-rodeo-lime/15 mt-0.5">
+                      <Icono size={14} className="text-rodeo-lime shrink-0" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold text-white">{item.highlight}</p>
+                      <p className="text-xs text-rodeo-cream/50 mt-0.5">{item.text}</p>
+                    </div>
                   </div>
                 );
               })}
@@ -502,13 +546,18 @@ export default function Home() {
       {/* FOOTER */}
       <footer className="border-t border-white/10 px-6 py-12 pb-24 md:pb-12 bg-black/20">
         <div className="max-w-4xl mx-auto flex flex-col items-center gap-6">
-          <img src="/assets/logo-main.png" alt="ElPiqueApp" className="h-10 w-auto" />
+          <img src="/assets/logo-main.png" alt="ElPiqueApp" className="h-16 w-auto" />
           <p className="text-xs text-rodeo-cream/30 tracking-widest uppercase text-center">Reserva canchas deportivas en Catamarca · 24/7 disponible</p>
           <nav className="flex flex-wrap justify-center gap-x-6 gap-y-2">
-            {[{ href: "/explorar", label: "Explorar" }, { href: "/mapa", label: "Mapa" }, { href: "/torneos", label: "Torneos" }, { href: "/perfil", label: "Mi Perfil" }, { href: "/dueno/dashboard", label: "Panel Dueño" }].map((link) => (
+            {[{ href: "/explorar", label: "Explorar" }, { href: "/mapa", label: "Mapa" }, { href: "/torneos", label: "Torneos" }, { href: "/perfil", label: "Mi Perfil" }, { href: "/owner", label: "Panel Dueño" }].map((link) => (
               <Link key={link.href} href={link.href} className="text-xs text-rodeo-cream/30 hover:text-rodeo-cream/70 transition-colors">{link.label}</Link>
             ))}
           </nav>
+          <div className="flex gap-4 text-[11px] text-rodeo-cream/30">
+            <Link href="/privacidad" className="hover:text-rodeo-cream/60 transition-colors">Privacidad</Link>
+            <span>·</span>
+            <Link href="/terminos" className="hover:text-rodeo-cream/60 transition-colors">Términos</Link>
+          </div>
           <p className="text-[10px] text-rodeo-cream/20 text-center">© 2026 ElPiqueApp · Plataforma de Reservas Deportivas Catamarca</p>
         </div>
       </footer>

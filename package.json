@@ -22,6 +22,7 @@
     "isomorphic-dompurify": "^3.9.0",
     "leaflet": "^1.9.4",
     "lucide-react": "^0.408.0",
+    "mercadopago": "^2.12.0",
     "next": "^16.0.0",
     "next-themes": "^0.2.1",
     "postcss": "^8.4.0",

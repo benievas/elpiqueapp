@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import dynamic from "next/dynamic";
 import {
   ChevronLeft,
@@ -9,7 +9,8 @@ import {
   Clock,
   Phone,
   Star,
-  Users,
+  ChevronUp,
+  ChevronDown,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -111,6 +112,8 @@ export default function MapaPage() {
   const [complejoSeleccionado, setComplejoSeleccionado] = useState<typeof MOCK_COMPLEJOS[0] | null>(
     MOCK_COMPLEJOS[0]
   );
+  // Panel móvil: "peek" (visible parcial), "full" (expandido), "collapsed" (solo handle)
+  const [panelState, setPanelState] = useState<"peek" | "full" | "collapsed">("peek");
 
   const complejosFiltrados =
     filtroActivo === "todos"
@@ -119,49 +122,44 @@ export default function MapaPage() {
           (c) => c.deporte.toLowerCase() === filtroActivo.toLowerCase()
         );
 
-  return (
-    <div className="relative w-screen h-screen overflow-hidden bg-rodeo-dark text-rodeo-cream font-sans">
-      {/* FONDO MAPA */}
-      <div className="absolute inset-0 z-0">
-        <img
-          src="https://images.unsplash.com/photo-1524661135-423995f22d0b?q=80&w=2000&auto=format&fit=crop"
-          alt="Mapa de Catamarca"
-          className="w-full h-full object-cover"
-        />
-        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-rodeo-dark/40 to-rodeo-dark/80" />
-      </div>
+  const handleSelectComplejo = (c: typeof MOCK_COMPLEJOS[0]) => {
+    setComplejoSeleccionado(c);
+    setPanelState("peek");
+  };
 
-      {/* CONTENIDO */}
-      <div className="relative z-10 h-full flex flex-col">
-        {/* HEADER */}
-        <header className="bg-rodeo-dark/80 backdrop-blur-md border-b border-white/10 px-6 py-4">
-          <div className="max-w-6xl mx-auto flex items-center justify-between">
+  return (
+    <div className="relative w-screen h-[100dvh] overflow-hidden bg-rodeo-dark text-rodeo-cream font-sans">
+
+      {/* ── DESKTOP LAYOUT ──────────────────────────────── */}
+      <div className="hidden md:flex h-full flex-col">
+        {/* Header desktop */}
+        <header
+          style={{
+            background: "rgba(4,13,7,0.85)",
+            backdropFilter: "blur(20px) saturate(180%)",
+            WebkitBackdropFilter: "blur(20px) saturate(180%)",
+            borderBottom: "1px solid rgba(255,255,255,0.1)",
+          }}
+          className="px-6 py-4"
+        >
+          <div className="max-w-6xl mx-auto flex items-center gap-6">
             <Link href="/" className="w-10 h-10 rounded-full bg-white/10 border border-white/20 hover:bg-white/20 flex items-center justify-center transition-all">
               <ChevronLeft className="text-rodeo-cream" size={20} />
             </Link>
-            <div className="flex-1 ml-6">
-              <h1 className="text-lg font-black tracking-widest uppercase text-rodeo-cream">
-                Mapa de Complejos Deportivos
-              </h1>
-              <p className="text-xs text-rodeo-cream/50 mt-1">
-                Ubica y reserva tu cancha ideal en Catamarca
-              </p>
+            <div>
+              <h1 className="text-lg font-black tracking-widest uppercase text-rodeo-cream">Mapa de Complejos</h1>
+              <p className="text-xs text-rodeo-cream/50 mt-0.5">Catamarca · {complejosFiltrados.length} complejos</p>
             </div>
-          </div>
-        </header>
-
-        {/* FILTROS */}
-        <div className="bg-rodeo-dark/60 backdrop-blur-md border-b border-white/10 px-6 py-4">
-          <div className="max-w-6xl mx-auto">
-            <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-thin">
+            {/* Filtros desktop */}
+            <div className="flex gap-2 overflow-x-auto ml-auto no-scrollbar">
               {FILTROS.map((filtro) => (
                 <button
                   key={filtro.id}
                   onClick={() => setFiltroActivo(filtro.id)}
-                  className={`px-4 py-2 rounded-liquid text-sm font-bold transition-all whitespace-nowrap ${
+                  className={`px-4 py-2 rounded-full text-xs font-bold transition-all whitespace-nowrap ${
                     filtroActivo === filtro.id
-                      ? "bg-rodeo-terracotta text-rodeo-dark border-rodeo-terracotta"
-                      : "bg-white/5 border border-white/20 text-rodeo-cream hover:bg-white/10"
+                      ? "bg-rodeo-lime text-rodeo-dark"
+                      : "bg-white/8 border border-white/15 text-rodeo-cream hover:bg-white/15"
                   }`}
                 >
                   {filtro.label}
@@ -169,116 +167,243 @@ export default function MapaPage() {
               ))}
             </div>
           </div>
-        </div>
+        </header>
 
-        {/* MAPA + LISTA */}
+        {/* Mapa + Panel */}
         <div className="flex-1 flex overflow-hidden">
-          {/* ÁREA DEL MAPA (izquierda) */}
           <div className="flex-1 relative">
-            <MapaLeaflet
-              complejos={complejosFiltrados}
-              filtroDeporte={filtroActivo}
-              onSelectComplejo={setComplejoSeleccionado}
-            />
+            <MapaLeaflet complejos={complejosFiltrados} filtroDeporte={filtroActivo} onSelectComplejo={setComplejoSeleccionado} />
           </div>
-
-          {/* PANEL LATERAL (derecha) */}
-          <div className="w-96 bg-rodeo-dark/90 backdrop-blur-md border-l border-white/10 overflow-y-auto">
+          {/* Panel lateral derecho */}
+          <div
+            style={{
+              background: "rgba(4,13,7,0.92)",
+              backdropFilter: "blur(40px) saturate(180%)",
+              WebkitBackdropFilter: "blur(40px) saturate(180%)",
+              borderLeft: "1px solid rgba(255,255,255,0.1)",
+            }}
+            className="w-96 overflow-y-auto"
+          >
             {complejoSeleccionado && (
-              <motion.div
-                key={complejoSeleccionado.id}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="p-6 flex flex-col gap-6"
-              >
-                {/* TITULO */}
+              <motion.div key={complejoSeleccionado.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="p-6 flex flex-col gap-5">
                 <div>
-                  <span className="inline-block px-3 py-1 rounded-full bg-rodeo-terracotta/20 border border-rodeo-terracotta/50 text-rodeo-terracotta text-xs font-bold mb-2">
-                    {complejoSeleccionado.deporte}
-                  </span>
-                  <h2 className="text-2xl font-black text-white">
-                    {complejoSeleccionado.nombre}
-                  </h2>
-                  <p className="text-xs text-rodeo-cream/50 mt-1">
-                    {complejoSeleccionado.descripcion}
-                  </p>
+                  <span className="inline-block px-3 py-1 rounded-full bg-rodeo-lime/15 border border-rodeo-lime/30 text-rodeo-lime text-xs font-bold mb-2">{complejoSeleccionado.deporte}</span>
+                  <h2 className="text-2xl font-black text-white">{complejoSeleccionado.nombre}</h2>
+                  <p className="text-xs text-rodeo-cream/50 mt-1">{complejoSeleccionado.descripcion}</p>
                 </div>
-
-                {/* INFO */}
-                <div className="space-y-3">
-                  <div className="flex items-center gap-3 text-sm">
-                    <Clock size={16} className="text-rodeo-terracotta" />
-                    <div>
-                      <p className="text-xs text-rodeo-cream/60">Horario</p>
-                      <p className="text-white font-bold">
-                        {complejoSeleccionado.horario}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-3 text-sm">
-                    <Phone size={16} className="text-rodeo-terracotta" />
-                    <div>
-                      <p className="text-xs text-rodeo-cream/60">Teléfono</p>
-                      <a
-                        href={`tel:${complejoSeleccionado.telefono}`}
-                        className="text-white font-bold hover:text-rodeo-terracotta"
-                      >
-                        {complejoSeleccionado.telefono}
-                      </a>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-3 text-sm">
-                    <MapPin size={16} className="text-rodeo-terracotta" />
-                    <div>
-                      <p className="text-xs text-rodeo-cream/60">Distancia</p>
-                      <p className="text-white font-bold">
-                        {complejoSeleccionado.distancia}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-3 text-sm">
-                    <Star size={16} className="text-yellow-400 fill-yellow-400" />
-                    <div>
-                      <p className="text-xs text-rodeo-cream/60">Calificación</p>
-                      <p className="text-white font-bold">
-                        {complejoSeleccionado.rating}/5.0
-                      </p>
-                    </div>
-                  </div>
+                <div className="grid grid-cols-2 gap-3">
+                  {[
+                    { icon: Clock, label: "Horario", value: complejoSeleccionado.horario },
+                    { icon: MapPin, label: "Distancia", value: complejoSeleccionado.distancia },
+                    { icon: Star, label: "Rating", value: `${complejoSeleccionado.rating}/5.0` },
+                    { icon: Phone, label: "Teléfono", value: complejoSeleccionado.telefono },
+                  ].map((item) => {
+                    const Icono = item.icon;
+                    return (
+                      <div key={item.label} style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "14px" }} className="p-3">
+                        <div className="flex items-center gap-2 mb-1">
+                          <Icono size={13} className="text-rodeo-lime" />
+                          <p className="text-[10px] text-rodeo-cream/50 font-medium">{item.label}</p>
+                        </div>
+                        <p className="text-sm font-bold text-white truncate">{item.value}</p>
+                      </div>
+                    );
+                  })}
                 </div>
-
-                {/* BOTONES */}
-                <div className="flex flex-col gap-3 pt-4 border-t border-white/10">
-                  <Link
-                    href={`/complejo/${complejoSeleccionado.slug}`}
-                    className="w-full py-3 rounded-liquid bg-rodeo-terracotta text-rodeo-dark font-bold text-center hover:bg-rodeo-terracotta/90 transition-all"
-                  >
-                    Ver Canchas y Reservar
-                  </Link>
-
-                  <a
-                    href={`https://wa.me/5493834431234?text=Hola!%20Tengo%20una%20consulta%20sobre%20${complejoSeleccionado.nombre}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="w-full py-3 rounded-liquid bg-white/10 border border-white/20 text-white font-bold text-center hover:bg-white/20 transition-all"
-                  >
-                    Contactar por WhatsApp
-                  </a>
-                </div>
-
-                {/* BADGE ABIERTO */}
                 {complejoSeleccionado.abierto && (
-                  <div className="px-3 py-2 rounded-liquid bg-green-500/20 border border-green-400/40 text-green-400 text-xs font-bold text-center">
-                    ✓ Abierto Ahora
-                  </div>
+                  <div style={{ background: "rgba(0,230,118,0.1)", border: "1px solid rgba(0,230,118,0.3)", borderRadius: "12px" }} className="px-4 py-2 text-green-400 text-xs font-bold text-center">✓ Abierto Ahora</div>
                 )}
+                <div className="flex flex-col gap-3 pt-2 border-t border-white/8">
+                  <Link href={`/complejo/${complejoSeleccionado.slug}`} style={{ background: "linear-gradient(135deg, #C8FF00, #A8D800)", borderRadius: "16px", boxShadow: "0 4px 20px rgba(200,255,0,0.3)" }} className="w-full py-3 text-rodeo-dark font-black text-center text-sm">Ver Canchas y Reservar</Link>
+                  <a href={`https://wa.me/5493834431234?text=Hola! Consulta sobre ${complejoSeleccionado.nombre}`} target="_blank" rel="noopener noreferrer" style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: "16px" }} className="w-full py-3 text-white font-bold text-center text-sm">Contactar por WhatsApp</a>
+                </div>
               </motion.div>
             )}
           </div>
         </div>
+      </div>
+
+      {/* ── MÓVIL LAYOUT ────────────────────────────────── */}
+      <div className="flex md:hidden flex-col h-full relative">
+        {/* Mapa full-screen como fondo */}
+        <div className="absolute inset-0 z-0">
+          <MapaLeaflet complejos={complejosFiltrados} filtroDeporte={filtroActivo} onSelectComplejo={handleSelectComplejo} />
+        </div>
+
+        {/* Header flotante */}
+        <div className="relative z-10 pt-safe">
+          <div
+            style={{
+              background: "rgba(4,13,7,0.75)",
+              backdropFilter: "blur(24px) saturate(200%)",
+              WebkitBackdropFilter: "blur(24px) saturate(200%)",
+              borderBottom: "1px solid rgba(255,255,255,0.1)",
+              boxShadow: "0 4px 24px rgba(0,0,0,0.4)",
+            }}
+            className="px-4 py-3 flex items-center gap-3"
+          >
+            <Link href="/" style={{ background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: "12px" }} className="w-9 h-9 flex items-center justify-center shrink-0">
+              <ChevronLeft size={18} className="text-rodeo-cream" />
+            </Link>
+            <div className="flex-1">
+              <p className="text-white font-bold text-sm">Mapa de Complejos</p>
+              <p className="text-white/40 text-[11px]">{complejosFiltrados.length} complejos en Catamarca</p>
+            </div>
+          </div>
+
+          {/* Filtros scroll horizontal */}
+          <div className="px-4 py-3 flex gap-2 overflow-x-auto no-scrollbar">
+            {FILTROS.map((filtro) => (
+              <button
+                key={filtro.id}
+                onClick={() => setFiltroActivo(filtro.id)}
+                style={filtroActivo === filtro.id ? {
+                  background: "linear-gradient(135deg, #C8FF00, #A8D800)",
+                  borderRadius: "20px",
+                  boxShadow: "0 2px 12px rgba(200,255,0,0.4)",
+                } : {
+                  background: "rgba(4,13,7,0.75)",
+                  backdropFilter: "blur(20px)",
+                  WebkitBackdropFilter: "blur(20px)",
+                  border: "1px solid rgba(255,255,255,0.15)",
+                  borderRadius: "20px",
+                  boxShadow: "inset 0 1px 0 rgba(255,255,255,0.1)",
+                }}
+                className={`px-4 py-2 text-xs font-bold whitespace-nowrap transition-all ${
+                  filtroActivo === filtro.id ? "text-rodeo-dark" : "text-rodeo-cream"
+                }`}
+              >
+                {filtro.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Panel deslizable desde abajo */}
+        <AnimatePresence>
+          <motion.div
+            className="absolute bottom-20 left-0 right-0 z-20"
+            initial={{ y: 0 }}
+            animate={{
+              y: panelState === "collapsed" ? "calc(100% - 60px)"
+                : panelState === "peek" ? 0
+                : 0,
+            }}
+            transition={{ type: "spring", stiffness: 400, damping: 35 }}
+          >
+            {/* Handle bar */}
+            <button
+              onClick={() => setPanelState(panelState === "full" ? "peek" : panelState === "peek" ? "collapsed" : "peek")}
+              style={{
+                background: "rgba(4,13,7,0.75)",
+                backdropFilter: "blur(24px) saturate(200%)",
+                WebkitBackdropFilter: "blur(24px) saturate(200%)",
+                borderTop: "1px solid rgba(255,255,255,0.15)",
+                borderTopLeftRadius: "22px",
+                borderTopRightRadius: "22px",
+                boxShadow: "0 -4px 24px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.12)",
+              }}
+              className="w-full px-6 py-3 flex items-center justify-between"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-1 bg-white/25 rounded-full" />
+                {complejoSeleccionado && (
+                  <span className="text-white/60 text-xs font-medium">{complejoSeleccionado.nombre}</span>
+                )}
+              </div>
+              {panelState === "full" ? <ChevronDown size={16} className="text-white/40" /> : <ChevronUp size={16} className="text-white/40" />}
+            </button>
+
+            {/* Contenido del panel */}
+            <div
+              style={{
+                background: "rgba(4,13,7,0.92)",
+                backdropFilter: "blur(40px) saturate(180%)",
+                WebkitBackdropFilter: "blur(40px) saturate(180%)",
+                maxHeight: panelState === "full" ? "65vh" : "45vh",
+              }}
+              className="overflow-y-auto transition-all duration-300"
+            >
+              {/* Detalle del complejo seleccionado */}
+              {complejoSeleccionado && (
+                <div className="px-4 pt-2 pb-4">
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="flex-1">
+                      <span style={{ background: "rgba(200,255,0,0.12)", border: "1px solid rgba(200,255,0,0.25)", borderRadius: "8px" }} className="inline-block px-2 py-0.5 text-rodeo-lime text-[10px] font-bold mb-1">{complejoSeleccionado.deporte}</span>
+                      <h2 className="text-white font-black text-lg leading-tight">{complejoSeleccionado.nombre}</h2>
+                      <p className="text-white/50 text-xs mt-0.5">{complejoSeleccionado.descripcion}</p>
+                    </div>
+                    {complejoSeleccionado.abierto && (
+                      <span style={{ background: "rgba(0,230,118,0.12)", border: "1px solid rgba(0,230,118,0.3)", borderRadius: "10px" }} className="ml-3 shrink-0 px-2 py-1 text-green-400 text-[10px] font-bold">Abierto</span>
+                    )}
+                  </div>
+
+                  {/* Info badges */}
+                  <div className="grid grid-cols-2 gap-2 mb-4">
+                    {[
+                      { icon: Clock, label: "Horario", value: complejoSeleccionado.horario },
+                      { icon: MapPin, label: "Distancia", value: complejoSeleccionado.distancia },
+                      { icon: Star, label: "Rating", value: `${complejoSeleccionado.rating}/5.0` },
+                      { icon: Phone, label: "Teléfono", value: complejoSeleccionado.telefono },
+                    ].map((item) => {
+                      const Icono = item.icon;
+                      return (
+                        <div key={item.label} style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: "12px" }} className="p-2.5">
+                          <div className="flex items-center gap-1.5 mb-0.5">
+                            <Icono size={11} className="text-rodeo-lime" />
+                            <span className="text-[9px] text-white/40 font-medium">{item.label}</span>
+                          </div>
+                          <p className="text-xs font-bold text-white truncate">{item.value}</p>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Botones CTA */}
+                  <div className="grid grid-cols-2 gap-2">
+                    <Link href={`/complejo/${complejoSeleccionado.slug}`} style={{ background: "linear-gradient(135deg, #C8FF00, #A8D800)", borderRadius: "14px", boxShadow: "0 4px 16px rgba(200,255,0,0.3)" }} className="py-3 text-rodeo-dark font-black text-center text-xs">Ver y Reservar</Link>
+                    <a href={`https://wa.me/5493834431234?text=Hola! Consulta sobre ${complejoSeleccionado.nombre}`} target="_blank" rel="noopener noreferrer" style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: "14px" }} className="py-3 text-white font-bold text-center text-xs">WhatsApp</a>
+                  </div>
+                </div>
+              )}
+
+              {/* Lista de complejos */}
+              <div className="px-4 pb-4">
+                <p className="text-[10px] font-bold tracking-widest uppercase text-white/30 mb-3 mt-2">Todos los complejos</p>
+                <div className="space-y-2">
+                  {complejosFiltrados.map((c) => (
+                    <button
+                      key={c.id}
+                      onClick={() => handleSelectComplejo(c)}
+                      style={complejoSeleccionado?.id === c.id ? {
+                        background: "rgba(200,255,0,0.08)",
+                        border: "1px solid rgba(200,255,0,0.25)",
+                        borderRadius: "14px",
+                      } : {
+                        background: "rgba(255,255,255,0.04)",
+                        border: "1px solid rgba(255,255,255,0.07)",
+                        borderRadius: "14px",
+                      }}
+                      className="w-full flex items-center gap-3 p-3 text-left transition-all"
+                    >
+                      <div style={{ background: complejoSeleccionado?.id === c.id ? "rgba(200,255,0,0.15)" : "rgba(255,255,255,0.06)", borderRadius: "10px" }} className="w-9 h-9 flex items-center justify-center shrink-0">
+                        <MapPin size={14} className={complejoSeleccionado?.id === c.id ? "text-rodeo-lime" : "text-white/40"} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className={`text-sm font-bold truncate ${complejoSeleccionado?.id === c.id ? "text-rodeo-lime" : "text-white"}`}>{c.nombre}</p>
+                        <p className="text-[10px] text-white/40 truncate">{c.deporte} · {c.distancia}</p>
+                      </div>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <Star size={10} className="text-yellow-400 fill-yellow-400" />
+                        <span className="text-xs text-white/60">{c.rating}</span>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        </AnimatePresence>
       </div>
     </div>
   );
