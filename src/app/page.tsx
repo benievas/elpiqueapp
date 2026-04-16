@@ -225,7 +225,7 @@ export default function Home() {
               <Search size={18} className="text-white" />
             </button>
             <Link
-              href="/perfil"
+              href="/login"
               style={{
                 background: "rgba(200,255,0,0.18)",
                 border: "1px solid rgba(200,255,0,0.35)",
@@ -278,13 +278,13 @@ export default function Home() {
             </AnimatePresence>
           </div>
 
-          {/* PANEL DERECHO: CARRUSEL — clipPath evita que las cards invadan el texto */}
+          {/* PANEL DERECHO: CARRUSEL */}
           <div
-            className="hidden md:flex w-[55%] items-center pl-10 py-6"
-            style={{ clipPath: 'inset(0 -100vw 0 0)' }}
+            className="hidden md:flex w-[55%] items-center pl-10 py-16"
+            style={{ clipPath: 'inset(-80px -100vw -80px 0)' }}
           >
             <motion.div
-              className="flex gap-6"
+              className="flex gap-6 items-center"
               animate={{ x: `calc(-${currentIndex * 320}px - ${currentIndex * 24}px)` }}
               transition={{ type: "spring", stiffness: 300, damping: 30 }}
             >
@@ -294,8 +294,9 @@ export default function Home() {
                 return (
                   <motion.div
                     key={slide.id}
-                    animate={{ scale: isActive ? 1 : 0.85, opacity: isActive ? 1 : 0.5 }}
+                    animate={{ scale: isActive ? 1 : 0.82, opacity: isActive ? 1 : 0.45, y: isActive ? 0 : 12 }}
                     transition={{ duration: 0.4 }}
+                    style={{ transformOrigin: "center center" }}
                     className="w-[320px] h-[460px] shrink-0 rounded-liquid-lg overflow-hidden relative cursor-pointer group shadow-glass border border-white/20"
                     onClick={() => setCurrentIndex(index)}
                   >
