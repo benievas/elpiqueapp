@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { Building2, BarChart3, Calendar, ClipboardList, Settings, Crown, ArrowRight } from "lucide-react";
 
 export default function OwnerPage() {
@@ -43,11 +42,11 @@ export default function OwnerPage() {
         <p className="text-xs font-bold tracking-widest uppercase text-rodeo-cream/40 mb-4">Accesos rápidos</p>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           {[
-            { icon: Building2, label: "Mi Complejo", desc: "Información y datos del complejo", href: "/owner/complejo" },
-            { icon: Calendar, label: "Canchas y Disponibilidad", desc: "Gestión de canchas y horarios", href: "/owner/canchas" },
+            { icon: Building2, label: "Mi Complejo", desc: "Información y datos del complejo", href: "/complejo" },
+            { icon: Crown, label: "Suscripción", desc: "Plan activo y facturación", href: "/suscripcion" },
+            { icon: Calendar, label: "Canchas", desc: "Gestión de canchas y horarios", href: "/owner/canchas" },
             { icon: ClipboardList, label: "Reservas", desc: "Ver y gestionar reservas entrantes", href: "/owner/reservas" },
             { icon: BarChart3, label: "Estadísticas", desc: "Rendimiento y métricas del complejo", href: "/owner/stats" },
-            { icon: Crown, label: "Suscripción", desc: "Plan activo y facturación", href: "/owner/suscripcion" },
             { icon: Settings, label: "Configuración", desc: "Ajustes de tu cuenta", href: "/owner/settings" },
           ].map((item) => (
             <Link key={item.href} href={item.href}>
