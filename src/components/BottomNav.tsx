@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { usePathname } from "next/navigation";
 import Link from "next/link";
 
 const navItems = [
@@ -8,39 +8,43 @@ const navItems = [
   { href: "/explorar", label: "Explorar", icon: "🔍" },
   { href: "/mapa", label: "Mapa", icon: "🗺️" },
   { href: "/torneos", label: "Torneos", icon: "🏆" },
-  { href: "/feed", label: "Feed", icon: "📰" },
+  { href: "/perfil", label: "Perfil", icon: "👤" },
 ];
 
 export default function BottomNav() {
-  const [hasNotification] = useState(true);
+  const pathname = usePathname();
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-40 md:hidden">
-      <div className="liquid-panel rounded-t-liquid-lg rounded-b-none px-4 py-3 flex items-center justify-around">
-        {navItems.map((item) => (
-          <Link
-            key={item.href}
-            href={item.href}
-            className="flex flex-col items-center gap-1 text-rodeo-cream/70 hover:text-rodeo-cream transition-colors relative"
-          >
-            <span className="text-xl leading-none">{item.icon}</span>
-            {item.label === "Perfil" && hasNotification && (
-              <span className="absolute -top-1 -right-1 w-2 h-2 bg-rodeo-terracotta rounded-full" />
-            )}
-            <span className="text-[10px] font-medium">{item.label}</span>
-          </Link>
-        ))}
-
-        {/* SOS Button */}
-        <button
-          onClick={() => alert("SOS: Llamando a emergencias...")}
-          className="flex flex-col items-center gap-1"
-          aria-label="SOS Emergencia"
-        >
-          <span className="w-10 h-10 rounded-full bg-red-600/90 border border-red-400/50 flex items-center justify-center text-white font-bold text-sm shadow-lg">
-            SOS
-          </span>
-        </button>
+    <nav className="fixed bottom-4 left-4 right-4 z-40 md:hidden">
+      <div
+        className="flex items-center justify-around px-2 py-3 rounded-[28px]"
+        style={{
+          background: "rgba(26, 18, 11, 0.75)",
+          backdropFilter: "blur(24px)",
+          WebkitBackdropFilter: "blur(24px)",
+          border: "1px solid rgba(255,255,255,0.12)",
+          boxShadow: "0 8px 32px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.08)",
+        }}
+      >
+        {navItems.map((item) => {
+          const isActive = pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href));
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              className="flex flex-col items-center gap-1 px-3 py-1 rounded-2xl transition-all"
+              style={isActive ? { background: "rgba(255,255,255,0.1)" } : {}}
+            >
+              <span className="text-xl leading-none">{item.icon}</span>
+              <span
+                className="text-[10px] font-semibold transition-colors"
+                style={{ color: isActive ? "#C8FF00" : "rgba(225,212,194,0.6)" }}
+              >
+                {item.label}
+              </span>
+            </Link>
+          );
+        })}
       </div>
     </nav>
   );

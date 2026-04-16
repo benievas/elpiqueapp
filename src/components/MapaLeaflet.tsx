@@ -75,10 +75,10 @@ export default function MapaLeaflet({
         className="w-full h-full z-0"
         style={{ minHeight: "500px" }}
       >
-        {/* OpenStreetMap tile layer */}
+        {/* CartoDB Dark Matter - mapa oscuro sin API key */}
         <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          attribution='&copy; <a href="https://carto.com/">CARTO</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+          url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
         />
 
         {/* Marcadores de complejos */}
