@@ -5,6 +5,17 @@ import { motion, AnimatePresence } from "framer-motion";
 import { MapPin, ChevronDown, Navigation, X, Check } from "lucide-react";
 import { useCityContext, CIUDADES_DISPONIBLES, ManualCity } from "@/lib/context/CityContext";
 
+// Complejos registrados por ciudad (mock — en producción viene de Supabase)
+const COMPLEJOS_POR_CIUDAD: Record<string, number> = {
+  "Catamarca": 5,
+  "Tucumán": 0,
+  "Córdoba": 0,
+  "Salta": 0,
+  "Buenos Aires": 0,
+  "Mendoza": 0,
+  "Rosario": 0,
+};
+
 interface CityBannerProps {
   /** Si es true, el feed muestra toggle local/todas */
   showFeedToggle?: boolean;
@@ -190,13 +201,25 @@ export default function CityBanner({ showFeedToggle, feedScope, onFeedScopeChang
                         }}
                         className="w-full flex items-center justify-between px-4 py-3 hover:bg-white/8 transition-all text-left"
                       >
-                        <div>
+                        <div className="flex-1">
                           <p className={`text-sm font-bold ${isActive ? "text-rodeo-lime" : "text-white"}`}>
                             {city.ciudadCorta}
                           </p>
                           <p className="text-xs text-rodeo-cream/40">{city.provincia}</p>
                         </div>
-                        {isActive && <Check size={16} className="text-rodeo-lime shrink-0" />}
+                        <div className="flex items-center gap-2 shrink-0">
+                          {(COMPLEJOS_POR_CIUDAD[city.ciudadCorta] ?? 0) > 0 ? (
+                            <span
+                              style={{ background: "rgba(200,255,0,0.12)", border: "1px solid rgba(200,255,0,0.2)", borderRadius: "8px" }}
+                              className="text-[10px] font-bold text-rodeo-lime px-2 py-0.5"
+                            >
+                              {COMPLEJOS_POR_CIUDAD[city.ciudadCorta]} complejos
+                            </span>
+                          ) : (
+                            <span className="text-[10px] text-rodeo-cream/25 px-1">Próximamente</span>
+                          )}
+                          {isActive && <Check size={16} className="text-rodeo-lime" />}
+                        </div>
                       </button>
                     );
                   })}

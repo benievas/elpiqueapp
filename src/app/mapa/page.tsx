@@ -72,10 +72,10 @@ export default function MapaPage() {
   } as React.CSSProperties;
 
   return (
-    <div className="relative w-screen h-screen overflow-hidden bg-rodeo-dark text-rodeo-cream font-sans">
+    <div className="relative w-screen h-screen bg-rodeo-dark text-rodeo-cream font-sans">
 
       {/* ─── MAPA: ocupa toda la pantalla ─── */}
-      <div className="absolute inset-0 z-0">
+      <div className="absolute inset-0 z-0 overflow-hidden">
         <MapaLeaflet
           complejos={complejosFiltrados}
           filtroDeporte={filtroActivo}
@@ -299,7 +299,11 @@ export default function MapaPage() {
       >
         {complejoSeleccionado ? (
           <motion.div key={complejoSeleccionado.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="p-6 space-y-5">
-            <button onClick={() => setComplejoSeleccionado(null)} className="text-xs text-rodeo-cream/50 flex items-center gap-1 hover:text-rodeo-cream transition-colors">
+            <button
+              onClick={() => setComplejoSeleccionado(null)}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-[10px] text-xs font-bold transition-all text-rodeo-cream hover:text-white"
+              style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.14)" }}
+            >
               <ChevronLeft size={14} /> Todos los complejos
             </button>
             <div>

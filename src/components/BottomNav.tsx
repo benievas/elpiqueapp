@@ -16,8 +16,8 @@ const navItems = [
 export default function BottomNav() {
   const pathname = usePathname();
 
-  // No mostrar en panel owner/admin
-  if (pathname.startsWith("/owner") || pathname.startsWith("/admin")) return null;
+  // No mostrar en panel owner/admin ni en mapa (tiene su propia bottom sheet)
+  if (pathname.startsWith("/owner") || pathname.startsWith("/admin") || pathname === "/mapa") return null;
 
   return (
     <nav className="fixed bottom-4 left-3 right-3 z-40 md:hidden">
