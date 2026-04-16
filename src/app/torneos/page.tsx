@@ -7,7 +7,7 @@ import { motion } from "framer-motion";
 import { supabase } from "@/lib/supabase";
 import { Trophy, Users, Calendar, Filter, Loader, ChevronLeft, Rss } from "lucide-react";
 import CityBanner from "@/components/CityBanner";
-import { useCityContext } from "@/components/CityProvider";
+import { useCityContext } from "@/lib/context/CityContext";
 
 interface Torneo {
   id: string;
@@ -27,7 +27,7 @@ export default function TorneosPage() {
   const [torneos, setTorneos] = useState<Torneo[]>([]);
   const [filtroDeporte, setFiltroDeporte] = useState("todos");
   const [loading, setLoading] = useState(true);
-  const { city } = useCityContext();
+  const { ciudadCorta: city } = useCityContext();
 
   useEffect(() => {
     fetchTorneos();

@@ -7,7 +7,7 @@ import { motion } from "framer-motion";
 import { supabase } from "@/lib/supabase";
 import { Heart, MessageCircle, Share2, Loader, ChevronLeft } from "lucide-react";
 import CityBanner from "@/components/CityBanner";
-import { useCityContext } from "@/components/CityProvider";
+import { useCityContext } from "@/lib/context/CityContext";
 
 interface Post {
   id: string;
@@ -27,7 +27,7 @@ export default function FeedPage() {
   const [filtroTipo, setFiltroTipo] = useState("todos");
   const [loading, setLoading] = useState(true);
   const [likedPosts, setLikedPosts] = useState<Set<string>>(new Set());
-  const { city } = useCityContext();
+  const { ciudadCorta: city } = useCityContext();
 
   useEffect(() => {
     fetchPosts();
