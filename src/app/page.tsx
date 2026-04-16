@@ -5,7 +5,6 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Search,
   User,
-  Bell,
   ChevronLeft,
   ChevronRight,
   ChevronDown,
@@ -13,8 +12,14 @@ import {
   AlertTriangle,
   Compass,
   Map,
-  Footprints,
   Star,
+  CheckCircle2,
+  Zap,
+  Trophy,
+  CalendarDays,
+  QrCode,
+  BarChart3,
+  MessageCircle,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -318,26 +323,178 @@ export default function Home() {
         </div>
       </section>
 
-      {/* POR QUÉ ELPIQUEAPP */}
-      <section className="px-6 py-12 border-t border-white/5">
+      {/* QUÉ ES ELPIQUEAPP */}
+      <section className="px-6 py-16 border-t border-white/5">
         <div className="max-w-4xl mx-auto">
-          <div className="flex items-center gap-3 mb-8">
-            <Star size={20} className="text-rodeo-lime" />
-            <h2 className="text-2xl font-black uppercase tracking-tight text-white">¿Por qué ElPiqueApp?</h2>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {VENTAJAS.map((opcion, i) => {
-              const Icono = opcion.icono;
-              return (
-                <div key={i} className="liquid-panel p-5 flex flex-col gap-3">
-                  <div className="w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center">
-                    <Icono size={20} className="text-rodeo-terracotta" />
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="grid grid-cols-1 md:grid-cols-2 gap-10 items-center"
+          >
+            <div className="space-y-5">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-rodeo-lime/10 border border-rodeo-lime/20 text-rodeo-lime text-xs font-bold tracking-widest uppercase">
+                <Zap size={12} /> ¿Qué es ElPiqueApp?
+              </div>
+              <h2 className="text-3xl md:text-4xl font-black text-white uppercase tracking-tight leading-tight">
+                La app deportiva de Catamarca
+              </h2>
+              <p className="text-rodeo-cream/70 leading-relaxed">
+                ElPiqueApp conecta jugadores con complejos deportivos de forma simple y rápida. Buscás la cancha, elegís el horario disponible y reservás directo por WhatsApp — sin apps extra, sin complicaciones.
+              </p>
+              <p className="text-rodeo-cream/70 leading-relaxed">
+                Para los dueños de complejos, es la herramienta completa: gestionás tus canchas, horarios, reservas y torneos desde un panel dedicado. Tu complejo visible para cientos de jugadores en la región.
+              </p>
+              <div className="flex flex-col gap-3 pt-2">
+                {[
+                  "Reservas vía WhatsApp sin intermediarios",
+                  "Mapa interactivo con todos los complejos",
+                  "Torneos y ligas organizadas",
+                  "Panel de gestión para dueños",
+                ].map((item, i) => (
+                  <div key={i} className="flex items-center gap-3">
+                    <CheckCircle2 size={16} className="text-rodeo-lime shrink-0" />
+                    <span className="text-sm text-rodeo-cream/80">{item}</span>
                   </div>
-                  <h3 className="text-sm font-bold text-white">{opcion.titulo}</h3>
-                  <p className="text-xs text-rodeo-cream/60 leading-relaxed">{opcion.descripcion}</p>
+                ))}
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              {[
+                { icon: MessageCircle, label: "Reservas por WhatsApp", desc: "Confirmación instantánea con el dueño" },
+                { icon: CalendarDays, label: "Disponibilidad en tiempo real", desc: "Ves qué horarios están libres" },
+                { icon: Trophy, label: "Torneos y ligas", desc: "Anotate y competí con tu equipo" },
+                { icon: MapPin, label: "Mapa interactivo", desc: "Encontrá complejos cerca tuyo" },
+              ].map((item, i) => {
+                const Icono = item.icon;
+                return (
+                  <motion.div
+                    key={i}
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    whileInView={{ opacity: 1, scale: 1 }}
+                    viewport={{ once: true }}
+                    transition={{ delay: i * 0.1 }}
+                    className="liquid-panel p-4 space-y-2"
+                  >
+                    <Icono size={22} className="text-rodeo-lime" />
+                    <p className="text-white text-xs font-bold leading-tight">{item.label}</p>
+                    <p className="text-rodeo-cream/50 text-[11px] leading-relaxed">{item.desc}</p>
+                  </motion.div>
+                );
+              })}
+            </div>
+          </motion.div>
+        </div>
+      </section>
+
+      {/* PARA DUEÑOS — PRICING */}
+      <section className="px-6 py-16 border-t border-white/5">
+        <div className="max-w-4xl mx-auto space-y-12">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="text-center space-y-3"
+          >
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10 text-rodeo-cream/60 text-xs font-bold tracking-widest uppercase">
+              Para dueños de complejos
+            </div>
+            <h2 className="text-3xl md:text-4xl font-black text-white uppercase tracking-tight">
+              Sumá tu complejo a ElPiqueApp
+            </h2>
+            <p className="text-rodeo-cream/60 max-w-xl mx-auto">
+              Una sola licencia, todas las herramientas. Con un mes gratis para que lo pruebes sin comprometerte.
+            </p>
+          </motion.div>
+
+          {/* Cards de precio */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5 max-w-2xl mx-auto">
+            {/* Mensual */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0.1 }}
+              className="liquid-panel p-6 space-y-4"
+            >
+              <div>
+                <p className="text-xs font-bold tracking-widest uppercase text-rodeo-cream/40">Plan Mensual</p>
+                <div className="flex items-end gap-1 mt-2">
+                  <span className="text-4xl font-black text-white">$60.000</span>
+                  <span className="text-rodeo-cream/50 text-sm mb-1">/mes</span>
                 </div>
-              );
-            })}
+              </div>
+              <p className="text-xs text-rodeo-cream/50">Cancelás cuando querés. Sin contratos.</p>
+              <Link href="/login" className="liquid-button block text-center text-sm font-bold text-rodeo-cream">
+                Empezar prueba gratis
+              </Link>
+            </motion.div>
+
+            {/* Anual — destacado */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0.2 }}
+              className="liquid-panel p-6 space-y-4 relative border-rodeo-lime/30 bg-gradient-to-br from-rodeo-lime/10 to-transparent"
+            >
+              <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                <span className="bg-rodeo-lime text-rodeo-dark text-[10px] font-black px-3 py-1 rounded-full tracking-widest uppercase">
+                  Ahorrás 2 meses
+                </span>
+              </div>
+              <div>
+                <p className="text-xs font-bold tracking-widest uppercase text-rodeo-lime/70">Plan Anual</p>
+                <div className="flex items-end gap-1 mt-2">
+                  <span className="text-4xl font-black text-white">$600.000</span>
+                  <span className="text-rodeo-cream/50 text-sm mb-1">/año</span>
+                </div>
+                <p className="text-xs text-rodeo-lime/80 mt-1">≈ $50.000/mes — 2 meses gratis vs mensual</p>
+              </div>
+              <p className="text-xs text-rodeo-cream/50">Pago único anual. Máximo ahorro.</p>
+              <Link href="/login" className="block text-center text-sm font-black py-3 rounded-liquid bg-rodeo-lime text-rodeo-dark hover:bg-rodeo-lime/80 transition-all">
+                Empezar prueba gratis
+              </Link>
+            </motion.div>
+          </div>
+
+          {/* 1 mes gratis banner */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            whileInView={{ opacity: 1 }}
+            viewport={{ once: true }}
+            className="liquid-panel p-5 max-w-2xl mx-auto flex items-center gap-4 border-rodeo-lime/20"
+          >
+            <div className="text-3xl shrink-0">🎁</div>
+            <div>
+              <p className="text-white font-bold text-sm">1 mes gratis para probar</p>
+              <p className="text-rodeo-cream/60 text-xs mt-0.5">Registrá tu complejo, configurá todo y usá la plataforma completa sin pagar nada el primer mes. Sin tarjeta requerida.</p>
+            </div>
+          </motion.div>
+
+          {/* Qué incluye */}
+          <div className="max-w-2xl mx-auto">
+            <p className="text-xs font-bold tracking-widest uppercase text-rodeo-cream/40 mb-4 text-center">Todo incluido en la licencia</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+              {[
+                { icon: CalendarDays, text: "Gestión de disponibilidad de canchas" },
+                { icon: MessageCircle, text: "Reservas automáticas por WhatsApp" },
+                { icon: Trophy, text: "Creación y gestión de torneos" },
+                { icon: QrCode, text: "QR + link público de tu complejo" },
+                { icon: BarChart3, text: "Estadísticas y reportes de uso" },
+                { icon: MapPin, text: "Perfil visible en el mapa de Catamarca" },
+                { icon: Star, text: "Sistema de reseñas verificadas" },
+                { icon: Zap, text: "Panel de dueño completo 24/7" },
+              ].map((item, i) => {
+                const Icono = item.icon;
+                return (
+                  <div key={i} className="flex items-center gap-3 px-3 py-2">
+                    <Icono size={14} className="text-rodeo-lime shrink-0" />
+                    <span className="text-xs text-rodeo-cream/70">{item.text}</span>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </div>
       </section>
