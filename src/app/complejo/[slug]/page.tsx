@@ -321,36 +321,23 @@ export default function ComplejoPage({
         <img
           src={complejo.imagenPrincipal}
           alt="Fondo"
-          style={{ filter: "blur(16px)" }}
+          style={{ filter: "blur(20px)" }}
           className="w-full h-full object-cover scale-110"
         />
-        <div className="absolute inset-0 bg-rodeo-dark/80" />
+        <div className="absolute inset-0 bg-rodeo-dark/85" />
       </div>
 
       {/* CONTENIDO */}
-      <div className="relative z-10 min-h-screen overflow-y-auto pb-28">
-        {/* GALERÍA HERO */}
-        <div className="relative h-64 overflow-hidden">
+      <div className="relative z-10 min-h-screen overflow-y-auto pb-28 md:pb-0">
+
+        {/* GALERÍA HERO — full width */}
+        <div className="relative h-56 md:h-80 overflow-hidden">
           <img
             src={todasLasImagenes[imagenActiva]}
             alt={complejo.nombre}
             className="w-full h-full object-cover"
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-rodeo-dark/80 via-transparent to-transparent" />
-
-          {/* Badge abierto/cerrado */}
-          <div className="absolute top-16 left-4">
-            <span
-              className={`text-[10px] font-bold tracking-widest uppercase px-3 py-1.5 rounded-full border ${
-                complejo.abierto
-                  ? "bg-green-500/20 border-green-400/40 text-green-400"
-                  : "bg-red-500/20 border-red-400/40 text-red-400"
-              }`}
-            >
-              {complejo.abierto ? "Abierto" : "Cerrado"}
-            </span>
-          </div>
-
+          <div className="absolute inset-0 bg-gradient-to-t from-rodeo-dark/90 via-transparent to-transparent" />
           {/* Botones flotantes */}
           <div className="absolute top-4 left-4 right-4 flex justify-between items-center">
             <button
@@ -364,209 +351,196 @@ export default function ComplejoPage({
                 onClick={() => setFavorito(!favorito)}
                 className="w-10 h-10 rounded-full bg-black/40 backdrop-blur-md border border-white/20 flex items-center justify-center hover:bg-black/60 transition-colors"
               >
-                <Heart
-                  size={18}
-                  className={favorito ? "fill-red-400 text-red-400" : "text-white"}
-                />
+                <Heart size={18} className={favorito ? "fill-red-400 text-red-400" : "text-white"} />
               </button>
               <button className="w-10 h-10 rounded-full bg-black/40 backdrop-blur-md border border-white/20 flex items-center justify-center hover:bg-black/60 transition-colors">
                 <Share2 size={18} className="text-white" />
               </button>
             </div>
           </div>
-        </div>
-
-        {/* Miniaturas galería */}
-        <div className="flex gap-2 px-4 py-3 overflow-x-auto no-scrollbar">
-          {todasLasImagenes.map((img, i) => (
-            <button
-              key={i}
-              onClick={() => setImagenActiva(i)}
-              className={`w-16 h-12 shrink-0 rounded-liquid overflow-hidden border-2 transition-all ${
-                imagenActiva === i
-                  ? "border-rodeo-lime"
-                  : "border-white/10 opacity-50"
-              }`}
-            >
-              <img src={img} alt="" className="w-full h-full object-cover" />
-            </button>
-          ))}
-        </div>
-
-        {/* SECCIÓN INFO PRINCIPAL */}
-        <div className="px-5 pt-2 pb-4">
-          <p className="text-xs font-semibold tracking-widest uppercase text-rodeo-cream/50 mb-1">
-            {complejo.deporte}
-          </p>
-          <h1 className="text-3xl font-black uppercase tracking-tight text-white leading-tight">
-            {complejo.nombre}
-          </h1>
-
-          <div className="flex items-center gap-3 mt-2">
-            <div className="flex items-center gap-1.5">
-              <Estrellas cantidad={Math.round(complejo.rating)} />
-              <span className="text-sm font-bold text-white">{complejo.rating}</span>
-            </div>
-            <span className="text-xs text-rodeo-cream/40">
-              {complejo.resenasCount} reseñas
-            </span>
-            <span className="text-xs text-rodeo-cream/40">·</span>
-            <div className="flex items-center gap-1 text-xs text-rodeo-cream/40">
-              <MapPin size={12} />
-              {complejo.ubicacion}
-            </div>
-          </div>
-
-          {/* Chips horario y días */}
-          <div className="flex flex-wrap gap-2 mt-3">
-            <span className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-rodeo-cream/70">
-              <Clock size={12} />
-              {complejo.horario}
-            </span>
-            <span className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-rodeo-cream/70">
-              <Calendar size={12} />
-              {complejo.diasAtencion}
+          {/* Badge estado */}
+          <div className="absolute top-16 left-4">
+            <span className={`text-[10px] font-bold tracking-widest uppercase px-3 py-1.5 rounded-full border ${complejo.abierto ? "bg-green-500/20 border-green-400/40 text-green-400" : "bg-red-500/20 border-red-400/40 text-red-400"}`}>
+              {complejo.abierto ? "● Abierto" : "● Cerrado"}
             </span>
           </div>
-
-          {/* Tags chips */}
-          <div className="flex flex-wrap gap-1.5 mt-2">
-            {complejo.tags.map((tag) => (
-              <span
-                key={tag}
-                className="text-[10px] font-semibold tracking-wide uppercase px-2.5 py-1 rounded-full bg-rodeo-lime/15 text-rodeo-lime border border-rodeo-lime/25"
-              >
-                {tag}
-              </span>
-            ))}
-          </div>
-        </div>
-
-        {/* DESCRIPCIÓN */}
-        <div className="px-5 pb-5">
-          <div className="liquid-panel p-5 flex flex-col gap-3">
-            {complejo.descripcion.map((parrafo, i) => (
-              <p key={i} className="text-sm text-rodeo-cream/75 leading-relaxed">
-                {parrafo}
-              </p>
-            ))}
-          </div>
-        </div>
-
-        {/* WIDGET DE DISPONIBILIDAD - RESERVA RÁPIDA */}
-        <div className="px-5 pb-5 flex justify-center">
-          <div className="w-full max-w-lg">
-            <AvailabilityWidget
-              complejo={complejo}
-              canchas={complejo.canchas}
-            />
-          </div>
-        </div>
-
-        {/* CANCHAS DISPONIBLES */}
-        <div className="px-5 pb-5">
-          <div className="liquid-panel p-5 flex flex-col gap-4">
-            <div className="flex items-center gap-2">
-              <Zap size={16} className="text-rodeo-lime" />
-              <h3 className="text-sm font-bold tracking-widest uppercase text-rodeo-cream/60">
-                Todas las Canchas
-              </h3>
-            </div>
-
-            <div className="flex flex-col gap-3">
-              {complejo.canchas.map((cancha) => (
-                <div
-                  key={cancha.id}
-                  className={`rounded-liquid border p-4 flex flex-col gap-3 ${
-                    cancha.disponible
-                      ? "border-rodeo-lime/30 bg-rodeo-lime/5"
-                      : "border-white/10 bg-white/2 opacity-60"
-                  }`}
-                >
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <h4 className="text-sm font-bold text-white">{cancha.nombre}</h4>
-                      <p className="text-xs text-rodeo-cream/50">
-                        {cancha.deporte} • {cancha.jugadoresPorSide}v{cancha.jugadoresPorSide}
-                      </p>
-                    </div>
-                    <span className="text-lg font-black text-rodeo-lime">
-                      ${(cancha.precio / 1000).toFixed(0)}K
-                    </span>
-                  </div>
-
-                  {cancha.disponible && (
-                    <a
-                      href={generarLinkWhatsApp(cancha)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="liquid-button py-2 text-sm font-bold text-center transition-all hover:bg-white/20"
-                    >
-                      Reservar por WhatsApp →
-                    </a>
-                  )}
-
-                  {!cancha.disponible && (
-                    <div className="text-xs text-rodeo-cream/50 text-center py-2 border-t border-white/10 mt-2">
-                      No disponible en este momento
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* SERVICIOS */}
-        <div className="px-5 pb-5">
-          <div className="liquid-panel p-5">
-            <div className="flex items-center gap-2 mb-3">
-              <Users size={16} className="text-rodeo-lime" />
-              <h3 className="text-sm font-bold tracking-widest uppercase text-rodeo-cream/60">
-                Servicios
-              </h3>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {complejo.servicios.map((servicio) => (
-                <span
-                  key={servicio}
-                  className="text-xs px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-rodeo-cream/70"
-                >
-                  ✓ {servicio}
-                </span>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* RESEÑAS */}
-        <div className="px-5 pb-5">
-          <div className="liquid-panel p-5 flex flex-col gap-5">
-            <h3 className="text-sm font-bold tracking-widest uppercase text-rodeo-cream/60">
-              Reseñas de Jugadores
-            </h3>
-            {complejo.reviewsDestacadas.map((r, i) => (
-              <div
+          {/* Miniaturas */}
+          <div className="absolute bottom-3 left-4 flex gap-2">
+            {todasLasImagenes.slice(0, 4).map((img, i) => (
+              <button
                 key={i}
-                className="flex flex-col gap-2 border-b border-white/5 pb-4 last:border-0 last:pb-0"
+                onClick={() => setImagenActiva(i)}
+                className={`w-12 h-9 shrink-0 rounded-lg overflow-hidden border-2 transition-all ${imagenActiva === i ? "border-rodeo-lime" : "border-white/20 opacity-50"}`}
               >
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-bold text-white">{r.autor}</span>
-                  <Estrellas cantidad={r.estrellas} />
-                </div>
-                <p className="text-xs text-rodeo-cream/60 leading-relaxed">{r.texto}</p>
-              </div>
+                <img src={img} alt="" className="w-full h-full object-cover" />
+              </button>
             ))}
+          </div>
+        </div>
+
+        {/* ── LAYOUT PRINCIPAL ─────────────────────────────── */}
+        <div className="max-w-7xl mx-auto px-4 md:px-8 py-6 md:grid md:grid-cols-[1fr_380px] md:gap-8 md:items-start">
+
+          {/* ── COLUMNA IZQUIERDA ─── */}
+          <div className="flex flex-col gap-6">
+
+            {/* INFO PRINCIPAL */}
+            <div>
+              <p className="text-xs font-semibold tracking-widest uppercase text-rodeo-cream/50 mb-1">{complejo.deporte}</p>
+              <h1 className="text-3xl md:text-4xl font-black uppercase tracking-tight text-white leading-tight">{complejo.nombre}</h1>
+              <div className="flex flex-wrap items-center gap-3 mt-2">
+                <div className="flex items-center gap-1.5">
+                  <Estrellas cantidad={Math.round(complejo.rating)} />
+                  <span className="text-sm font-bold text-white">{complejo.rating}</span>
+                  <span className="text-xs text-rodeo-cream/40">({complejo.resenasCount} reseñas)</span>
+                </div>
+                <div className="flex items-center gap-1 text-xs text-rodeo-cream/40">
+                  <MapPin size={12} />
+                  {complejo.ubicacion}
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-2 mt-3">
+                <span className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-rodeo-cream/70">
+                  <Clock size={12} /> {complejo.horario}
+                </span>
+                <span className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-rodeo-cream/70">
+                  <Calendar size={12} /> {complejo.diasAtencion}
+                </span>
+                <span className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-rodeo-cream/70">
+                  <Navigation size={12} />
+                  <a href={`tel:${complejo.telefono}`} className="hover:text-rodeo-lime">{complejo.telefono}</a>
+                </span>
+              </div>
+              <div className="flex flex-wrap gap-1.5 mt-2">
+                {complejo.tags.map((tag) => (
+                  <span key={tag} className="text-[10px] font-semibold tracking-wide uppercase px-2.5 py-1 rounded-full bg-rodeo-lime/15 text-rodeo-lime border border-rodeo-lime/25">{tag}</span>
+                ))}
+              </div>
+            </div>
+
+            {/* DESCRIPCIÓN */}
+            <div
+              style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "16px" }}
+              className="p-5 flex flex-col gap-3"
+            >
+              <div className="flex items-center gap-2">
+                <Zap size={15} className="text-rodeo-lime" />
+                <h3 className="text-xs font-bold tracking-widest uppercase text-rodeo-cream/60">Sobre el complejo</h3>
+              </div>
+              {complejo.descripcion.map((parrafo, i) => (
+                <p key={i} className="text-sm text-rodeo-cream/75 leading-relaxed">{parrafo}</p>
+              ))}
+            </div>
+
+            {/* CANCHAS */}
+            <div
+              style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "16px" }}
+              className="p-5"
+            >
+              <div className="flex items-center gap-2 mb-4">
+                <Zap size={15} className="text-rodeo-lime" />
+                <h3 className="text-xs font-bold tracking-widest uppercase text-rodeo-cream/60">Todas las Canchas</h3>
+              </div>
+              <div className="grid md:grid-cols-2 gap-3">
+                {complejo.canchas.map((cancha) => (
+                  <div
+                    key={cancha.id}
+                    className={`rounded-2xl border p-4 flex flex-col gap-3 ${cancha.disponible ? "border-rodeo-lime/30 bg-rodeo-lime/5" : "border-white/10 bg-white/2 opacity-60"}`}
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <h4 className="text-sm font-bold text-white">{cancha.nombre}</h4>
+                        <p className="text-xs text-rodeo-cream/50">{cancha.deporte} • {cancha.jugadoresPorSide}v{cancha.jugadoresPorSide}</p>
+                      </div>
+                      <span className="text-xl font-black text-rodeo-lime">${(cancha.precio / 1000).toFixed(0)}K</span>
+                    </div>
+                    {cancha.disponible && (
+                      <a
+                        href={generarLinkWhatsApp(cancha)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="liquid-button py-2 text-sm font-bold text-center transition-all hover:bg-white/20"
+                      >
+                        Reservar por WhatsApp →
+                      </a>
+                    )}
+                    {!cancha.disponible && (
+                      <div className="text-xs text-rodeo-cream/50 text-center py-1 border-t border-white/10">No disponible ahora</div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* SERVICIOS */}
+            <div
+              style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "16px" }}
+              className="p-5"
+            >
+              <div className="flex items-center gap-2 mb-3">
+                <Users size={15} className="text-rodeo-lime" />
+                <h3 className="text-xs font-bold tracking-widest uppercase text-rodeo-cream/60">Servicios</h3>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {complejo.servicios.map((s) => (
+                  <span key={s} className="text-xs px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-rodeo-cream/70">✓ {s}</span>
+                ))}
+              </div>
+            </div>
+
+            {/* RESEÑAS */}
+            <div
+              style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "16px" }}
+              className="p-5 flex flex-col gap-4 mb-6"
+            >
+              <div className="flex items-center gap-2">
+                <MessageSquare size={15} className="text-rodeo-lime" />
+                <h3 className="text-xs font-bold tracking-widest uppercase text-rodeo-cream/60">Reseñas</h3>
+              </div>
+              {complejo.reviewsDestacadas.map((r, i) => (
+                <div key={i} className="flex flex-col gap-2 border-b border-white/5 pb-4 last:border-0 last:pb-0">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-bold text-white">{r.autor}</span>
+                    <Estrellas cantidad={r.estrellas} />
+                  </div>
+                  <p className="text-xs text-rodeo-cream/60 leading-relaxed">{r.texto}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* ── COLUMNA DERECHA (sticky en desktop, inline en mobile) ─── */}
+          <div className="md:sticky md:top-6">
+            {/* Widget reservas — solo visible en desktop en la columna */}
+            <div className="hidden md:block">
+              <AvailabilityWidget complejo={complejo} canchas={complejo.canchas} />
+            </div>
+            {/* En mobile, Availability Widget va inline entre secciones */}
+            <div className="md:hidden">
+              <AvailabilityWidget complejo={complejo} canchas={complejo.canchas} />
+            </div>
+
+            {/* CTA WhatsApp (solo desktop en columna) */}
+            <div className="hidden md:block mt-4">
+              <a
+                href={`https://wa.me/${complejo.whatsapp}?text=${encodeURIComponent(`Hola! Tengo una consulta sobre ${complejo.nombre}`)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: "16px" }}
+                className="w-full py-3 flex items-center justify-center gap-3 text-sm font-bold text-white hover:bg-white/10 transition-all"
+              >
+                <MessageSquare size={18} />
+                Contactar por WhatsApp
+              </a>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* BOTÓN STICKY BOTTOM */}
-      <div className="fixed bottom-0 left-0 right-0 z-30 px-5 py-4 bg-rodeo-dark/80 backdrop-blur-md border-t border-white/10">
+      {/* BOTÓN STICKY BOTTOM — solo móvil */}
+      <div className="md:hidden fixed bottom-0 left-0 right-0 z-30 px-5 py-4 bg-rodeo-dark/80 backdrop-blur-md border-t border-white/10">
         <a
-          href={`https://wa.me/${complejo.whatsapp}?text=${encodeURIComponent(
-            `Hola! Tengo una consulta sobre ${complejo.nombre}`
-          )}`}
+          href={`https://wa.me/${complejo.whatsapp}?text=${encodeURIComponent(`Hola! Tengo una consulta sobre ${complejo.nombre}`)}`}
           target="_blank"
           rel="noopener noreferrer"
           className="liquid-button w-full py-4 flex items-center justify-center gap-3 text-sm font-bold tracking-widest uppercase bg-rodeo-lime/20 hover:bg-rodeo-lime/30 border-rodeo-lime/50"

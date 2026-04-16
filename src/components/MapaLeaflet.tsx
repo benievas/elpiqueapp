@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import "leaflet/dist/leaflet.css";
 
 // Tipos
 type Complejo = {
@@ -91,6 +92,56 @@ export default function MapaLeaflet({
 
       // Zoom control en esquina inferior derecha
       L.control.zoom({ position: "bottomright" }).addTo(map);
+
+      // ── GPS: centrar en la posición del usuario ──────────────────────
+      if (typeof navigator !== "undefined" && navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          (pos) => {
+            const { latitude, longitude } = pos.coords;
+            map.flyTo([latitude, longitude], 14, { duration: 1.5 });
+
+            // Marcador "Tu ubicación" — punto azul con halo pulsante
+            const userIcon = L.divIcon({
+              className: "",
+              html: `
+                <div style="position:relative; display:flex; align-items:center; justify-content:center; width:20px; height:20px;">
+                  <div style="
+                    position:absolute; width:32px; height:32px;
+                    background:rgba(59,130,246,0.2);
+                    border-radius:50%;
+                    animation:userPulse 2s infinite;
+                  "></div>
+                  <div style="
+                    width:14px; height:14px;
+                    background:#3B82F6;
+                    border:3px solid white;
+                    border-radius:50%;
+                    box-shadow:0 2px 8px rgba(59,130,246,0.6);
+                    position:relative; z-index:1;
+                  "></div>
+                </div>
+                <style>
+                  @keyframes userPulse {
+                    0%,100% { transform:scale(1); opacity:0.7; }
+                    50% { transform:scale(1.8); opacity:0; }
+                  }
+                </style>
+              `,
+              iconSize: [20, 20],
+              iconAnchor: [10, 10],
+            });
+
+            L.marker([latitude, longitude], { icon: userIcon })
+              .addTo(map)
+              .bindTooltip("Tu ubicación", { direction: "top", permanent: false });
+          },
+          () => {
+            // Permiso denegado o error — mantener vista de Catamarca
+            console.log("Geolocalización no disponible");
+          },
+          { timeout: 5000, maximumAge: 60000 }
+        );
+      }
 
       leafletMapRef.current = map;
     });

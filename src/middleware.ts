@@ -13,6 +13,8 @@ const PUBLIC_ROUTES = [
   '/feed',
   '/privacidad',
   '/terminos',
+  '/perfil',
+  '/owner',   // Auth verificada client-side en el layout
 ];
 
 // Rutas protegidas por rol

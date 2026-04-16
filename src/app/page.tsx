@@ -193,7 +193,7 @@ export default function Home() {
         {/* CONTENIDO PRINCIPAL */}
         <main className="absolute inset-0 z-10 flex pt-36 pb-28">
           {/* PANEL IZQUIERDO */}
-          <div className="w-full md:w-[45%] pl-6 md:pl-24 flex flex-col justify-center pr-6 md:pr-0">
+          <div className="w-full md:w-[45%] pl-6 md:pl-24 flex flex-col justify-center pr-6 md:pr-0 relative z-10">
             <AnimatePresence mode="wait">
               <motion.div
                 key={activeItem.id}
