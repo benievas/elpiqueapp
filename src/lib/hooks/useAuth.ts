@@ -1,8 +1,8 @@
 'use client';
 
-import { useContext, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
-import type { User, Session } from '@supabase/supabase-js';
+import type { User } from '@supabase/supabase-js';
 
 export interface UserProfile {
   id: string;
@@ -14,6 +14,15 @@ export interface UserProfile {
   ciudad: string;
 }
 
+async function fetchProfile(userId: string): Promise<UserProfile | null> {
+  const { data } = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('id', userId)
+    .maybeSingle();
+  return data ?? null;
+}
+
 export function useAuth() {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -21,85 +30,48 @@ export function useAuth() {
   const [error, setError] = useState<Error | null>(null);
 
   useEffect(() => {
-    const getAuth = async () => {
-      try {
-        // Obtener sesión
-        const {
-          data: { session },
-          error: sessionError,
-        } = await supabase.auth.getSession();
+    let mounted = true;
 
-        if (sessionError) throw sessionError;
+    // Carga inicial de sesión
+    supabase.auth.getSession().then(async ({ data: { session }, error: sessionError }) => {
+      if (!mounted) return;
+      if (sessionError) { setError(sessionError); setLoading(false); return; }
 
-        if (session?.user) {
-          setUser(session.user);
-
-          // Obtener perfil del usuario
-          const { data: profileData } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', session.user.id)
-            .maybeSingle();
-
-          if (profileData) {
-            setProfile(profileData);
-          }
-        } else {
-          setUser(null);
-          setProfile(null);
-        }
-      } catch (err) {
-        setError(err instanceof Error ? err : new Error('Unknown error'));
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    getAuth();
-
-    // Escuchar cambios de autenticación
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (session?.user) {
         setUser(session.user);
+        const p = await fetchProfile(session.user.id);
+        if (mounted) setProfile(p);
+      }
+      if (mounted) setLoading(false);
+    });
 
-        // Re-fetch profile cuando cambia la sesión
-        const { data: profileData } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', session.user.id)
-          .maybeSingle();
+    // Escuchar cambios de sesión
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (!mounted) return;
 
-        if (profileData) {
-          setProfile(profileData);
-        }
+      if (session?.user) {
+        setUser(session.user);
+        const p = await fetchProfile(session.user.id);
+        if (mounted) setProfile(p);
       } else {
         setUser(null);
         setProfile(null);
       }
+
+      if (event === 'INITIAL_SESSION') setLoading(false);
     });
 
     return () => {
-      subscription?.unsubscribe();
+      mounted = false;
+      subscription.unsubscribe();
     };
-  }, [supabase]);
+  }, []); // Sin dependencias — supabase es una constante de módulo
 
   const signOut = async () => {
-    try {
-      const { error } = await supabase.auth.signOut();
-      if (error) throw error;
-      setUser(null);
-      setProfile(null);
-    } catch (err) {
-      setError(err instanceof Error ? err : new Error('Error signing out'));
-      throw err;
-    }
+    await supabase.auth.signOut();
+    setUser(null);
+    setProfile(null);
   };
-
-  const isOwner = profile?.rol === 'propietario';
-  const isAdmin = ['admin', 'superadmin'].includes(profile?.rol || '');
-  const isSuperAdmin = profile?.rol === 'superadmin';
 
   return {
     user,
@@ -107,9 +79,9 @@ export function useAuth() {
     loading,
     error,
     signOut,
-    isOwner,
-    isAdmin,
-    isSuperAdmin,
+    isOwner: profile?.rol === 'propietario',
+    isAdmin: profile?.rol === 'admin' || profile?.rol === 'superadmin',
+    isSuperAdmin: profile?.rol === 'superadmin',
     isAuthenticated: !!user,
   };
 }

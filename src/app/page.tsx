@@ -20,8 +20,12 @@ import {
   QrCode,
   BarChart3,
   MessageCircle,
+  LogOut,
+  LayoutDashboard,
 } from "lucide-react";
 import Link from "next/link";
+import { useAuth } from "@/lib/hooks/useAuth";
+import { useRouter } from "next/navigation";
 
 // --- SLIDES PROMOCIONALES (sobre ElPiqueApp) ---
 const PROMO_SLIDES = [
@@ -146,6 +150,64 @@ const VENTAJAS = [
   { icono: Star, titulo: "Reseñas Verificadas", descripcion: "Lee opiniones de otros jugadores y califica cada cancha después de jugar." },
 ];
 
+function HeroUserButton() {
+  const router = useRouter();
+  const { user, profile, loading, signOut, isOwner, isAdmin } = useAuth();
+  const [open, setOpen] = useState(false);
+
+  const handleSignOut = async () => { await signOut(); setOpen(false); router.push("/"); };
+
+  if (loading) return <div className="w-10 h-10 rounded-[12px] bg-white/10 animate-pulse" />;
+
+  if (!user) {
+    return (
+      <Link href="/login" style={{ background:"rgba(200,255,0,0.18)", border:"1px solid rgba(200,255,0,0.35)", borderRadius:"12px", backdropFilter:"blur(20px)", WebkitBackdropFilter:"blur(20px)" }}
+        className="p-2.5 hover:bg-rodeo-lime/30 transition-all flex items-center justify-center">
+        <User size={18} className="text-rodeo-lime" />
+      </Link>
+    );
+  }
+
+  return (
+    <div className="relative">
+      <button onClick={() => setOpen(!open)} style={{ background:"rgba(200,255,0,0.18)", border:"1px solid rgba(200,255,0,0.35)", borderRadius:"12px", backdropFilter:"blur(20px)" }}
+        className="p-2 flex items-center gap-1.5 hover:bg-rodeo-lime/30 transition-all">
+        {profile?.avatar_url
+          ? <img src={profile.avatar_url} alt="" className="w-5 h-5 rounded-full object-cover" />
+          : <User size={16} className="text-rodeo-lime" />}
+      </button>
+      <AnimatePresence>
+        {open && (
+          <motion.div initial={{ opacity:0, y:8, scale:0.95 }} animate={{ opacity:1, y:0, scale:1 }} exit={{ opacity:0, y:8, scale:0.95 }}
+            className="absolute right-0 top-full mt-2 w-48 liquid-panel p-2 space-y-0.5 shadow-2xl z-50">
+            <div className="px-3 py-2 border-b border-white/10 mb-1">
+              <p className="text-xs font-bold text-white truncate">{profile?.nombre_completo || "Usuario"}</p>
+              <p className="text-[10px] text-rodeo-cream/40 truncate">{user.email}</p>
+            </div>
+            {(isOwner || isAdmin) && (
+              <Link href="/owner" onClick={() => setOpen(false)}>
+                <div className="flex items-center gap-2.5 px-3 py-2 rounded-[8px] hover:bg-white/8 transition-colors text-rodeo-cream text-xs font-bold cursor-pointer">
+                  <LayoutDashboard size={13} className="text-rodeo-lime" /> Panel Dueño
+                </div>
+              </Link>
+            )}
+            {!isOwner && !isAdmin && (
+              <Link href="/perfil" onClick={() => setOpen(false)}>
+                <div className="flex items-center gap-2.5 px-3 py-2 rounded-[8px] hover:bg-white/8 transition-colors text-rodeo-cream text-xs cursor-pointer">
+                  <User size={13} className="text-rodeo-cream/60" /> Mi Perfil
+                </div>
+              </Link>
+            )}
+            <button onClick={handleSignOut} className="w-full flex items-center gap-2.5 px-3 py-2 rounded-[8px] hover:bg-red-500/10 transition-colors text-red-400 text-xs font-bold text-left">
+              <LogOut size={13} /> Cerrar sesión
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
 export default function Home() {
   const [currentIndex, setCurrentIndex] = useState(0);
 
@@ -210,34 +272,14 @@ export default function Home() {
             <Link href="/feed" className="hover:text-rodeo-lime transition-colors">FEED</Link>
             <Link href="/owner" className="text-rodeo-lime hover:text-white transition-colors">PANEL DUEÑO</Link>
           </nav>
-          <div className="flex gap-2">
+          <div className="flex gap-2 items-center">
             <button
-              style={{
-                background: "rgba(255,255,255,0.12)",
-                border: "1px solid rgba(255,255,255,0.2)",
-                borderRadius: "12px",
-                backdropFilter: "blur(20px)",
-                WebkitBackdropFilter: "blur(20px)",
-                boxShadow: "inset 0 1px 0 rgba(255,255,255,0.2)",
-              }}
+              style={{ background:"rgba(255,255,255,0.12)", border:"1px solid rgba(255,255,255,0.2)", borderRadius:"12px", backdropFilter:"blur(20px)", WebkitBackdropFilter:"blur(20px)" }}
               className="p-2.5 hover:bg-white/25 transition-all"
             >
               <Search size={18} className="text-white" />
             </button>
-            <Link
-              href="/login"
-              style={{
-                background: "rgba(200,255,0,0.18)",
-                border: "1px solid rgba(200,255,0,0.35)",
-                borderRadius: "12px",
-                backdropFilter: "blur(20px)",
-                WebkitBackdropFilter: "blur(20px)",
-                boxShadow: "inset 0 1px 0 rgba(255,255,255,0.2)",
-              }}
-              className="p-2.5 hover:bg-rodeo-lime/30 transition-all"
-            >
-              <User size={18} className="text-rodeo-lime" />
-            </Link>
+            <HeroUserButton />
           </div>
         </header>
 

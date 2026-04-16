@@ -84,11 +84,12 @@ export default function MapaPage() {
         />
       </div>
 
-      {/* ─── HEADER flotante ─── */}
+      {/* ─── HEADER flotante (ciudad + filtros en columna) ─── */}
       <header
-        className="absolute top-0 left-0 right-0 z-20 px-4 pt-4 pb-2 md:pr-[336px]"
-        style={{ background: "linear-gradient(180deg, rgba(4,13,7,0.88) 0%, rgba(4,13,7,0.4) 75%, transparent 100%)" }}
+        className="absolute top-0 left-0 right-0 z-20 px-4 pt-4 pb-3 md:pr-[336px] flex flex-col gap-2"
+        style={{ background: "linear-gradient(180deg, rgba(4,13,7,0.92) 0%, rgba(4,13,7,0.6) 80%, transparent 100%)" }}
       >
+        {/* Fila 1: back + ciudad */}
         <div className="flex items-center gap-3">
           <Link
             href="/"
@@ -105,13 +106,9 @@ export default function MapaPage() {
             <span className="text-xs text-rodeo-cream/40 ml-2 shrink-0">{complejosFiltrados.length} complejos</span>
           </div>
         </div>
-      </header>
 
-      {/* ─── FILTROS flotantes ─── */}
-      <div
-        className="absolute left-0 right-0 z-20 flex gap-2 overflow-x-auto px-4 no-scrollbar md:pr-[336px]"
-        style={{ top: "70px", paddingBottom: "4px" }}
-      >
+        {/* Fila 2: filtros — siempre en la misma columna, sin solapamiento */}
+        <div className="flex gap-2 overflow-x-auto no-scrollbar pb-0.5">
         {FILTROS.map((f) => {
           const isActive = filtroActivo === f.id;
           const color = DEPORTE_COLORS[f.id] || "#C8FF00";
@@ -133,7 +130,8 @@ export default function MapaPage() {
             </button>
           );
         })}
-      </div>
+        </div>
+      </header>
 
       {/* ─── MOBILE: BOTTOM SHEET ─── */}
       <motion.div

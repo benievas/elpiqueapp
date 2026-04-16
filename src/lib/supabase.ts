@@ -10,7 +10,6 @@ export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
   auth: { flowType: 'pkce' },
 });
 
+// Misma instancia — evita múltiples GoTrueClient en el browser
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const supabaseMut = createClient(supabaseUrl, supabaseAnonKey, {
-  auth: { flowType: 'pkce' },
-}) as any;
+export const supabaseMut = supabase as any;
