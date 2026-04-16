@@ -70,14 +70,14 @@ export default function LoginPage() {
           className="w-full max-w-md space-y-8"
         >
           {/* Logo */}
-          <div className="text-center mb-2">
-            <motion.h1
-              className="text-4xl font-black text-white uppercase tracking-tight"
-              whileHover={{ scale: 1.02 }}
-            >
-              ElPique<span className="text-rodeo-lime">App</span>
-            </motion.h1>
-            <p className="text-rodeo-cream/70 text-sm mt-2">
+          <div className="flex flex-col items-center gap-3 mb-2">
+            <motion.img
+              src="/assets/logo-main.png"
+              alt="ElPiqueApp"
+              className="h-14 w-auto"
+              whileHover={{ scale: 1.05 }}
+            />
+            <p className="text-rodeo-cream/70 text-sm">
               Reserva canchas deportivas en tu ciudad
             </p>
           </div>

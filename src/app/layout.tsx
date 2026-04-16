@@ -39,7 +39,8 @@ export const metadata: Metadata = {
     images: ["/og-image.png"],
   },
   icons: {
-    icon: "/assets/favicon.png",
+    icon: "/assets/logoventana.png",
+    apple: "/assets/logoventana.png",
   },
   robots: {
     index: true,

@@ -140,9 +140,7 @@ export default function Home() {
 
         {/* NAVBAR */}
         <header className="absolute top-0 w-full px-6 md:px-12 py-6 flex justify-between items-center z-20">
-          <span className="text-xl font-black text-white tracking-tight uppercase">
-            ElPique<span className="text-rodeo-lime">App</span>
-          </span>
+          <img src="/assets/logo-main.png" alt="ElPiqueApp" className="h-8 w-auto" />
           <nav className="hidden md:flex gap-10 text-sm font-medium tracking-wide text-rodeo-cream/80">
             <Link href="/explorar" className="hover:text-white transition-colors">EXPLORAR</Link>
             <Link href="/mapa" className="hover:text-white transition-colors">MAPA</Link>
@@ -347,7 +345,7 @@ export default function Home() {
       {/* FOOTER */}
       <footer className="border-t border-white/10 px-6 py-12 pb-24 md:pb-12 bg-black/20">
         <div className="max-w-4xl mx-auto flex flex-col items-center gap-6">
-          <span className="text-2xl font-black text-white tracking-tight uppercase">ElPique<span className="text-rodeo-lime">App</span></span>
+          <img src="/assets/logo-main.png" alt="ElPiqueApp" className="h-8 w-auto" />
           <p className="text-xs text-rodeo-cream/30 tracking-widest uppercase text-center">Reserva canchas deportivas en Catamarca · 24/7 disponible</p>
           <nav className="flex flex-wrap justify-center gap-x-6 gap-y-2">
             {[{ href: "/explorar", label: "Explorar" }, { href: "/mapa", label: "Mapa" }, { href: "/torneos", label: "Torneos" }, { href: "/perfil", label: "Mi Perfil" }, { href: "/dueno/dashboard", label: "Panel Dueño" }].map((link) => (
