@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, use } from "react";
+import { useState, useEffect, use } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
@@ -19,243 +19,47 @@ import {
   Zap,
 } from "lucide-react";
 import AvailabilityWidget from "@/components/AvailabilityWidget";
+import { supabase } from "@/lib/supabase";
 
-// --- Tipos ---
-interface Court {
-  id: number;
+// --- Tipos DB ---
+interface DBCourt {
+  id: string;
   nombre: string;
   deporte: string;
-  precio: number;
-  disponible: boolean;
-  imagen: string;
-  jugadoresPorSide: number;
+  descripcion: string | null;
+  imagen_principal: string | null;
+  precio_por_hora: number;
+  capacidad_jugadores: number;
+  tiene_iluminacion: boolean;
+  superficie: string;
+  estado: string; // "disponible" | "ocupada" | "mantenimiento"
+  activa: boolean;
 }
 
-interface Review {
-  autor: string;
-  estrellas: number;
-  texto: string;
-}
-
-interface Complejo {
-  id: number;
+interface DBComplejo {
+  id: string;
   nombre: string;
   slug: string;
-  deporte: string;
-  descripcion: string[];
-  rating: number;
-  resenasCount: number;
-  ubicacion: string;
-  telefono: string;
-  whatsapp: string;
-  imagenPrincipal: string;
+  deporte_principal: string;
+  deportes: string[];
+  descripcion: string | null;
+  imagen_principal: string | null;
   galeria: string[];
-  horario: string;
-  diasAtencion: string;
-  abierto: boolean;
+  lat: number;
+  lng: number;
+  ciudad: string;
+  direccion: string;
+  telefono: string | null;
+  whatsapp: string;
+  horario_abierto: string;
+  horario_cierre: string;
+  dias_abiertos: string[];
   servicios: string[];
-  tags: string[];
-  resumenIA: string;
-  reviewsDestacadas: Review[];
-  canchas: Court[];
+  rating_promedio: number | null;
+  total_reviews: number;
+  activo: boolean;
+  canchas?: DBCourt[];
 }
-
-// --- MOCK DATA ---
-const MOCK_COMPLEJOS: Record<string, Complejo> = {
-  "sportivo-central": {
-    id: 1,
-    nombre: "Sportivo Central",
-    slug: "sportivo-central",
-    deporte: "Fútbol 5/11",
-    descripcion: [
-      "Sportivo Central es el complejo deportivo más moderno de Catamarca con 8 canchas de fútbol sintético de última generación, 4 canchas de padel y 2 de vóley.",
-      "Nuestras instalaciones incluyen vestuarios completos, estacionamiento para 200 vehículos, bar y zona de espera climatizada. Perfecto para torneos, ligas y partidos amistosos.",
-      "Con iluminación LED profesional, contamos con disponibilidad de 06:00 a 23:00 todos los días. Las reservas son confirmadas vía WhatsApp en menos de 2 minutos.",
-    ],
-    rating: 4.8,
-    resenasCount: 312,
-    ubicacion: "Av. Libertad 1234, Catamarca Capital",
-    telefono: "+54 383 443-1234",
-    whatsapp: "5493834431234",
-    imagenPrincipal:
-      "https://images.unsplash.com/photo-1461896836934-ffe607ba8211?q=80&w=2000&auto=format&fit=crop",
-    galeria: [
-      "https://images.unsplash.com/photo-1461896836934-ffe607ba8211?q=80&w=800",
-      "https://images.unsplash.com/photo-1506952331343-911001f9f6b2?q=80&w=800",
-      "https://images.unsplash.com/photo-1461896836934-ffe607ba8211?q=80&w=800",
-    ],
-    horario: "06:00 – 23:00",
-    diasAtencion: "Todos los días",
-    abierto: true,
-    servicios: ["Vestuarios", "Estacionamiento", "Bar/Snacks", "WiFi", "Aire acondicionado"],
-    tags: ["Fútbol", "Padel", "Vóley", "Profesional", "24/7"],
-    resumenIA:
-      "Sportivo Central es la mejor opción para fútbol 5 en Catamarca. Canchas en perfecto estado, servicio rápido y ambiente profesional. Ideal para ligas y torneos.",
-    reviewsDestacadas: [
-      {
-        autor: "Carlos M.",
-        estrellas: 5,
-        texto: "Excelente complejo. Las canchas están impecables y el servicio muy rápido. Recomendado 100%.",
-      },
-      {
-        autor: "Lucía P.",
-        estrellas: 5,
-        texto: "Jugué un torneo acá y fue espectacular. Todo bien organizado y las instalaciones de primer nivel.",
-      },
-      {
-        autor: "Andrés R.",
-        estrellas: 4,
-        texto: "Buena ubicación y canchas bien mantenidas. A veces hay que esperar en picos horarios.",
-      },
-    ],
-    canchas: [
-      {
-        id: 1,
-        nombre: "Cancha Premium 1",
-        deporte: "Fútbol 5",
-        precio: 15000,
-        disponible: true,
-        imagen:
-          "https://images.unsplash.com/photo-1461896836934-ffe607ba8211?q=80&w=600",
-        jugadoresPorSide: 5,
-      },
-      {
-        id: 2,
-        nombre: "Cancha Premium 2",
-        deporte: "Fútbol 5",
-        precio: 15000,
-        disponible: true,
-        imagen:
-          "https://images.unsplash.com/photo-1461896836934-ffe607ba8211?q=80&w=600",
-        jugadoresPorSide: 5,
-      },
-      {
-        id: 3,
-        nombre: "Cancha Fútbol 11",
-        deporte: "Fútbol 11",
-        precio: 25000,
-        disponible: false,
-        imagen:
-          "https://images.unsplash.com/photo-1506952331343-911001f9f6b2?q=80&w=600",
-        jugadoresPorSide: 11,
-      },
-      {
-        id: 4,
-        nombre: "Padel Court 1",
-        deporte: "Padel",
-        precio: 12000,
-        disponible: true,
-        imagen:
-          "https://images.unsplash.com/photo-1487180144351-b8472da7d491?q=80&w=600",
-        jugadoresPorSide: 2,
-      },
-    ],
-  },
-  "padel-club-elite": {
-    id: 2,
-    nombre: "Padel Club Elite",
-    slug: "padel-club-elite",
-    deporte: "Padel",
-    descripcion: [
-      "Padel Club Elite es la cancha de padel más moderna de Catamarca con 6 canchas profesionales de césped sintético premium.",
-      "Ubicada en zona céntrica, ofrece vestuarios modernos, sauna, estacionamiento cubierto y una cafetería abierta durante todo el día.",
-      "Especializada en torneos profesionales y entrenamientos de alto nivel, contamos con instructores certificados.",
-    ],
-    rating: 4.9,
-    resenasCount: 189,
-    ubicacion: "Calle Rivadavia 567, Centro Catamarca",
-    telefono: "+54 383 443-5678",
-    whatsapp: "5493834435678",
-    imagenPrincipal:
-      "https://images.unsplash.com/photo-1487180144351-b8472da7d491?q=80&w=2000&auto=format&fit=crop",
-    galeria: [
-      "https://images.unsplash.com/photo-1487180144351-b8472da7d491?q=80&w=800",
-      "https://images.unsplash.com/photo-1487180144351-b8472da7d491?q=80&w=800",
-    ],
-    horario: "07:00 – 22:00",
-    diasAtencion: "Todos los días",
-    abierto: true,
-    servicios: ["Vestuarios", "Sauna", "Estacionamiento cubierto", "Cafetería", "Instructores"],
-    tags: ["Padel", "Premium", "Torneos", "Sauna", "Profesional"],
-    resumenIA:
-      "Padel Club Elite es el mejor lugar para padel en Catamarca. Canchas de nivel profesional y ambiente incomparable.",
-    reviewsDestacadas: [
-      {
-        autor: "Marina V.",
-        estrellas: 5,
-        texto: "Las mejores canchas de padel que encontré. Ambiente excelente para jugar.",
-      },
-    ],
-    canchas: [
-      {
-        id: 1,
-        nombre: "Padel Court 1",
-        deporte: "Padel",
-        precio: 12000,
-        disponible: true,
-        imagen:
-          "https://images.unsplash.com/photo-1487180144351-b8472da7d491?q=80&w=600",
-        jugadoresPorSide: 2,
-      },
-      {
-        id: 2,
-        nombre: "Padel Court 2",
-        deporte: "Padel",
-        precio: 12000,
-        disponible: true,
-        imagen:
-          "https://images.unsplash.com/photo-1487180144351-b8472da7d491?q=80&w=600",
-        jugadoresPorSide: 2,
-      },
-    ],
-  },
-  "arena-voley": {
-    id: 3,
-    nombre: "Arena Vóley Catamarca",
-    slug: "arena-voley",
-    deporte: "Vóley",
-    descripcion: [
-      "Arena Vóley Catamarca es el estadio especializado en vóley más importante de la región, con 4 canchas profesionales y capacidad para ligas y torneos internacionales.",
-      "Infraestructura de clase mundial con público, sistema de sonido profesional y transmisión de partidos.",
-    ],
-    rating: 4.7,
-    resenasCount: 98,
-    ubicacion: "Calle San Martín 890, Catamarca",
-    telefono: "+54 383 443-9999",
-    whatsapp: "5493834439999",
-    imagenPrincipal:
-      "https://images.unsplash.com/photo-1461896836934-ffe607ba8211?q=80&w=2000&auto=format&fit=crop",
-    galeria: [
-      "https://images.unsplash.com/photo-1461896836934-ffe607ba8211?q=80&w=800",
-    ],
-    horario: "08:00 – 22:00",
-    diasAtencion: "Todos los días",
-    abierto: true,
-    servicios: ["Vestuarios", "Tribunas", "Sonido profesional", "Estacionamiento"],
-    tags: ["Vóley", "Básquetbol", "Estadio", "Profesional", "Torneos"],
-    resumenIA:
-      "Arena Vóley es el complejo de vóley profesional de Catamarca. Perfecto para torneos y entrenamientos serios.",
-    reviewsDestacadas: [
-      {
-        autor: "Sofía L.",
-        estrellas: 5,
-        texto: "Cancha de clase mundial. Jugué un torneo provincial acá.",
-      },
-    ],
-    canchas: [
-      {
-        id: 1,
-        nombre: "Cancha 1",
-        deporte: "Vóley",
-        precio: 10000,
-        disponible: true,
-        imagen:
-          "https://images.unsplash.com/photo-1461896836934-ffe607ba8211?q=80&w=600",
-        jugadoresPorSide: 6,
-      },
-    ],
-  },
-};
 
 // --- Componente de estrellas estáticas ---
 function Estrellas({ cantidad }: { cantidad: number }) {
@@ -283,11 +87,46 @@ export default function ComplejoPage({
   const { slug } = use(params);
   const router = useRouter();
 
-  const complejo = MOCK_COMPLEJOS[slug];
+  const [complejo, setComplejo] = useState<DBComplejo | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [notFound, setNotFound] = useState(false);
 
   const [favorito, setFavorito] = useState(false);
   const [imagenActiva, setImagenActiva] = useState(0);
   const [linkCopiado, setLinkCopiado] = useState(false);
+
+  useEffect(() => {
+    const fetchComplejo = async () => {
+      try {
+        const { data: complexData, error } = await supabase
+          .from("complexes")
+          .select("*")
+          .eq("slug", slug)
+          .eq("activo", true)
+          .single() as { data: Omit<DBComplejo, "canchas"> | null; error: unknown };
+
+        if (error || !complexData) {
+          setNotFound(true);
+          return;
+        }
+
+        // Fetch courts separately
+        const { data: courtsData } = await supabase
+          .from("courts")
+          .select("*")
+          .eq("complex_id", complexData.id)
+          .eq("activa", true)
+          .order("nombre") as { data: DBCourt[] | null };
+
+        setComplejo({ ...complexData, canchas: courtsData || [] });
+      } catch {
+        setNotFound(true);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchComplejo();
+  }, [slug]);
 
   const handleShare = async () => {
     const url = `${typeof window !== "undefined" ? window.location.origin : "https://elpique.app"}/complejo/${slug}`;
@@ -301,18 +140,26 @@ export default function ComplejoPage({
   };
 
   const todasLasImagenes = complejo
-    ? [complejo.imagenPrincipal, ...complejo.galeria]
+    ? [complejo.imagen_principal || "", ...(complejo.galeria || [])].filter(Boolean)
     : [];
 
   // Generar link de WhatsApp
-  const generarLinkWhatsApp = (cancha: Court) => {
+  const generarLinkWhatsApp = (cancha: DBCourt) => {
     const mensaje = encodeURIComponent(
-      `Hola! Quiero reservar la cancha *${cancha.nombre}* en *${complejo.nombre}*. ¿Cuál es la disponibilidad?`
+      `Hola! Quiero reservar la cancha *${cancha.nombre}* en *${complejo!.nombre}*. ¿Cuál es la disponibilidad?`
     );
-    return `https://wa.me/${complejo.whatsapp}?text=${mensaje}`;
+    return `https://wa.me/${complejo!.whatsapp}?text=${mensaje}`;
   };
 
-  if (!complejo) {
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-rodeo-dark">
+        <div className="w-8 h-8 border-2 border-rodeo-lime/30 border-t-rodeo-lime rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (notFound || !complejo) {
     return (
       <div className="relative min-h-screen bg-rodeo-dark text-rodeo-cream font-sans flex flex-col items-center justify-center gap-6">
         <p className="text-2xl font-black text-white uppercase">Complejo no encontrado</p>
@@ -327,12 +174,37 @@ export default function ComplejoPage({
     );
   }
 
+  // Compute derived values
+  const abierto = (() => {
+    const now = new Date();
+    const h = now.getHours() * 100 + now.getMinutes();
+    const [openH, openM] = complejo.horario_abierto.split(":").map(Number);
+    const [closeH, closeM] = complejo.horario_cierre.split(":").map(Number);
+    return h >= openH * 100 + openM && h < closeH * 100 + closeM;
+  })();
+
+  const horario = `${complejo.horario_abierto} – ${complejo.horario_cierre}`;
+  const diasAtencion = complejo.dias_abiertos?.join(", ") || "Todos los días";
+  const ubicacion = `${complejo.direccion}, ${complejo.ciudad}`;
+  const tags = complejo.deportes?.map((d) => d.charAt(0).toUpperCase() + d.slice(1)) || [];
+  const rating = complejo.rating_promedio || 0;
+  const canchas = complejo.canchas || [];
+
+  // Adapt courts for AvailabilityWidget (which expects old shape with numeric id, precio, disponible)
+  const canchasWidget = canchas.map((c, idx) => ({
+    id: idx + 1,
+    nombre: c.nombre,
+    deporte: c.deporte,
+    precio: c.precio_por_hora,
+    disponible: c.estado === "disponible",
+  }));
+
   return (
     <div className="relative min-h-screen bg-rodeo-dark text-rodeo-cream font-sans">
       {/* FONDO FIXED */}
       <div className="fixed inset-0 z-0">
         <img
-          src={complejo.imagenPrincipal}
+          src={complejo.imagen_principal || "https://images.unsplash.com/photo-1461896836934-ffe607ba8211?q=80&w=2000"}
           alt="Fondo"
           style={{ filter: "blur(20px)" }}
           className="w-full h-full object-cover scale-110"
@@ -346,7 +218,7 @@ export default function ComplejoPage({
         {/* GALERÍA HERO — full width */}
         <div className="relative h-56 md:h-80 overflow-hidden">
           <img
-            src={todasLasImagenes[imagenActiva]}
+            src={todasLasImagenes[imagenActiva] || "https://images.unsplash.com/photo-1461896836934-ffe607ba8211?q=80&w=2000"}
             alt={complejo.nombre}
             className="w-full h-full object-cover"
           />
@@ -377,8 +249,8 @@ export default function ComplejoPage({
           </div>
           {/* Badge estado */}
           <div className="absolute top-16 left-4">
-            <span className={`text-[10px] font-bold tracking-widest uppercase px-3 py-1.5 rounded-full border ${complejo.abierto ? "bg-green-500/20 border-green-400/40 text-green-400" : "bg-red-500/20 border-red-400/40 text-red-400"}`}>
-              {complejo.abierto ? "● Abierto" : "● Cerrado"}
+            <span className={`text-[10px] font-bold tracking-widest uppercase px-3 py-1.5 rounded-full border ${abierto ? "bg-green-500/20 border-green-400/40 text-green-400" : "bg-red-500/20 border-red-400/40 text-red-400"}`}>
+              {abierto ? "● Abierto" : "● Cerrado"}
             </span>
           </div>
           {/* Miniaturas */}
@@ -403,25 +275,25 @@ export default function ComplejoPage({
 
             {/* INFO PRINCIPAL */}
             <div>
-              <p className="text-xs font-semibold tracking-widest uppercase text-rodeo-cream/50 mb-1">{complejo.deporte}</p>
+              <p className="text-xs font-semibold tracking-widest uppercase text-rodeo-cream/50 mb-1">{complejo.deporte_principal}</p>
               <h1 className="text-3xl md:text-4xl font-black uppercase tracking-tight text-white leading-tight">{complejo.nombre}</h1>
               <div className="flex flex-wrap items-center gap-3 mt-2">
                 <div className="flex items-center gap-1.5">
-                  <Estrellas cantidad={Math.round(complejo.rating)} />
-                  <span className="text-sm font-bold text-white">{complejo.rating}</span>
-                  <span className="text-xs text-rodeo-cream/40">({complejo.resenasCount} reseñas)</span>
+                  <Estrellas cantidad={Math.round(rating)} />
+                  <span className="text-sm font-bold text-white">{rating}</span>
+                  <span className="text-xs text-rodeo-cream/40">({complejo.total_reviews} reseñas)</span>
                 </div>
                 <div className="flex items-center gap-1 text-xs text-rodeo-cream/40">
                   <MapPin size={12} />
-                  {complejo.ubicacion}
+                  {ubicacion}
                 </div>
               </div>
               <div className="flex flex-wrap gap-2 mt-3">
                 <span className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-rodeo-cream/70">
-                  <Clock size={12} /> {complejo.horario}
+                  <Clock size={12} /> {horario}
                 </span>
                 <span className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-rodeo-cream/70">
-                  <Calendar size={12} /> {complejo.diasAtencion}
+                  <Calendar size={12} /> {diasAtencion}
                 </span>
                 <span className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-rodeo-cream/70">
                   <Navigation size={12} />
@@ -429,7 +301,7 @@ export default function ComplejoPage({
                 </span>
               </div>
               <div className="flex flex-wrap gap-1.5 mt-2">
-                {complejo.tags.map((tag) => (
+                {tags.map((tag) => (
                   <span key={tag} className="text-[10px] font-semibold tracking-wide uppercase px-2.5 py-1 rounded-full bg-rodeo-lime/15 text-rodeo-lime border border-rodeo-lime/25">{tag}</span>
                 ))}
               </div>
@@ -444,9 +316,7 @@ export default function ComplejoPage({
                 <Zap size={15} className="text-rodeo-lime" />
                 <h3 className="text-xs font-bold tracking-widest uppercase text-rodeo-cream/60">Sobre el complejo</h3>
               </div>
-              {complejo.descripcion.map((parrafo, i) => (
-                <p key={i} className="text-sm text-rodeo-cream/75 leading-relaxed">{parrafo}</p>
-              ))}
+              <p className="text-sm text-rodeo-cream/75 leading-relaxed">{complejo.descripcion}</p>
             </div>
 
             {/* CANCHAS */}
@@ -459,33 +329,37 @@ export default function ComplejoPage({
                 <h3 className="text-xs font-bold tracking-widest uppercase text-rodeo-cream/60">Todas las Canchas</h3>
               </div>
               <div className="grid md:grid-cols-2 gap-3">
-                {complejo.canchas.map((cancha) => (
-                  <div
-                    key={cancha.id}
-                    className={`rounded-2xl border p-4 flex flex-col gap-3 ${cancha.disponible ? "border-rodeo-lime/30 bg-rodeo-lime/5" : "border-white/10 bg-white/2 opacity-60"}`}
-                  >
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <h4 className="text-sm font-bold text-white">{cancha.nombre}</h4>
-                        <p className="text-xs text-rodeo-cream/50">{cancha.deporte} • {cancha.jugadoresPorSide}v{cancha.jugadoresPorSide}</p>
+                {canchas.map((cancha) => {
+                  const disponible = cancha.estado === "disponible";
+                  const jugadoresPorSide = Math.floor(cancha.capacidad_jugadores / 2);
+                  return (
+                    <div
+                      key={cancha.id}
+                      className={`rounded-2xl border p-4 flex flex-col gap-3 ${disponible ? "border-rodeo-lime/30 bg-rodeo-lime/5" : "border-white/10 bg-white/2 opacity-60"}`}
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <h4 className="text-sm font-bold text-white">{cancha.nombre}</h4>
+                          <p className="text-xs text-rodeo-cream/50">{cancha.deporte} • {jugadoresPorSide}v{jugadoresPorSide}</p>
+                        </div>
+                        <span className="text-xl font-black text-rodeo-lime">${(cancha.precio_por_hora / 1000).toFixed(0)}K</span>
                       </div>
-                      <span className="text-xl font-black text-rodeo-lime">${(cancha.precio / 1000).toFixed(0)}K</span>
+                      {disponible && (
+                        <a
+                          href={generarLinkWhatsApp(cancha)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="liquid-button py-2 text-sm font-bold text-center transition-all hover:bg-white/20"
+                        >
+                          Reservar por WhatsApp →
+                        </a>
+                      )}
+                      {!disponible && (
+                        <div className="text-xs text-rodeo-cream/50 text-center py-1 border-t border-white/10">No disponible ahora</div>
+                      )}
                     </div>
-                    {cancha.disponible && (
-                      <a
-                        href={generarLinkWhatsApp(cancha)}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="liquid-button py-2 text-sm font-bold text-center transition-all hover:bg-white/20"
-                      >
-                        Reservar por WhatsApp →
-                      </a>
-                    )}
-                    {!cancha.disponible && (
-                      <div className="text-xs text-rodeo-cream/50 text-center py-1 border-t border-white/10">No disponible ahora</div>
-                    )}
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
 
@@ -514,7 +388,7 @@ export default function ComplejoPage({
                 <MessageSquare size={15} className="text-rodeo-lime" />
                 <h3 className="text-xs font-bold tracking-widest uppercase text-rodeo-cream/60">Reseñas</h3>
               </div>
-              {complejo.reviewsDestacadas.map((r, i) => (
+              {([] as { autor: string; estrellas: number; texto: string }[]).map((r, i) => (
                 <div key={i} className="flex flex-col gap-2 border-b border-white/5 pb-4 last:border-0 last:pb-0">
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-bold text-white">{r.autor}</span>
@@ -523,6 +397,9 @@ export default function ComplejoPage({
                   <p className="text-xs text-rodeo-cream/60 leading-relaxed">{r.texto}</p>
                 </div>
               ))}
+              {complejo.total_reviews === 0 && (
+                <p className="text-xs text-rodeo-cream/40 text-center py-2">Aún no hay reseñas para este complejo.</p>
+              )}
             </div>
           </div>
 
@@ -530,11 +407,11 @@ export default function ComplejoPage({
           <div className="md:sticky md:top-6">
             {/* Widget reservas — solo visible en desktop en la columna */}
             <div className="hidden md:block">
-              <AvailabilityWidget complejo={complejo} canchas={complejo.canchas} />
+              <AvailabilityWidget complejo={complejo} canchas={canchasWidget} />
             </div>
             {/* En mobile, Availability Widget va inline entre secciones */}
             <div className="md:hidden">
-              <AvailabilityWidget complejo={complejo} canchas={complejo.canchas} />
+              <AvailabilityWidget complejo={complejo} canchas={canchasWidget} />
             </div>
 
             {/* CTA WhatsApp (solo desktop en columna) */}

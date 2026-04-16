@@ -1,18 +1,36 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { motion } from "framer-motion";
-import { QrCode, Copy, Check, Share2, Download, ExternalLink, Instagram, MessageCircle } from "lucide-react";
+import { QrCode, Copy, Check, Share2, Download, ExternalLink, Instagram, MessageCircle, Loader } from "lucide-react";
 import { QRCodeSVG, QRCodeCanvas } from "qrcode.react";
 import { useAuth } from "@/lib/hooks/useAuth";
+import { supabase } from "@/lib/supabase";
 
 const APP_DOMAIN = "https://elpique.app";
 
 export default function MiLinkPage() {
-  const { profile } = useAuth();
-  // In production this would come from the owner's complex data
-  const slug = "mi-complejo"; // TODO: fetch from DB
-  const publicUrl = `${APP_DOMAIN}/complejo/${slug}`;
+  const { user } = useAuth();
+  const [slug, setSlug] = useState<string | null>(null);
+  const [complexName, setComplexName] = useState<string>("");
+  const [loadingSlug, setLoadingSlug] = useState(true);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    supabase
+      .from("complexes")
+      .select("slug, nombre")
+      .eq("owner_id", user.id)
+      .order("created_at", { ascending: true })
+      .limit(1)
+      .single()
+      .then(({ data }) => {
+        if (data) { setSlug(data.slug); setComplexName(data.nombre); }
+        setLoadingSlug(false);
+      });
+  }, [user?.id]);
+
+  const publicUrl = slug ? `${APP_DOMAIN}/complejo/${slug}` : "";
 
   const [copied, setCopied] = useState(false);
   const [downloading, setDownloading] = useState(false);
@@ -48,6 +66,26 @@ export default function MiLinkPage() {
     alert("Link copiado. Pegalo en tu bio o historia de Instagram.");
   };
 
+  if (loadingSlug) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <Loader className="animate-spin text-rodeo-lime" size={28} />
+      </div>
+    );
+  }
+
+  if (!slug) {
+    return (
+      <div className="space-y-4 max-w-xl">
+        <h1 className="text-3xl font-black text-white uppercase tracking-tight">Mi Link y QR</h1>
+        <div style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "16px" }} className="p-8 text-center space-y-3">
+          <p className="text-rodeo-cream/60 text-sm">Primero debés crear tu complejo para obtener tu link público.</p>
+          <a href="/owner/complejo" style={{ background: "rgba(200,255,0,0.9)", borderRadius: "12px" }} className="inline-block px-6 py-2.5 text-rodeo-dark font-black text-sm">Crear complejo</a>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-8 max-w-2xl">
       {/* Header */}
@@ -55,7 +93,8 @@ export default function MiLinkPage() {
         <p className="text-xs text-rodeo-cream/50 font-bold tracking-widest uppercase mb-1">Tu perfil público</p>
         <h1 className="text-3xl font-black text-white uppercase tracking-tight">Mi Link y QR</h1>
         <p className="text-sm text-rodeo-cream/60 mt-1">
-          Compartí el link de tu complejo en redes sociales, imprimí el QR en tu local o descargalo para tus flyers.
+          {complexName && <span className="text-rodeo-lime font-bold">{complexName} · </span>}
+          Compartí el link en redes, imprimí el QR en tu local o descargalo para tus flyers.
         </p>
       </div>
 
