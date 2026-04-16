@@ -22,8 +22,11 @@ ENV NEXT_PUBLIC_APP_URL=$NEXT_PUBLIC_APP_URL
 # Build
 RUN npm run build
 
-# Expose port
+# Expose port (Railway overrides this with $PORT)
 EXPOSE 3000
+
+ENV PORT=3000
+ENV HOSTNAME="0.0.0.0"
 
 # Start
 CMD ["npm", "run", "start"]
