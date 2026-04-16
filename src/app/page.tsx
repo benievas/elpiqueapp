@@ -223,7 +223,7 @@ export default function Home() {
           </div>
 
           {/* PANEL DERECHO: CARRUSEL */}
-          <div className="hidden md:flex w-[55%] items-center overflow-hidden pl-10">
+          <div className="hidden md:flex w-[55%] items-center overflow-visible pl-10 py-6">
             <motion.div
               className="flex gap-6"
               animate={{ x: `calc(-${currentIndex * 320}px - ${currentIndex * 24}px)` }}
@@ -236,7 +236,7 @@ export default function Home() {
                     key={dest.id}
                     animate={{ scale: isActive ? 1 : 0.85, opacity: isActive ? 1 : 0.5 }}
                     transition={{ duration: 0.4 }}
-                    className="w-[320px] h-[480px] shrink-0 rounded-liquid-lg overflow-hidden relative cursor-pointer group shadow-glass border border-white/20"
+                    className="w-[320px] h-[460px] shrink-0 rounded-liquid-lg overflow-hidden relative cursor-pointer group shadow-glass border border-white/20"
                     onClick={() => setCurrentIndex(index)}
                   >
                     <img src={dest.cardImage} alt={dest.title} className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
@@ -535,7 +535,7 @@ export default function Home() {
       {/* FOOTER */}
       <footer className="border-t border-white/10 px-6 py-12 pb-24 md:pb-12 bg-black/20">
         <div className="max-w-4xl mx-auto flex flex-col items-center gap-6">
-          <img src="/assets/logo-main.png" alt="ElPiqueApp" className="h-16 w-auto" />
+          <img src="/assets/logo-main.png" alt="ElPiqueApp" className="h-20 w-auto" style={{ filter: "drop-shadow(0 0 8px rgba(200,255,0,0.2))" }} />
           <p className="text-xs text-rodeo-cream/30 tracking-widest uppercase text-center">Reserva canchas deportivas en Catamarca · 24/7 disponible</p>
           <nav className="flex flex-wrap justify-center gap-x-6 gap-y-2">
             {[{ href: "/explorar", label: "Explorar" }, { href: "/mapa", label: "Mapa" }, { href: "/torneos", label: "Torneos" }, { href: "/perfil", label: "Mi Perfil" }, { href: "/owner", label: "Panel Dueño" }].map((link) => (

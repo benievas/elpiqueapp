@@ -36,8 +36,8 @@ const MOCK_COMPLEJOS = [
     abierto: true,
     distancia: "1.2 km",
     rating: 4.8,
-    lat: -28.4695,
-    lng: -65.4089,
+    lat: -28.4685,
+    lng: -65.7872,
     slug: "sportivo-central",
   },
   {
@@ -51,7 +51,7 @@ const MOCK_COMPLEJOS = [
     distancia: "2.3 km",
     rating: 4.9,
     lat: -28.4720,
-    lng: -65.4050,
+    lng: -65.7810,
     slug: "padel-club-elite",
   },
   {
@@ -64,8 +64,8 @@ const MOCK_COMPLEJOS = [
     abierto: true,
     distancia: "1.8 km",
     rating: 4.7,
-    lat: -28.4710,
-    lng: -65.4100,
+    lat: -28.4658,
+    lng: -65.7850,
     slug: "arena-voley",
   },
   {
@@ -78,8 +78,8 @@ const MOCK_COMPLEJOS = [
     abierto: true,
     distancia: "3.1 km",
     rating: 4.6,
-    lat: -28.4680,
-    lng: -65.4120,
+    lat: -28.4740,
+    lng: -65.7830,
     slug: "tenis-club",
   },
   {
@@ -93,7 +93,7 @@ const MOCK_COMPLEJOS = [
     distancia: "2.5 km",
     rating: 4.5,
     lat: -28.4700,
-    lng: -65.4070,
+    lng: -65.7895,
     slug: "basquet-arena",
   },
 ];

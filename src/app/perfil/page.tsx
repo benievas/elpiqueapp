@@ -163,7 +163,8 @@ export default function PerfilPage() {
                 <img
                   src="/assets/elpique.png"
                   alt="ElPiqueApp"
-                  className="h-10 w-auto"
+                  style={{ filter: "drop-shadow(0 0 10px rgba(200,255,0,0.3))" }}
+                  className="h-16 w-auto"
                 />
                 <div className="w-9" />
               </div>

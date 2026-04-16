@@ -454,11 +454,13 @@ export default function ComplejoPage({
         </div>
 
         {/* WIDGET DE DISPONIBILIDAD - RESERVA RÁPIDA */}
-        <div className="px-5 pb-5">
-          <AvailabilityWidget
-            complejo={complejo}
-            canchas={complejo.canchas}
-          />
+        <div className="px-5 pb-5 flex justify-center">
+          <div className="w-full max-w-lg">
+            <AvailabilityWidget
+              complejo={complejo}
+              canchas={complejo.canchas}
+            />
+          </div>
         </div>
 
         {/* CANCHAS DISPONIBLES */}
