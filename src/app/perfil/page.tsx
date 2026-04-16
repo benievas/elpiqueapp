@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
@@ -149,19 +148,22 @@ export default function PerfilPage() {
               className="flex flex-col items-center justify-start min-h-screen px-6 pt-8 pb-12"
             >
               {/* Header */}
-              <div className="w-full max-w-sm flex items-center justify-between mb-8">
+              <div className="w-full max-w-sm flex items-center justify-between mb-6">
                 <button
                   onClick={() => router.back()}
-                  className="p-2 rounded-full hover:bg-white/10 transition-colors"
+                  style={{
+                    background: "rgba(255,255,255,0.08)",
+                    border: "1px solid rgba(255,255,255,0.12)",
+                    borderRadius: "12px",
+                  }}
+                  className="p-2 hover:bg-white/15 transition-all"
                 >
-                  <ChevronLeft size={22} />
+                  <ChevronLeft size={20} className="text-white/80" />
                 </button>
-                <Image
-                  src="/logo.png"
-                  alt="El Rodeo"
-                  width={90}
-                  height={45}
-                  className="object-contain"
+                <img
+                  src="/assets/elpique.png"
+                  alt="ElPiqueApp"
+                  className="h-10 w-auto"
                 />
                 <div className="w-9" />
               </div>

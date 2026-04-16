@@ -143,58 +143,56 @@ export default function Home() {
         </AnimatePresence>
         <div className="absolute inset-0 bg-black/50 z-0 backdrop-blur-sm" />
 
-        {/* NAVBAR */}
+        {/* NAVBAR — completamente translúcida, idéntica al pill del banner */}
         <header
           style={{
-            background: "linear-gradient(180deg, rgba(4,13,7,0.90) 0%, rgba(4,13,7,0.70) 100%)",
-            backdropFilter: "blur(40px) saturate(200%) brightness(1.1)",
-            WebkitBackdropFilter: "blur(40px) saturate(200%) brightness(1.1)",
-            borderBottom: "1px solid rgba(255,255,255,0.12)",
-            boxShadow: "0 1px 0 rgba(255,255,255,0.08), 0 8px 32px rgba(0,0,0,0.3)",
+            background: "linear-gradient(135deg, rgba(255,255,255,0.07) 0%, rgba(255,255,255,0.03) 50%, rgba(255,255,255,0.01) 100%)",
+            backdropFilter: "blur(40px) saturate(200%)",
+            WebkitBackdropFilter: "blur(40px) saturate(200%)",
+            borderBottom: "1px solid rgba(255,255,255,0.1)",
+            boxShadow: "0 1px 0 rgba(255,255,255,0.18), 0 8px 32px rgba(0,0,0,0.15), inset 0 1px 0 rgba(255,255,255,0.1)",
           }}
           className="absolute top-0 w-full px-6 md:px-12 py-4 flex justify-between items-center z-20"
         >
-          {/* Reflejo superior tipo Apple */}
+          {/* Línea reflectiva superior (efecto Apple/iOS) */}
           <div
             style={{
               position: "absolute",
-              top: 0,
-              left: 0,
-              right: 0,
+              top: 0, left: 0, right: 0,
               height: "1px",
-              background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.35) 30%, rgba(255,255,255,0.5) 50%, rgba(255,255,255,0.35) 70%, transparent)",
+              background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.5) 30%, rgba(255,255,255,0.7) 50%, rgba(255,255,255,0.5) 70%, transparent)",
             }}
           />
           <img src="/assets/logo-main.png" alt="ElPiqueApp" className="h-14 md:h-18 w-auto" />
-          <nav className="hidden md:flex gap-10 text-xs font-bold tracking-[0.2em] text-rodeo-cream/70">
+          <nav className="hidden md:flex gap-10 text-xs font-bold tracking-[0.2em] text-white/75">
             <Link href="/explorar" className="hover:text-white transition-colors">EXPLORAR</Link>
             <Link href="/mapa" className="hover:text-white transition-colors">MAPA</Link>
             <Link href="/torneos" className="hover:text-white transition-colors">TORNEOS</Link>
-            <Link href="/owner" className="hover:text-rodeo-lime transition-colors text-rodeo-lime/80">PANEL DUEÑO</Link>
+            <Link href="/owner" className="hover:text-rodeo-lime transition-colors text-rodeo-lime/90">PANEL DUEÑO</Link>
           </nav>
-          <div className="flex gap-3">
+          <div className="flex gap-2">
             <button
               style={{
-                background: "rgba(255,255,255,0.08)",
-                border: "1px solid rgba(255,255,255,0.15)",
-                borderTopColor: "rgba(255,255,255,0.25)",
+                background: "rgba(255,255,255,0.1)",
+                border: "1px solid rgba(255,255,255,0.18)",
+                borderTopColor: "rgba(255,255,255,0.3)",
                 borderRadius: "12px",
-                boxShadow: "inset 0 1px 0 rgba(255,255,255,0.12)",
+                boxShadow: "inset 0 1px 0 rgba(255,255,255,0.15), 0 2px 8px rgba(0,0,0,0.2)",
               }}
-              className="p-2.5 hover:bg-white/15 transition-all"
+              className="p-2.5 hover:bg-white/20 transition-all"
             >
-              <Search size={18} className="text-white/80" />
+              <Search size={18} className="text-white/90" />
             </button>
             <Link
               href="/perfil"
               style={{
-                background: "rgba(200,255,0,0.12)",
-                border: "1px solid rgba(200,255,0,0.25)",
-                borderTopColor: "rgba(200,255,0,0.4)",
+                background: "rgba(200,255,0,0.15)",
+                border: "1px solid rgba(200,255,0,0.3)",
+                borderTopColor: "rgba(200,255,0,0.5)",
                 borderRadius: "12px",
-                boxShadow: "inset 0 1px 0 rgba(255,255,255,0.15)",
+                boxShadow: "inset 0 1px 0 rgba(255,255,255,0.2), 0 2px 8px rgba(200,255,0,0.15)",
               }}
-              className="p-2.5 hover:bg-white/15 transition-all"
+              className="p-2.5 hover:bg-rodeo-lime/25 transition-all"
             >
               <User size={18} className="text-rodeo-lime" />
             </Link>

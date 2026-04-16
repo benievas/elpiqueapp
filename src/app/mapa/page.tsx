@@ -172,7 +172,7 @@ export default function MapaPage() {
         {/* Mapa + Panel */}
         <div className="flex-1 flex overflow-hidden">
           <div className="flex-1 relative">
-            <MapaLeaflet complejos={complejosFiltrados} filtroDeporte={filtroActivo} onSelectComplejo={setComplejoSeleccionado} />
+            <MapaLeaflet complejos={complejosFiltrados} filtroDeporte={filtroActivo} onSelectComplejo={setComplejoSeleccionado} selectedId={complejoSeleccionado?.id} />
           </div>
           {/* Panel lateral derecho */}
           <div
