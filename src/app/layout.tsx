@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import DeviceDetection from "@/components/DeviceDetection";
-import Header from "@/components/Header";
 import BottomNav from "@/components/BottomNav";
 
 export const metadata: Metadata = {
