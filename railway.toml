@@ -2,8 +2,8 @@
 builder = "nixpacks"
 
 [deploy]
-startCommand = "npm run start"
+startCommand = "node_modules/.bin/next start"
 restartPolicyType = "on_failure"
 restartPolicyMaxRetries = 3
 healthcheckPath = "/"
-healthcheckTimeout = 120
+healthcheckTimeout = 300
