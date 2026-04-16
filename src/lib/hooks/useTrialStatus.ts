@@ -24,7 +24,7 @@ const TRIAL_DAYS = 30;
 const GRACE_DAYS = 2;
 
 export function useTrialStatus(): TrialStatus {
-  const { user, isOwner, isAdmin } = useAuth();
+  const { user, isOwner, isAdmin, loading: authLoading } = useAuth();
   const [status, setStatus] = useState<TrialStatus>({
     state: 'loading',
     diasRestantes: 0,
@@ -34,13 +34,24 @@ export function useTrialStatus(): TrialStatus {
   });
 
   useEffect(() => {
-    if (!user) return;
+    // Esperar a que useAuth termine de cargar antes de tomar decisiones
+    if (authLoading) return;
+
+    if (!user) {
+      setStatus({ state: 'sin_plan', diasRestantes: 0, diasGracia: 0, endsAt: null, isBlocked: false });
+      return;
+    }
+
     // Admins nunca están bloqueados
     if (isAdmin) {
       setStatus({ state: 'activa', diasRestantes: 999, diasGracia: 0, endsAt: null, isBlocked: false });
       return;
     }
-    if (!isOwner) return;
+    // No es owner → no aplica trial
+    if (!isOwner) {
+      setStatus({ state: 'sin_plan', diasRestantes: 0, diasGracia: 0, endsAt: null, isBlocked: false });
+      return;
+    }
 
     const fetchStatus = async () => {
       const { data } = await supabase

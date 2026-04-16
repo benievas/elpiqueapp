@@ -154,10 +154,14 @@ function HeroUserButton() {
   const router = useRouter();
   const { user, profile, loading, signOut, isOwner, isAdmin } = useAuth();
   const [open, setOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => setMounted(true), []);
 
   const handleSignOut = async () => { await signOut(); setOpen(false); router.push("/"); };
 
-  if (loading) return <div className="w-10 h-10 rounded-[12px] bg-white/10 animate-pulse" />;
+  // Render consistente server/client para evitar hydration mismatch
+  if (!mounted || loading) return <div className="w-10 h-10 rounded-[12px] bg-white/10" />;
 
   if (!user) {
     return (
