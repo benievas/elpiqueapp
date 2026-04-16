@@ -2,9 +2,10 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { supabase } from "@/lib/supabase";
-import { Trophy, Users, Calendar, MapPin, Filter, Loader } from "lucide-react";
+import { Trophy, Users, Calendar, Filter, Loader, ChevronLeft, Rss } from "lucide-react";
 
 interface Torneo {
   id: string;
@@ -20,6 +21,7 @@ interface Torneo {
 }
 
 export default function TorneosPage() {
+  const router = useRouter();
   const [torneos, setTorneos] = useState<Torneo[]>([]);
   const [filtroDeporte, setFiltroDeporte] = useState("todos");
   const [loading, setLoading] = useState(true);
@@ -101,21 +103,32 @@ export default function TorneosPage() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-rodeo-dark via-rodeo-brown to-rodeo-dark py-12 px-6">
       <div className="max-w-6xl mx-auto space-y-12">
-        {/* Header */}
+        {/* Header con volver */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           className="space-y-4"
         >
-          <div className="flex items-center gap-3">
-            <Trophy className="text-rodeo-lime" size={32} />
-            <h1 className="text-4xl md:text-5xl font-black text-white uppercase tracking-tight">
-              Torneos
-            </h1>
+          <div className="flex items-center gap-4">
+            <Link href="/"
+              style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: "12px" }}
+              className="w-10 h-10 flex items-center justify-center hover:bg-white/15 transition-all shrink-0"
+            >
+              <ChevronLeft size={20} className="text-white" />
+            </Link>
+            <div className="flex items-center gap-3">
+              <Trophy className="text-rodeo-lime" size={28} />
+              <h1 className="text-4xl md:text-5xl font-black text-white uppercase tracking-tight">Torneos</h1>
+            </div>
+            <Link href="/feed"
+              style={{ background: "rgba(200,255,0,0.12)", border: "1px solid rgba(200,255,0,0.25)", borderRadius: "12px" }}
+              className="ml-auto flex items-center gap-2 px-4 py-2 hover:bg-rodeo-lime/20 transition-all text-rodeo-lime text-xs font-bold"
+            >
+              <Rss size={14} />
+              Feed
+            </Link>
           </div>
-          <p className="text-rodeo-cream/70 text-lg">
-            Participa en emocionantes torneos deportivos
-          </p>
+          <p className="text-rodeo-cream/70 text-base">Participa en emocionantes torneos deportivos</p>
         </motion.div>
 
         {/* Filtros */}

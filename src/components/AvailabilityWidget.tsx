@@ -126,7 +126,7 @@ export default function AvailabilityWidget({
         <h3 className="text-sm font-bold tracking-widest uppercase text-rodeo-cream/60 mb-4">
           Seleccionar Cancha
         </h3>
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
+        <div className="flex flex-col gap-2">
           {canchas
             .filter((c) => c.disponible)
             .map((cancha) => (
@@ -136,18 +136,20 @@ export default function AvailabilityWidget({
                   setCanchaSeleccionada(cancha.id);
                   setHoraSeleccionada(null);
                 }}
-                whileHover={{ scale: 1.05, y: -2 }}
-                whileTap={{ scale: 0.95 }}
-                className={`p-4 rounded-liquid border transition-all text-sm font-bold ${
+                whileHover={{ scale: 1.01 }}
+                whileTap={{ scale: 0.99 }}
+                className={`w-full px-4 py-3 rounded-liquid border transition-all text-left flex items-center justify-between gap-3 ${
                   canchaSeleccionada === cancha.id
                     ? "bg-rodeo-lime text-rodeo-dark border-rodeo-lime shadow-lg shadow-rodeo-lime/40"
                     : "bg-white/5 border-white/10 text-rodeo-cream hover:bg-white/10"
                 }`}
               >
-                <div className="truncate">{cancha.nombre}</div>
-                <div className="text-xs opacity-70 mt-1">
+                <span className="text-sm font-bold">{cancha.nombre}</span>
+                <span className={`text-xs font-bold shrink-0 ${
+                  canchaSeleccionada === cancha.id ? "text-rodeo-dark/70" : "text-rodeo-lime"
+                }`}>
                   ${(cancha.precio / 1000).toFixed(0)}K/h
-                </div>
+                </span>
               </motion.button>
             ))}
         </div>

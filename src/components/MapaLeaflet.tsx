@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import "leaflet/dist/leaflet.css";
 
 // Tipos
@@ -48,9 +48,9 @@ export default function MapaLeaflet({
 }: MapaLeafletProps) {
   const mapRef = useRef<HTMLDivElement>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const leafletMapRef = useRef<any>(null);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const markersRef = useRef<any[]>([]);
+  const leafletMapRef = useRef<any>(null); // eslint-disable-line
+  const markersRef = useRef<any[]>([]); // eslint-disable-line
+  const [mapReady, setMapReady] = useState(false);
 
   const complejosFiltrados = complejos.filter((c) => {
     if (filtroDeporte === "todos") return true;
@@ -74,9 +74,10 @@ export default function MapaLeaflet({
         shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png",
       });
 
+      // Centro correcto de San Fernando del Valle de Catamarca
       const map = L.map(mapRef.current!, {
-        center: [-28.4696, -65.4089],
-        zoom: 13,
+        center: [-28.4696, -65.7852],
+        zoom: 14,
         scrollWheelZoom: true,
         zoomControl: false,
       });
@@ -84,66 +85,48 @@ export default function MapaLeaflet({
       // Tile layer dark
       L.tileLayer(
         "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
-        {
-          attribution: "&copy; CARTO &copy; OpenStreetMap",
-          maxZoom: 19,
-        }
+        { attribution: "&copy; CARTO &copy; OpenStreetMap", maxZoom: 19 }
       ).addTo(map);
 
-      // Zoom control en esquina inferior derecha
       L.control.zoom({ position: "bottomright" }).addTo(map);
 
-      // ── GPS: centrar en la posición del usuario ──────────────────────
+      // ── GPS: mostrar ubicación del usuario Y mantener complejos visibles ──
       if (typeof navigator !== "undefined" && navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
           (pos) => {
             const { latitude, longitude } = pos.coords;
-            map.flyTo([latitude, longitude], 14, { duration: 1.5 });
 
-            // Marcador "Tu ubicación" — punto azul con halo pulsante
+            // Punto azul "Tu ubicación"
             const userIcon = L.divIcon({
               className: "",
               html: `
-                <div style="position:relative; display:flex; align-items:center; justify-content:center; width:20px; height:20px;">
-                  <div style="
-                    position:absolute; width:32px; height:32px;
-                    background:rgba(59,130,246,0.2);
-                    border-radius:50%;
-                    animation:userPulse 2s infinite;
-                  "></div>
-                  <div style="
-                    width:14px; height:14px;
-                    background:#3B82F6;
-                    border:3px solid white;
-                    border-radius:50%;
-                    box-shadow:0 2px 8px rgba(59,130,246,0.6);
-                    position:relative; z-index:1;
-                  "></div>
+                <div style="position:relative;display:flex;align-items:center;justify-content:center;width:20px;height:20px;">
+                  <div style="position:absolute;width:32px;height:32px;background:rgba(59,130,246,0.2);border-radius:50%;animation:uPulse 2s infinite;"></div>
+                  <div style="width:14px;height:14px;background:#3B82F6;border:3px solid white;border-radius:50%;box-shadow:0 2px 8px rgba(59,130,246,0.6);position:relative;z-index:1;"></div>
                 </div>
-                <style>
-                  @keyframes userPulse {
-                    0%,100% { transform:scale(1); opacity:0.7; }
-                    50% { transform:scale(1.8); opacity:0; }
-                  }
-                </style>
+                <style>@keyframes uPulse{0%,100%{transform:scale(1);opacity:.7;}50%{transform:scale(1.8);opacity:0;}}</style>
               `,
               iconSize: [20, 20],
               iconAnchor: [10, 10],
             });
-
             L.marker([latitude, longitude], { icon: userIcon })
               .addTo(map)
-              .bindTooltip("Tu ubicación", { direction: "top", permanent: false });
+              .bindTooltip("Tu ubicación", { direction: "top" });
+
+            // fitBounds para mostrar usuario + todos los complejos
+            const todosLosPuntos: [number, number][] = [
+              [latitude, longitude],
+              ...complejos.map(c => [c.lat, c.lng] as [number, number]),
+            ];
+            map.fitBounds(L.latLngBounds(todosLosPuntos), { padding: [50, 50], maxZoom: 15 });
           },
-          () => {
-            // Permiso denegado o error — mantener vista de Catamarca
-            console.log("Geolocalización no disponible");
-          },
-          { timeout: 5000, maximumAge: 60000 }
+          () => { /* permiso denegado — Catamarca por default */ },
+          { timeout: 6000, maximumAge: 60000 }
         );
       }
 
       leafletMapRef.current = map;
+      setMapReady(true);  // ← dispara el useEffect de marcadores
     });
 
     return () => {
@@ -155,10 +138,9 @@ export default function MapaLeaflet({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Actualizar marcadores cuando cambian los complejos o la selección
+  // Actualizar marcadores cuando el mapa está listo o cambian los complejos/selección
   useEffect(() => {
-    if (!leafletMapRef.current) return;
-    if (typeof window === "undefined") return;
+    if (!mapReady || !leafletMapRef.current) return;
 
     import("leaflet").then((L) => {
       const map = leafletMapRef.current;
@@ -284,7 +266,7 @@ export default function MapaLeaflet({
       }
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [complejosFiltrados.map((c) => c.id).join(","), selectedId]);
+  }, [complejosFiltrados.map((c) => c.id).join(","), selectedId, mapReady]);
 
   return (
     <>

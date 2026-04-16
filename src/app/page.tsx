@@ -148,8 +148,8 @@ export default function Home() {
           <img
             src="/assets/logo-main.png"
             alt="ElPiqueApp"
-            style={{ filter: "drop-shadow(0 0 12px rgba(200,255,0,0.25))" }}
-            className="h-16 md:h-24 w-auto"
+            style={{ filter: "drop-shadow(0 0 16px rgba(200,255,0,0.35))" }}
+            className="h-28 md:h-36 w-auto"
           />
           <nav className="hidden md:flex gap-10 text-xs font-bold tracking-[0.2em] text-white/90"
             style={{ textShadow: "0 1px 8px rgba(0,0,0,0.8)" }}
@@ -157,6 +157,7 @@ export default function Home() {
             <Link href="/explorar" className="hover:text-rodeo-lime transition-colors">EXPLORAR</Link>
             <Link href="/mapa" className="hover:text-rodeo-lime transition-colors">MAPA</Link>
             <Link href="/torneos" className="hover:text-rodeo-lime transition-colors">TORNEOS</Link>
+            <Link href="/feed" className="hover:text-rodeo-lime transition-colors">FEED</Link>
             <Link href="/owner" className="text-rodeo-lime hover:text-white transition-colors">PANEL DUEÑO</Link>
           </nav>
           <div className="flex gap-2">
@@ -222,8 +223,11 @@ export default function Home() {
             </AnimatePresence>
           </div>
 
-          {/* PANEL DERECHO: CARRUSEL */}
-          <div className="hidden md:flex w-[55%] items-center overflow-visible pl-10 py-6">
+          {/* PANEL DERECHO: CARRUSEL — clipPath evita que las cards invadan el texto */}
+          <div
+            className="hidden md:flex w-[55%] items-center pl-10 py-6"
+            style={{ clipPath: 'inset(0 -100vw 0 0)' }}
+          >
             <motion.div
               className="flex gap-6"
               animate={{ x: `calc(-${currentIndex * 320}px - ${currentIndex * 24}px)` }}
