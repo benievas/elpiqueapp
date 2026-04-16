@@ -182,16 +182,17 @@ export default function MapaPage() {
               WebkitBackdropFilter: "blur(40px) saturate(180%)",
               borderLeft: "1px solid rgba(255,255,255,0.1)",
             }}
-            className="w-96 overflow-y-auto"
+            className="w-96 flex flex-col overflow-hidden"
           >
-            {complejoSeleccionado && (
-              <motion.div key={complejoSeleccionado.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="p-6 flex flex-col gap-5">
+            {/* Detalle del complejo seleccionado */}
+            {complejoSeleccionado ? (
+              <motion.div key={complejoSeleccionado.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="p-5 flex flex-col gap-4 border-b border-white/8">
                 <div>
                   <span className="inline-block px-3 py-1 rounded-full bg-rodeo-lime/15 border border-rodeo-lime/30 text-rodeo-lime text-xs font-bold mb-2">{complejoSeleccionado.deporte}</span>
-                  <h2 className="text-2xl font-black text-white">{complejoSeleccionado.nombre}</h2>
+                  <h2 className="text-xl font-black text-white">{complejoSeleccionado.nombre}</h2>
                   <p className="text-xs text-rodeo-cream/50 mt-1">{complejoSeleccionado.descripcion}</p>
                 </div>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-2 gap-2">
                   {[
                     { icon: Clock, label: "Horario", value: complejoSeleccionado.horario },
                     { icon: MapPin, label: "Distancia", value: complejoSeleccionado.distancia },
@@ -200,25 +201,71 @@ export default function MapaPage() {
                   ].map((item) => {
                     const Icono = item.icon;
                     return (
-                      <div key={item.label} style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "14px" }} className="p-3">
-                        <div className="flex items-center gap-2 mb-1">
-                          <Icono size={13} className="text-rodeo-lime" />
+                      <div key={item.label} style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "12px" }} className="p-2.5">
+                        <div className="flex items-center gap-1.5 mb-1">
+                          <Icono size={11} className="text-rodeo-lime" />
                           <p className="text-[10px] text-rodeo-cream/50 font-medium">{item.label}</p>
                         </div>
-                        <p className="text-sm font-bold text-white truncate">{item.value}</p>
+                        <p className="text-xs font-bold text-white truncate">{item.value}</p>
                       </div>
                     );
                   })}
                 </div>
-                {complejoSeleccionado.abierto && (
-                  <div style={{ background: "rgba(0,230,118,0.1)", border: "1px solid rgba(0,230,118,0.3)", borderRadius: "12px" }} className="px-4 py-2 text-green-400 text-xs font-bold text-center">✓ Abierto Ahora</div>
-                )}
-                <div className="flex flex-col gap-3 pt-2 border-t border-white/8">
-                  <Link href={`/complejo/${complejoSeleccionado.slug}`} style={{ background: "linear-gradient(135deg, #C8FF00, #A8D800)", borderRadius: "16px", boxShadow: "0 4px 20px rgba(200,255,0,0.3)" }} className="w-full py-3 text-rodeo-dark font-black text-center text-sm">Ver Canchas y Reservar</Link>
-                  <a href={`https://wa.me/5493834431234?text=Hola! Consulta sobre ${complejoSeleccionado.nombre}`} target="_blank" rel="noopener noreferrer" style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: "16px" }} className="w-full py-3 text-white font-bold text-center text-sm">Contactar por WhatsApp</a>
+                <div className="flex gap-2">
+                  <Link href={`/complejo/${complejoSeleccionado.slug}`} style={{ background: "linear-gradient(135deg, #C8FF00, #A8D800)", borderRadius: "12px", boxShadow: "0 4px 16px rgba(200,255,0,0.3)" }} className="flex-1 py-2.5 text-rodeo-dark font-black text-center text-xs">Ver y Reservar</Link>
+                  <a href={`https://wa.me/5493834431234?text=Consulta sobre ${complejoSeleccionado.nombre}`} target="_blank" rel="noopener noreferrer" style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: "12px" }} className="flex-1 py-2.5 text-white font-bold text-center text-xs">WhatsApp</a>
                 </div>
               </motion.div>
+            ) : (
+              <div className="p-5 border-b border-white/8">
+                <p className="text-xs text-rodeo-cream/40 text-center py-4">Seleccioná un complejo en el mapa para ver su detalle</p>
+              </div>
             )}
+
+            {/* Lista de todos los complejos */}
+            <div className="flex-1 overflow-y-auto">
+              <p className="text-[10px] font-bold tracking-widest uppercase text-rodeo-cream/40 px-5 pt-4 pb-2">Todos los complejos</p>
+              <div className="flex flex-col">
+                {complejosFiltrados.map((c) => {
+                  const isActive = complejoSeleccionado?.id === c.id;
+                  return (
+                    <button
+                      key={c.id}
+                      onClick={() => setComplejoSeleccionado(c)}
+                      style={isActive ? {
+                        background: "rgba(200,255,0,0.08)",
+                        borderLeft: "3px solid #C8FF00",
+                      } : {
+                        borderLeft: "3px solid transparent",
+                      }}
+                      className="flex items-center gap-3 px-4 py-3 hover:bg-white/5 transition-all text-left w-full"
+                    >
+                      {/* Avatar color deporte */}
+                      <div
+                        style={{
+                          background: `conic-gradient(from 135deg, rgba(200,255,0,0.3), rgba(200,255,0,0.05))`,
+                          border: `1px solid ${isActive ? "#C8FF00" : "rgba(200,255,0,0.2)"}`,
+                          borderRadius: "10px",
+                          width: 36, height: 36,
+                          display: "flex", alignItems: "center", justifyContent: "center",
+                          flexShrink: 0,
+                          fontSize: 16,
+                        }}
+                      >
+                        {c.deporte === "Fútbol" ? "⚽" : c.deporte === "Padel" ? "🎾" : c.deporte === "Vóley" ? "🏐" : c.deporte === "Tenis" ? "🎾" : "🏀"}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className={`text-sm font-bold truncate ${isActive ? "text-rodeo-lime" : "text-white"}`}>{c.nombre}</p>
+                        <p className="text-[11px] text-rodeo-cream/40 truncate">{c.deporte} · ⭐ {c.rating} · {c.distancia}</p>
+                      </div>
+                      <span style={{ background: c.abierto ? "rgba(0,230,118,0.15)" : "rgba(255,255,255,0.05)", border: `1px solid ${c.abierto ? "rgba(0,230,118,0.3)" : "rgba(255,255,255,0.1)"}`, borderRadius: "6px" }} className={`text-[10px] font-bold px-2 py-0.5 shrink-0 ${c.abierto ? "text-green-400" : "text-white/30"}`}>
+                        {c.abierto ? "Abierto" : "Cerrado"}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
           </div>
         </div>
       </div>

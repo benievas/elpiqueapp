@@ -163,7 +163,12 @@ export default function Home() {
               background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.5) 30%, rgba(255,255,255,0.7) 50%, rgba(255,255,255,0.5) 70%, transparent)",
             }}
           />
-          <img src="/assets/logo-main.png" alt="ElPiqueApp" className="h-14 md:h-18 w-auto" />
+          <img
+            src="/assets/logo-main.png"
+            alt="ElPiqueApp"
+            style={{ filter: "drop-shadow(0 0 12px rgba(200,255,0,0.25))" }}
+            className="h-16 md:h-24 w-auto"
+          />
           <nav className="hidden md:flex gap-10 text-xs font-bold tracking-[0.2em] text-white/75">
             <Link href="/explorar" className="hover:text-white transition-colors">EXPLORAR</Link>
             <Link href="/mapa" className="hover:text-white transition-colors">MAPA</Link>
