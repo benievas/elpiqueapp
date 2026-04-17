@@ -51,49 +51,41 @@ function FlyerGenerator({ publicUrl, complexName }: { publicUrl: string; complex
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, W, H);
 
-    // Helper: load image as promise
     const loadImg = (src: string): Promise<HTMLImageElement> =>
-      new Promise((res, rej) => {
+      new Promise((res) => {
         const img = new Image();
         img.onload = () => res(img);
-        img.onerror = rej;
+        img.onerror = () => res(new Image());
         img.src = src;
       });
 
-    // ── Logo principal arriba (logo-main.png) ──────────────────────────────
-    try {
-      const logoMain = await loadImg("/assets/logo-main.png");
-      const lh = 110;
-      const lw = (logoMain.width / logoMain.height) * lh;
-      ctx.drawImage(logoMain, (W - lw) / 2, 60, lw, lh);
-    } catch { /* si falla el logo, nada */ }
-
-    // ── Franja verde diagonal superior ─────────────────────────────────────
-    ctx.save();
+    // ── Círculos decorativos ───────────────────────────────────────────────
     ctx.beginPath();
-    ctx.moveTo(0, 210);
-    ctx.lineTo(W, 170);
-    ctx.lineTo(W, 230);
-    ctx.lineTo(0, 270);
-    ctx.closePath();
-    ctx.fillStyle = "#C8FF00";
+    ctx.arc(W + 100, -100, 500, 0, Math.PI * 2);
+    ctx.fillStyle = "rgba(200,255,0,0.06)";
     ctx.fill();
-    ctx.restore();
+    ctx.beginPath();
+    ctx.arc(-150, H + 100, 500, 0, Math.PI * 2);
+    ctx.fillStyle = "rgba(200,255,0,0.04)";
+    ctx.fill();
 
-    // ── Subtítulo deportivo sobre la franja ────────────────────────────────
-    ctx.save();
-    ctx.fillStyle = "#1A120B";
-    ctx.font = "900 32px Impact, Arial Black, sans-serif";
+    // ── Barra superior ─────────────────────────────────────────────────────
+    ctx.fillStyle = "rgba(200,255,0,0.12)";
+    ctx.beginPath();
+    ctx.roundRect(60, 80, W - 120, 100, 20);
+    ctx.fill();
+
+    ctx.fillStyle = "#C8FF00";
+    ctx.font = "900 34px Impact, Arial Black, sans-serif";
     ctx.textAlign = "center";
-    ctx.letterSpacing = "4px";
-    ctx.fillText("RESERVÁ TU CANCHA ONLINE", W / 2, 213);
-    ctx.restore();
+    ctx.fillText("ELPIQUE · TU COMPLEJO DEPORTIVO ONLINE", W / 2, 144);
 
     // ── Nombre del complejo ────────────────────────────────────────────────
+    ctx.fillStyle = "#FFFFFF";
+    ctx.font = "900 90px Impact, Arial Black, sans-serif";
     ctx.textAlign = "center";
     const name = complexName.toUpperCase();
-    const maxWidth = W - 100;
-    ctx.font = "900 96px Impact, Arial Black, sans-serif";
+    const maxWidth = W - 120;
     const words = name.split(" ");
     let line = "";
     const lines: string[] = [];
@@ -103,48 +95,24 @@ function FlyerGenerator({ publicUrl, complexName }: { publicUrl: string; complex
       else line = test;
     }
     lines.push(line);
-    const nameY = 360;
-    // Sombra
-    ctx.shadowColor = "rgba(200,255,0,0.35)";
-    ctx.shadowBlur = 30;
-    ctx.fillStyle = "#FFFFFF";
-    lines.forEach((l, i) => ctx.fillText(l, W / 2, nameY + i * 110));
-    ctx.shadowBlur = 0;
+    const nameY = 340;
+    lines.forEach((l, i) => ctx.fillText(l, W / 2, nameY + i * 100));
 
-    // ── Línea decorativa bajo el nombre ───────────────────────────────────
-    const afterName = nameY + lines.length * 110 + 10;
-    const lineGrad = ctx.createLinearGradient(100, 0, W - 100, 0);
-    lineGrad.addColorStop(0, "transparent");
-    lineGrad.addColorStop(0.3, "#C8FF00");
-    lineGrad.addColorStop(0.7, "#C8FF00");
-    lineGrad.addColorStop(1, "transparent");
-    ctx.fillStyle = lineGrad;
-    ctx.fillRect(100, afterName, W - 200, 4);
+    // ── Subtítulo ──────────────────────────────────────────────────────────
+    const subtitleY = nameY + lines.length * 100 + 40;
+    ctx.fillStyle = "rgba(225,212,194,0.7)";
+    ctx.font = "700 42px Impact, Arial Black, sans-serif";
+    ctx.fillText("ESCANEÁ EL QR Y RESERVÁ TU CANCHA", W / 2, subtitleY);
 
     // ── QR card ────────────────────────────────────────────────────────────
-    const qrSize = 520;
+    const qrSize = 560;
     const qrX = (W - qrSize) / 2;
-    const qrY = afterName + 60;
-
-    // Card shadow
-    ctx.shadowColor = "rgba(200,255,0,0.2)";
-    ctx.shadowBlur = 60;
+    const qrY = subtitleY + 80;
     ctx.fillStyle = "#FFFFFF";
     ctx.beginPath();
-    ctx.roundRect(qrX - 44, qrY - 44, qrSize + 88, qrSize + 88, 36);
+    ctx.roundRect(qrX - 40, qrY - 40, qrSize + 80, qrSize + 80, 32);
     ctx.fill();
-    ctx.shadowBlur = 0;
 
-    // Corner accent squares
-    const cornerSize = 28;
-    const corners = [
-      [qrX - 44, qrY - 44], [qrX + qrSize + 44 - cornerSize, qrY - 44],
-      [qrX - 44, qrY + qrSize + 44 - cornerSize], [qrX + qrSize + 44 - cornerSize, qrY + qrSize + 44 - cornerSize],
-    ];
-    ctx.fillStyle = "#C8FF00";
-    corners.forEach(([cx, cy]) => ctx.fillRect(cx, cy, cornerSize, cornerSize));
-
-    // Draw QR
     if (qrDataUrl) {
       await new Promise<void>((resolve) => {
         const img = new Image();
@@ -154,27 +122,19 @@ function FlyerGenerator({ publicUrl, complexName }: { publicUrl: string; complex
       });
     }
 
-    // ── Owner logo (si subió) ──────────────────────────────────────────────
-    const afterQr = qrY + qrSize + 44;
+    // ── Owner logo ─────────────────────────────────────────────────────────
     if (logoDataUrl) {
       await new Promise<void>((resolve) => {
         const img = new Image();
         img.onload = () => {
-          const lSize = 160;
+          const lSize = 200;
           const lx = (W - lSize) / 2;
-          const ly = afterQr + 40;
+          const ly = qrY + qrSize + 100;
           ctx.save();
-          // Halo lime
           ctx.beginPath();
-          ctx.arc(lx + lSize / 2, ly + lSize / 2, lSize / 2 + 10, 0, Math.PI * 2);
-          ctx.fillStyle = "rgba(200,255,0,0.25)";
+          ctx.arc(lx + lSize / 2, ly + lSize / 2, lSize / 2 + 8, 0, Math.PI * 2);
+          ctx.fillStyle = "rgba(255,255,255,0.15)";
           ctx.fill();
-          // White ring
-          ctx.beginPath();
-          ctx.arc(lx + lSize / 2, ly + lSize / 2, lSize / 2 + 4, 0, Math.PI * 2);
-          ctx.fillStyle = "white";
-          ctx.fill();
-          // Clip circle
           ctx.beginPath();
           ctx.arc(lx + lSize / 2, ly + lSize / 2, lSize / 2, 0, Math.PI * 2);
           ctx.clip();
@@ -187,24 +147,28 @@ function FlyerGenerator({ publicUrl, complexName }: { publicUrl: string; complex
       });
     }
 
-    // ── Franja inferior ────────────────────────────────────────────────────
-    const footerY = H - 220;
-    ctx.fillStyle = "#C8FF00";
-    ctx.fillRect(0, footerY, W, 200);
+    // ── Logo-main al pie (en vez de texto) ─────────────────────────────────
+    const logoMain = await loadImg("/assets/logo-main.png");
+    if (logoMain.width > 0) {
+      const lh = 120;
+      const lw = (logoMain.width / logoMain.height) * lh;
+      const lx = (W - lw) / 2;
+      const ly = H - 180;
+      ctx.globalAlpha = 0.85;
+      ctx.drawImage(logoMain, lx, ly, lw, lh);
+      ctx.globalAlpha = 1;
+    } else {
+      // Fallback texto si no carga el logo
+      ctx.fillStyle = "rgba(200,255,0,0.9)";
+      ctx.font = "900 40px Impact, Arial Black, sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText("ELPIQUE.APP", W / 2, H - 120);
+    }
 
-    // Texto footer oscuro
-    ctx.fillStyle = "#1A120B";
-    ctx.font = "900 40px Impact, Arial Black, sans-serif";
+    ctx.fillStyle = "rgba(225,212,194,0.35)";
+    ctx.font = "700 28px Impact, Arial Black, sans-serif";
     ctx.textAlign = "center";
-    ctx.fillText("ESCANEÁ · RESERVÁ · JUGÁ", W / 2, footerY + 68);
-
-    // Logo-main pequeño en footer
-    try {
-      const logoFoot = await loadImg("/assets/logo-main.png");
-      const fh = 70;
-      const fw = (logoFoot.width / logoFoot.height) * fh;
-      ctx.drawImage(logoFoot, (W - fw) / 2, footerY + 100, fw, fh);
-    } catch { /* nada */ }
+    ctx.fillText("RESERVAS ONLINE · SIN LLAMADAS · SIN ESPERAS", W / 2, H - 60);
 
     // Download
     const dataUrl = canvas.toDataURL("image/png");

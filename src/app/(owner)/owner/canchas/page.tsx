@@ -858,7 +858,8 @@ export default function CanchasPage() {
 
   // ─── Loading ─────────────────────────────────────────────────────────────────
 
-  if (authLoading || loadingData) {
+  // Solo mostrar spinner en la carga inicial (cuando no hay datos todavía)
+  if ((authLoading || loadingData) && complexes.length === 0) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <div className="flex flex-col items-center gap-4">

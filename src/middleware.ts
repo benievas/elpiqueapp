@@ -23,14 +23,12 @@ export async function middleware(request: NextRequest) {
     }
   );
 
-  // IMPORTANTE: No poner lógica entre createServerClient y getUser()
-  // getUser() dispara el refresh del token si está por vencer
-  const { data: { user } } = await supabase.auth.getUser();
+  // getSession lee de cookies sin round-trip al servidor → más rápido
+  const { data: { session } } = await supabase.auth.getSession();
 
   const pathname = request.nextUrl.pathname;
 
-  // Rutas protegidas: redirigir a login si no hay sesión
-  if (!user) {
+  if (!session) {
     if (pathname.startsWith('/owner') || pathname.startsWith('/admin')) {
       return NextResponse.redirect(new URL('/login', request.url));
     }

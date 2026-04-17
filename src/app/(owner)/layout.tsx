@@ -13,14 +13,14 @@ import { useTrialStatus } from "@/lib/hooks/useTrialStatus";
 import { supabase } from "@/lib/supabase";
 
 const OWNER_MENU = [
-  { icon: Building2, label: "Mi Complejo",   href: "/owner/complejo" },
-  { icon: Calendar,    label: "Canchas",       href: "/owner/canchas" },
-  { icon: ClipboardList, label: "Reservas",    href: "/owner/reservas" },
-  { icon: Wallet,      label: "Caja y Cierre", href: "/owner/caja" },
-  { icon: QrCode,      label: "Mi Link / QR",  href: "/owner/mi-link" },
-  { icon: BarChart3,   label: "Estadísticas",  href: "/owner/stats" },
-  { icon: Settings,    label: "Configuración", href: "/owner/settings" },
-  { icon: Crown,       label: "Suscripción",   href: "/owner/suscripcion" },
+  { icon: BarChart3,   label: "Resumen",       href: "/owner" },
+  { icon: Building2,   label: "Mi Complejo",   href: "/owner/complejo" },
+  { icon: Calendar,    label: "Canchas",        href: "/owner/canchas" },
+  { icon: ClipboardList, label: "Reservas",     href: "/owner/reservas" },
+  { icon: Wallet,      label: "Caja y Cierre",  href: "/owner/caja" },
+  { icon: QrCode,      label: "Mi Link / QR",   href: "/owner/mi-link" },
+  { icon: Settings,    label: "Configuración",  href: "/owner/settings" },
+  { icon: Crown,       label: "Suscripción",    href: "/owner/suscripcion" },
 ];
 
 // Página de activar trial: sin sidebar, sin guard
@@ -102,6 +102,7 @@ export default function OwnerLayout({ children }: { children: React.ReactNode })
   const showGraciaBanner = trial.state === "gracia";
 
   const handleSignOut = async () => {
+    if (!window.confirm("¿Querés cerrar sesión?")) return;
     await signOut();
     router.push("/");
   };
@@ -209,7 +210,9 @@ export default function OwnerLayout({ children }: { children: React.ReactNode })
           {/* Nav */}
           <nav className="flex-1 p-3 space-y-1 overflow-y-auto mt-2">
             {OWNER_MENU.map((item) => {
-              const isActive = pathname?.startsWith(item.href);
+              const isActive = item.href === "/owner"
+                ? pathname === "/owner"
+                : pathname?.startsWith(item.href);
               return (
                 <Link key={item.href} href={item.href}>
                   <motion.div

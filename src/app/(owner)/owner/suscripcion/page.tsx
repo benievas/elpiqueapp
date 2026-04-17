@@ -66,7 +66,7 @@ export default function SuscripcionPage() {
         .eq("user_id", user.id)
         .eq("plan", "owner")
         .in("status", ["active", "trial"])
-        .single() as { data: { status: string; ends_at: string | null; is_trial: boolean } | null };
+        .maybeSingle() as { data: { status: string; ends_at: string | null; is_trial: boolean } | null };
 
       if (data) {
         const endsAt = data.ends_at ? new Date(data.ends_at) : null;
