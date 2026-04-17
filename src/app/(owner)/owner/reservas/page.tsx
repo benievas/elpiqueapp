@@ -14,6 +14,9 @@ import {
   Phone,
   DollarSign,
   Calendar,
+  Plus,
+  Trash2,
+  Building2,
 } from "lucide-react";
 import { supabase, supabaseMut } from "@/lib/supabase";
 import { useAuth } from "@/lib/hooks/useAuth";
@@ -28,6 +31,302 @@ interface ReservationWithDetails extends Reservation {
     email: string;
     telefono: string | null;
   } | null;
+}
+
+interface CourtOption {
+  id: string;
+  nombre: string;
+  deporte: string;
+  precio_por_hora: number;
+  complex_id: string;
+}
+
+// ─── NewReservationModal ──────────────────────────────────────────────────────
+
+const HORA_OPTIONS: string[] = [];
+for (let h = 7; h <= 23; h++) {
+  HORA_OPTIONS.push(`${String(h).padStart(2, "0")}:00`);
+  if (h < 23) HORA_OPTIONS.push(`${String(h).padStart(2, "0")}:30`);
+}
+
+interface NewReservationModalProps {
+  courts: CourtOption[];
+  userId: string;
+  onClose: () => void;
+  onSaved: (r: ReservationWithDetails) => void;
+}
+
+function NewReservationModal({ courts, userId, onClose, onSaved }: NewReservationModalProps) {
+  const [courtId, setCourtId] = useState(courts[0]?.id ?? "");
+  const [fecha, setFecha] = useState(new Date().toISOString().slice(0, 10));
+  const [horaInicio, setHoraInicio] = useState("08:00");
+  const [horaFin, setHoraFin] = useState("09:00");
+  const [jugadorNombre, setJugadorNombre] = useState("");
+  const [jugadorTelefono, setJugadorTelefono] = useState("");
+  const [precioTotal, setPrecioTotal] = useState<number>(0);
+  const [notas, setNotas] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+
+  const selectedCourt = courts.find((c) => c.id === courtId) ?? null;
+
+  useEffect(() => {
+    if (selectedCourt) {
+      setPrecioTotal(selectedCourt.precio_por_hora);
+    }
+  }, [courtId]);
+
+  async function handleSave() {
+    if (!courtId || !fecha || !horaInicio || !horaFin || !jugadorNombre.trim()) {
+      setSaveError("Completá cancha, fecha, horario y nombre del jugador.");
+      return;
+    }
+    setSaving(true);
+    setSaveError(null);
+
+    const notasComposed = [
+      "Reserva manual",
+      jugadorNombre.trim(),
+      jugadorTelefono.trim() ? `Tel: ${jugadorTelefono.trim()}` : null,
+      notas.trim() || null,
+    ]
+      .filter(Boolean)
+      .join(" · ");
+
+    const { data, error } = await supabaseMut
+      .from("reservations")
+      .insert({
+        court_id: courtId,
+        complex_id: selectedCourt!.complex_id,
+        user_id: userId,
+        fecha,
+        hora_inicio: horaInicio,
+        hora_fin: horaFin,
+        precio_total: precioTotal,
+        estado: "confirmada",
+        confirmada_por_propietario: true,
+        notas_usuario: notasComposed,
+      })
+      .select(`*, court:courts(nombre, deporte), jugador:profiles!user_id(nombre_completo, email, telefono)`)
+      .single();
+
+    if (error) {
+      setSaveError(error.message);
+      setSaving(false);
+      return;
+    }
+
+    onSaved(data as unknown as ReservationWithDetails);
+    onClose();
+  }
+
+  const inputStyle = {
+    background: "rgba(255,255,255,0.06)",
+    border: "1px solid rgba(255,255,255,0.12)",
+    borderRadius: "10px",
+    color: "#E1D4C2",
+    outline: "none",
+  } as React.CSSProperties;
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-end md:items-center justify-center p-4"
+      style={{ background: "rgba(0,0,0,0.7)", backdropFilter: "blur(6px)" }}
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <motion.div
+        initial={{ opacity: 0, y: 40 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: 40 }}
+        style={{
+          background: "linear-gradient(145deg, rgba(41,28,14,0.97) 0%, rgba(26,18,11,0.99) 100%)",
+          border: "1px solid rgba(255,255,255,0.1)",
+          borderRadius: "24px",
+          width: "100%",
+          maxWidth: "480px",
+          maxHeight: "90vh",
+          overflowY: "auto",
+        }}
+        className="p-6 space-y-5"
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-black text-white uppercase tracking-tight flex items-center gap-2">
+            <Building2 size={18} className="text-rodeo-lime" />
+            Nueva reserva manual
+          </h2>
+          <button
+            onClick={onClose}
+            className="text-rodeo-cream/40 hover:text-white transition-colors text-xl font-bold leading-none"
+          >
+            ×
+          </button>
+        </div>
+
+        {/* Cancha */}
+        <div className="space-y-1.5">
+          <label className="text-[11px] font-bold text-rodeo-cream/50 uppercase tracking-widest">
+            Cancha
+          </label>
+          <select
+            value={courtId}
+            onChange={(e) => setCourtId(e.target.value)}
+            style={inputStyle}
+            className="w-full px-3 py-2.5 text-sm"
+          >
+            {courts.map((c) => (
+              <option key={c.id} value={c.id} style={{ background: "#291C0E" }}>
+                {c.nombre} — {c.deporte}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* Fecha */}
+        <div className="space-y-1.5">
+          <label className="text-[11px] font-bold text-rodeo-cream/50 uppercase tracking-widest">
+            Fecha
+          </label>
+          <input
+            type="date"
+            value={fecha}
+            onChange={(e) => setFecha(e.target.value)}
+            style={inputStyle}
+            className="w-full px-3 py-2.5 text-sm"
+          />
+        </div>
+
+        {/* Horario */}
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-1.5">
+            <label className="text-[11px] font-bold text-rodeo-cream/50 uppercase tracking-widest">
+              Hora inicio
+            </label>
+            <select
+              value={horaInicio}
+              onChange={(e) => setHoraInicio(e.target.value)}
+              style={inputStyle}
+              className="w-full px-3 py-2.5 text-sm"
+            >
+              {HORA_OPTIONS.map((h) => (
+                <option key={h} value={h} style={{ background: "#291C0E" }}>{h}</option>
+              ))}
+            </select>
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-[11px] font-bold text-rodeo-cream/50 uppercase tracking-widest">
+              Hora fin
+            </label>
+            <select
+              value={horaFin}
+              onChange={(e) => setHoraFin(e.target.value)}
+              style={inputStyle}
+              className="w-full px-3 py-2.5 text-sm"
+            >
+              {HORA_OPTIONS.map((h) => (
+                <option key={h} value={h} style={{ background: "#291C0E" }}>{h}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        {/* Jugador nombre */}
+        <div className="space-y-1.5">
+          <label className="text-[11px] font-bold text-rodeo-cream/50 uppercase tracking-widest">
+            Nombre del jugador *
+          </label>
+          <input
+            type="text"
+            placeholder="Ej: Juan García"
+            value={jugadorNombre}
+            onChange={(e) => setJugadorNombre(e.target.value)}
+            style={inputStyle}
+            className="w-full px-3 py-2.5 text-sm placeholder:text-rodeo-cream/25"
+          />
+        </div>
+
+        {/* Jugador telefono */}
+        <div className="space-y-1.5">
+          <label className="text-[11px] font-bold text-rodeo-cream/50 uppercase tracking-widest">
+            Teléfono (opcional)
+          </label>
+          <input
+            type="tel"
+            placeholder="Ej: 3834123456"
+            value={jugadorTelefono}
+            onChange={(e) => setJugadorTelefono(e.target.value)}
+            style={inputStyle}
+            className="w-full px-3 py-2.5 text-sm placeholder:text-rodeo-cream/25"
+          />
+        </div>
+
+        {/* Precio */}
+        <div className="space-y-1.5">
+          <label className="text-[11px] font-bold text-rodeo-cream/50 uppercase tracking-widest">
+            Precio total (ARS)
+          </label>
+          <input
+            type="number"
+            min={0}
+            value={precioTotal}
+            onChange={(e) => setPrecioTotal(Number(e.target.value))}
+            style={inputStyle}
+            className="w-full px-3 py-2.5 text-sm"
+          />
+        </div>
+
+        {/* Notas */}
+        <div className="space-y-1.5">
+          <label className="text-[11px] font-bold text-rodeo-cream/50 uppercase tracking-widest">
+            Notas (opcional)
+          </label>
+          <textarea
+            rows={2}
+            placeholder="Observaciones, equipamiento, etc."
+            value={notas}
+            onChange={(e) => setNotas(e.target.value)}
+            style={{ ...inputStyle, resize: "none" }}
+            className="w-full px-3 py-2.5 text-sm placeholder:text-rodeo-cream/25"
+          />
+        </div>
+
+        {saveError && (
+          <p className="text-xs text-red-400 font-bold">{saveError}</p>
+        )}
+
+        {/* Actions */}
+        <div className="flex gap-3 pt-1">
+          <button
+            onClick={onClose}
+            style={{
+              background: "rgba(255,255,255,0.05)",
+              border: "1px solid rgba(255,255,255,0.1)",
+              borderRadius: "12px",
+            }}
+            className="flex-1 py-3 text-sm font-bold text-rodeo-cream/60 hover:text-white transition-all"
+          >
+            Cancelar
+          </button>
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            style={{
+              background: saving ? "rgba(200,255,0,0.5)" : "rgba(200,255,0,0.9)",
+              borderRadius: "12px",
+            }}
+            className="flex-1 py-3 text-sm font-black text-rodeo-dark hover:opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+          >
+            {saving ? (
+              <div className="w-4 h-4 border-2 border-rodeo-dark/30 border-t-rodeo-dark rounded-full animate-spin" />
+            ) : (
+              <Plus size={15} />
+            )}
+            Guardar reserva
+          </button>
+        </div>
+      </motion.div>
+    </div>
+  );
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -128,12 +427,57 @@ function buildWhatsAppLink(
   return `https://wa.me/549${clean}?text=${text}`;
 }
 
+// ─── DeleteButton (double-click confirmation) ─────────────────────────────────
+
+function DeleteButton({
+  busy,
+  disabled,
+  onDelete,
+}: {
+  busy: boolean;
+  disabled: boolean;
+  onDelete: () => void;
+}) {
+  const [confirmed, setConfirmed] = useState(false);
+
+  function handleClick() {
+    if (!confirmed) {
+      setConfirmed(true);
+      setTimeout(() => setConfirmed(false), 3000);
+    } else {
+      onDelete();
+    }
+  }
+
+  return (
+    <button
+      onClick={handleClick}
+      disabled={disabled}
+      style={{
+        background: confirmed ? "rgba(255,64,64,0.25)" : "rgba(255,255,255,0.04)",
+        border: "1px solid rgba(255,64,64,0.35)",
+        borderRadius: "10px",
+        transition: "all 0.2s ease",
+      }}
+      className="flex items-center gap-2 px-4 py-2.5 text-xs font-black text-red-400 hover:bg-red-500/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+    >
+      {busy ? (
+        <div className="w-3.5 h-3.5 border-2 border-red-400/30 border-t-red-400 rounded-full animate-spin" />
+      ) : (
+        <Trash2 size={14} />
+      )}
+      {confirmed ? "¿Confirmar eliminación?" : "Eliminar"}
+    </button>
+  );
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function ReservasPage() {
   const { user, loading: authLoading } = useAuth();
 
   const [reservations, setReservations] = useState<ReservationWithDetails[]>([]);
+  const [courts, setCourts] = useState<CourtOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -141,6 +485,7 @@ export default function ReservasPage() {
   const [dateFilter, setDateFilter] = useState<DateFilter>("mes");
 
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [showNewModal, setShowNewModal] = useState(false);
 
   // ── Fetch ──────────────────────────────────────────────────────────────────
 
@@ -168,7 +513,15 @@ export default function ReservasPage() {
           return;
         }
 
-        // 2) Fetch reservations with joins
+        // 2) Fetch courts for new-reservation modal
+        const { data: courtsData } = await supabase
+          .from("courts")
+          .select("id, nombre, deporte, precio_por_hora, complex_id")
+          .in("complex_id", complexIds)
+          .eq("activa", true);
+        setCourts((courtsData as any) ?? []);
+
+        // 3) Fetch reservations with joins
         const { data, error: resError } = await supabase
           .from("reservations")
           .select(
@@ -194,7 +547,7 @@ export default function ReservasPage() {
     }
 
     fetchReservations();
-  }, [user, authLoading]);
+  }, [user?.id, authLoading]);
 
   // ── Actions ────────────────────────────────────────────────────────────────
 
@@ -230,6 +583,29 @@ export default function ReservasPage() {
           r.id === id ? { ...r, estado: "cancelada" as EstadoReserva } : r
         )
       );
+    }
+    setActionLoading(null);
+  }
+
+  async function handleComplete(id: string) {
+    setActionLoading(id + "_complete");
+    const { error } = await supabaseMut
+      .from("reservations")
+      .update({ estado: "completada" })
+      .eq("id", id);
+    if (!error) {
+      setReservations((prev) =>
+        prev.map((r) => r.id === id ? { ...r, estado: "completada" as EstadoReserva } : r)
+      );
+    }
+    setActionLoading(null);
+  }
+
+  async function handleDelete(id: string) {
+    setActionLoading(id + "_delete");
+    const { error } = await supabaseMut.from("reservations").delete().eq("id", id);
+    if (!error) {
+      setReservations((prev) => prev.filter((r) => r.id !== id));
     }
     setActionLoading(null);
   }
@@ -368,22 +744,35 @@ export default function ReservasPage() {
           <p className="text-sm text-rodeo-cream/50 capitalize">{todayFormatted}</p>
         </div>
 
-        <div
-          style={{
-            background: "rgba(255,255,255,0.04)",
-            border: "1px solid rgba(255,255,255,0.08)",
-            borderRadius: "14px",
-          }}
-          className="flex items-center gap-2.5 px-4 py-3"
-        >
-          <ClipboardList size={16} className="text-rodeo-lime/70" />
-          <div className="text-right">
-            <p className="text-[10px] text-rodeo-cream/40 uppercase tracking-widest font-bold">
-              Total
-            </p>
-            <p className="text-lg font-black text-white leading-none">
-              {dateFiltered.length}
-            </p>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setShowNewModal(true)}
+            style={{
+              background: "rgba(200,255,0,0.9)",
+              borderRadius: "12px",
+            }}
+            className="flex items-center gap-2 px-4 py-2.5 text-sm font-black text-rodeo-dark hover:opacity-90 transition-all"
+          >
+            <Plus size={16} />
+            Nueva reserva
+          </button>
+          <div
+            style={{
+              background: "rgba(255,255,255,0.04)",
+              border: "1px solid rgba(255,255,255,0.08)",
+              borderRadius: "14px",
+            }}
+            className="flex items-center gap-2.5 px-4 py-3"
+          >
+            <ClipboardList size={16} className="text-rodeo-lime/70" />
+            <div className="text-right">
+              <p className="text-[10px] text-rodeo-cream/40 uppercase tracking-widest font-bold">
+                Total
+              </p>
+              <p className="text-lg font-black text-white leading-none">
+                {dateFiltered.length}
+              </p>
+            </div>
           </div>
         </div>
       </motion.div>
@@ -604,6 +993,8 @@ export default function ReservasPage() {
 
                 const confirmBusy = actionLoading === r.id + "_confirm";
                 const cancelBusy = actionLoading === r.id + "_cancel";
+                const completeBusy = actionLoading === r.id + "_complete";
+                const deleteBusy = actionLoading === r.id + "_delete";
 
                 return (
                   <motion.div
@@ -794,12 +1185,91 @@ export default function ReservasPage() {
                           </button>
                         </motion.div>
                       )}
+
+                      {/* Complete / Cancel actions for confirmada */}
+                      {r.estado === "confirmada" && (
+                        <motion.div
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: "auto" }}
+                          className="flex gap-2 mt-4 pt-4"
+                          style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}
+                        >
+                          <button
+                            onClick={() => handleComplete(r.id)}
+                            disabled={!!actionLoading}
+                            style={{
+                              background: completeBusy
+                                ? "rgba(64,196,255,0.1)"
+                                : "rgba(64,196,255,0.15)",
+                              border: "1px solid rgba(64,196,255,0.3)",
+                              borderRadius: "10px",
+                            }}
+                            className="flex items-center gap-2 px-4 py-2.5 text-xs font-black text-sky-400 hover:bg-sky-500/25 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            {completeBusy ? (
+                              <div className="w-3.5 h-3.5 border-2 border-sky-400/30 border-t-sky-400 rounded-full animate-spin" />
+                            ) : (
+                              <CheckCircle2 size={14} />
+                            )}
+                            Completar
+                          </button>
+
+                          <button
+                            onClick={() => handleCancel(r.id)}
+                            disabled={!!actionLoading}
+                            style={{
+                              background: "rgba(255,255,255,0.04)",
+                              border: "1px solid rgba(255,64,64,0.25)",
+                              borderRadius: "10px",
+                            }}
+                            className="flex items-center gap-2 px-4 py-2.5 text-xs font-black text-red-400 hover:bg-red-500/15 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            {cancelBusy ? (
+                              <div className="w-3.5 h-3.5 border-2 border-red-400/30 border-t-red-400 rounded-full animate-spin" />
+                            ) : (
+                              <XCircle size={14} />
+                            )}
+                            Cancelar
+                          </button>
+                        </motion.div>
+                      )}
+
+                      {/* Delete action for cancelada */}
+                      {r.estado === "cancelada" && (
+                        <motion.div
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: "auto" }}
+                          className="flex gap-2 mt-4 pt-4"
+                          style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}
+                        >
+                          <DeleteButton
+                            busy={deleteBusy}
+                            disabled={!!actionLoading}
+                            onDelete={() => handleDelete(r.id)}
+                          />
+                        </motion.div>
+                      )}
                     </div>
                   </motion.div>
                 );
               })}
             </AnimatePresence>
           </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ── New Reservation Modal ──────────────────────────────────────────── */}
+      <AnimatePresence>
+        {showNewModal && courts.length > 0 && user && (
+          <NewReservationModal
+            courts={courts}
+            userId={user.id}
+            onClose={() => setShowNewModal(false)}
+            onSaved={(r) => {
+              setReservations((prev) => [r, ...prev]);
+              setShowNewModal(false);
+            }}
+          />
         )}
       </AnimatePresence>
     </div>

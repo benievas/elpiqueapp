@@ -2,7 +2,8 @@
 
 import { usePathname } from "next/navigation";
 import Link from "next/link";
-import { Home, Search, MapPin, Rss, Trophy, User } from "lucide-react";
+import { Home, Search, MapPin, Rss, Trophy, User, Building2 } from "lucide-react";
+import { useAuth } from "@/lib/hooks/useAuth";
 
 const navItems = [
   { href: "/", label: "Inicio", Icon: Home },
@@ -15,6 +16,7 @@ const navItems = [
 
 export default function BottomNav() {
   const pathname = usePathname();
+  const { isOwner, isAdmin } = useAuth();
 
   // No mostrar en panel owner/admin ni en mapa (tiene su propia bottom sheet)
   if (
@@ -62,7 +64,7 @@ export default function BottomNav() {
           }}
         />
 
-        {navItems.map(({ href, label, Icon }) => {
+        {[...navItems, ...(isOwner || isAdmin ? [{ href: "/owner", label: "Mi Panel", Icon: Building2 }] : [])].map(({ href, label, Icon }) => {
           const isActive = pathname === href || (href !== "/" && pathname.startsWith(href));
           return (
             <Link
