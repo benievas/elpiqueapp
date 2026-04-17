@@ -52,13 +52,15 @@ export function useAuth() {
       if (session?.user) {
         setUser(session.user);
         const p = await fetchProfile(session.user.id);
-        if (mounted) setProfile(p);
+        if (!mounted) return;
+        setProfile(p);
+        // Seteamos loading=false DESPUÉS de tener el perfil
+        if (event === 'INITIAL_SESSION') setLoading(false);
       } else {
         setUser(null);
         setProfile(null);
+        if (event === 'INITIAL_SESSION') setLoading(false);
       }
-
-      if (event === 'INITIAL_SESSION') setLoading(false);
     });
 
     return () => {

@@ -56,7 +56,7 @@ export function useTrialStatus(): TrialStatus {
     const fetchStatus = async () => {
       const { data } = await supabase
         .from('subscriptions' as never)
-        .select('status, is_trial, trial_starts_at, ends_at')
+        .select('status, is_trial, starts_at, ends_at')
         .eq('user_id', user.id)
         .eq('plan', 'owner')
         .order('created_at', { ascending: false })
@@ -64,7 +64,7 @@ export function useTrialStatus(): TrialStatus {
         .maybeSingle() as { data: {
           status: string;
           is_trial: boolean;
-          trial_starts_at: string | null;
+          starts_at: string | null;
           ends_at: string | null;
         } | null };
 
@@ -81,8 +81,8 @@ export function useTrialStatus(): TrialStatus {
       }
 
       // Trial
-      if (data.is_trial && data.trial_starts_at) {
-        const startedAt = new Date(data.trial_starts_at);
+      if (data.is_trial && data.starts_at) {
+        const startedAt = new Date(data.starts_at);
         const now = new Date();
         const daysElapsed = Math.floor((now.getTime() - startedAt.getTime()) / (1000 * 60 * 60 * 24));
 

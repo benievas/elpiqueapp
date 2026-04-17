@@ -37,7 +37,7 @@ export default function ActivarTrialPage() {
         plan: "owner",
         status: "trial",
         is_trial: true,
-        trial_starts_at: now,
+        starts_at: now,
         ends_at: trialEnd,
         created_at: now,
       });
@@ -72,8 +72,8 @@ export default function ActivarTrialPage() {
           <div className="space-y-2">
             <h1 className="text-3xl font-black text-white">¡Bienvenido a ElPiqueApp!</h1>
             <p className="text-rodeo-cream/60 text-sm leading-relaxed">
-              Activá tu prueba gratuita de 30 días. Sin tarjeta de crédito requerida.
-              Al vencer podrás elegir un plan para continuar.
+              Probá todas las funciones gratis durante 30 días. Sin compromisos.
+              Al vencer, elegís si querés continuar con un plan pago.
             </p>
           </div>
 
@@ -148,7 +148,7 @@ export default function ActivarTrialPage() {
           </motion.button>
 
           <p className="text-xs text-rodeo-cream/30">
-            Sin tarjeta de crédito · Cancelá cuando quieras
+            Sin tarjeta de crédito · Solo pagás si decidís continuar
           </p>
         </div>
       </motion.div>

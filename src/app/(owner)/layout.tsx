@@ -32,6 +32,14 @@ export default function OwnerLayout({ children }: { children: React.ReactNode })
   const trial = useTrialStatus();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [trialBannerOpen, setTrialBannerOpen] = useState(true);
+  const [timedOut, setTimedOut] = useState(false);
+
+  // Timeout de seguridad: si después de 8s sigue cargando, redirigir al login
+  useEffect(() => {
+    if (!authLoading && trial.state !== "loading") return;
+    const t = setTimeout(() => setTimedOut(true), 8000);
+    return () => clearTimeout(t);
+  }, [authLoading, trial.state]);
 
   const isBypassPage = BYPASS_PAGES.some(p => pathname?.startsWith(p));
 
@@ -59,6 +67,10 @@ export default function OwnerLayout({ children }: { children: React.ReactNode })
 
   // ── Loading ─────────────────────────────────────────────────────────────────
   if (authLoading || trial.state === "loading") {
+    if (timedOut) {
+      router.replace("/login");
+      return null;
+    }
     return (
       <div className="flex items-center justify-center min-h-screen bg-rodeo-dark">
         <div className="w-8 h-8 border-2 border-rodeo-lime/30 border-t-rodeo-lime rounded-full animate-spin" />
