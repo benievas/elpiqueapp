@@ -51,114 +51,160 @@ function FlyerGenerator({ publicUrl, complexName }: { publicUrl: string; complex
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, W, H);
 
-    // Decorative circle top-right
-    ctx.beginPath();
-    ctx.arc(W + 100, -100, 500, 0, Math.PI * 2);
-    ctx.fillStyle = "rgba(200,255,0,0.06)";
-    ctx.fill();
+    // Helper: load image as promise
+    const loadImg = (src: string): Promise<HTMLImageElement> =>
+      new Promise((res, rej) => {
+        const img = new Image();
+        img.onload = () => res(img);
+        img.onerror = rej;
+        img.src = src;
+      });
 
-    // Decorative circle bottom-left
-    ctx.beginPath();
-    ctx.arc(-150, H + 100, 500, 0, Math.PI * 2);
-    ctx.fillStyle = "rgba(200,255,0,0.04)";
-    ctx.fill();
+    // ── Logo principal arriba (logo-main.png) ──────────────────────────────
+    try {
+      const logoMain = await loadImg("/assets/logo-main.png");
+      const lh = 110;
+      const lw = (logoMain.width / logoMain.height) * lh;
+      ctx.drawImage(logoMain, (W - lw) / 2, 60, lw, lh);
+    } catch { /* si falla el logo, nada */ }
 
-    // Top brand bar
-    ctx.fillStyle = "rgba(200,255,0,0.12)";
+    // ── Franja verde diagonal superior ─────────────────────────────────────
+    ctx.save();
     ctx.beginPath();
-    ctx.roundRect(60, 80, W - 120, 100, 20);
-    ctx.fill();
-
+    ctx.moveTo(0, 210);
+    ctx.lineTo(W, 170);
+    ctx.lineTo(W, 230);
+    ctx.lineTo(0, 270);
+    ctx.closePath();
     ctx.fillStyle = "#C8FF00";
-    ctx.font = "bold 36px system-ui, sans-serif";
-    ctx.textAlign = "center";
-    ctx.fillText("ElPiqueApp · Tu complejo deportivo online", W / 2, 142);
+    ctx.fill();
+    ctx.restore();
 
-    // Complex name
-    ctx.fillStyle = "#FFFFFF";
-    ctx.font = "black 88px system-ui, sans-serif";
+    // ── Subtítulo deportivo sobre la franja ────────────────────────────────
+    ctx.save();
+    ctx.fillStyle = "#1A120B";
+    ctx.font = "900 32px Impact, Arial Black, sans-serif";
+    ctx.textAlign = "center";
+    ctx.letterSpacing = "4px";
+    ctx.fillText("RESERVÁ TU CANCHA ONLINE", W / 2, 213);
+    ctx.restore();
+
+    // ── Nombre del complejo ────────────────────────────────────────────────
     ctx.textAlign = "center";
     const name = complexName.toUpperCase();
-    // Wrap text if too long
-    const maxWidth = W - 120;
+    const maxWidth = W - 100;
+    ctx.font = "900 96px Impact, Arial Black, sans-serif";
     const words = name.split(" ");
     let line = "";
     const lines: string[] = [];
     for (const word of words) {
       const test = line ? `${line} ${word}` : word;
-      if (ctx.measureText(test).width > maxWidth && line) {
-        lines.push(line);
-        line = word;
-      } else {
-        line = test;
-      }
+      if (ctx.measureText(test).width > maxWidth && line) { lines.push(line); line = word; }
+      else line = test;
     }
     lines.push(line);
-    const nameY = 340;
-    lines.forEach((l, i) => ctx.fillText(l, W / 2, nameY + i * 100));
+    const nameY = 360;
+    // Sombra
+    ctx.shadowColor = "rgba(200,255,0,0.35)";
+    ctx.shadowBlur = 30;
+    ctx.fillStyle = "#FFFFFF";
+    lines.forEach((l, i) => ctx.fillText(l, W / 2, nameY + i * 110));
+    ctx.shadowBlur = 0;
 
-    // "Escaneá y reservá" subtitle
-    const subtitleY = nameY + lines.length * 100 + 40;
-    ctx.fillStyle = "rgba(225,212,194,0.7)";
-    ctx.font = "500 44px system-ui, sans-serif";
-    ctx.fillText("Escaneá el QR y reservá tu cancha", W / 2, subtitleY);
+    // ── Línea decorativa bajo el nombre ───────────────────────────────────
+    const afterName = nameY + lines.length * 110 + 10;
+    const lineGrad = ctx.createLinearGradient(100, 0, W - 100, 0);
+    lineGrad.addColorStop(0, "transparent");
+    lineGrad.addColorStop(0.3, "#C8FF00");
+    lineGrad.addColorStop(0.7, "#C8FF00");
+    lineGrad.addColorStop(1, "transparent");
+    ctx.fillStyle = lineGrad;
+    ctx.fillRect(100, afterName, W - 200, 4);
 
-    // QR white card
-    const qrSize = 560;
+    // ── QR card ────────────────────────────────────────────────────────────
+    const qrSize = 520;
     const qrX = (W - qrSize) / 2;
-    const qrY = subtitleY + 80;
+    const qrY = afterName + 60;
+
+    // Card shadow
+    ctx.shadowColor = "rgba(200,255,0,0.2)";
+    ctx.shadowBlur = 60;
     ctx.fillStyle = "#FFFFFF";
     ctx.beginPath();
-    ctx.roundRect(qrX - 40, qrY - 40, qrSize + 80, qrSize + 80, 32);
+    ctx.roundRect(qrX - 44, qrY - 44, qrSize + 88, qrSize + 88, 36);
     ctx.fill();
+    ctx.shadowBlur = 0;
+
+    // Corner accent squares
+    const cornerSize = 28;
+    const corners = [
+      [qrX - 44, qrY - 44], [qrX + qrSize + 44 - cornerSize, qrY - 44],
+      [qrX - 44, qrY + qrSize + 44 - cornerSize], [qrX + qrSize + 44 - cornerSize, qrY + qrSize + 44 - cornerSize],
+    ];
+    ctx.fillStyle = "#C8FF00";
+    corners.forEach(([cx, cy]) => ctx.fillRect(cx, cy, cornerSize, cornerSize));
 
     // Draw QR
     if (qrDataUrl) {
       await new Promise<void>((resolve) => {
         const img = new Image();
-        img.onload = () => {
-          ctx.drawImage(img, qrX, qrY, qrSize, qrSize);
-          resolve();
-        };
+        img.onload = () => { ctx.drawImage(img, qrX, qrY, qrSize, qrSize); resolve(); };
+        img.onerror = () => resolve();
         img.src = qrDataUrl;
       });
     }
 
-    // Owner logo (if uploaded)
+    // ── Owner logo (si subió) ──────────────────────────────────────────────
+    const afterQr = qrY + qrSize + 44;
     if (logoDataUrl) {
       await new Promise<void>((resolve) => {
         const img = new Image();
         img.onload = () => {
-          const logoSize = 200;
-          const logoX = (W - logoSize) / 2;
-          const logoY = qrY + qrSize + 120;
-          // Circle clip for logo
+          const lSize = 160;
+          const lx = (W - lSize) / 2;
+          const ly = afterQr + 40;
           ctx.save();
+          // Halo lime
           ctx.beginPath();
-          ctx.arc(logoX + logoSize / 2, logoY + logoSize / 2, logoSize / 2 + 8, 0, Math.PI * 2);
-          ctx.fillStyle = "rgba(255,255,255,0.15)";
+          ctx.arc(lx + lSize / 2, ly + lSize / 2, lSize / 2 + 10, 0, Math.PI * 2);
+          ctx.fillStyle = "rgba(200,255,0,0.25)";
           ctx.fill();
+          // White ring
           ctx.beginPath();
-          ctx.arc(logoX + logoSize / 2, logoY + logoSize / 2, logoSize / 2, 0, Math.PI * 2);
+          ctx.arc(lx + lSize / 2, ly + lSize / 2, lSize / 2 + 4, 0, Math.PI * 2);
+          ctx.fillStyle = "white";
+          ctx.fill();
+          // Clip circle
+          ctx.beginPath();
+          ctx.arc(lx + lSize / 2, ly + lSize / 2, lSize / 2, 0, Math.PI * 2);
           ctx.clip();
-          ctx.drawImage(img, logoX, logoY, logoSize, logoSize);
+          ctx.drawImage(img, lx, ly, lSize, lSize);
           ctx.restore();
           resolve();
         };
+        img.onerror = () => resolve();
         img.src = logoDataUrl;
       });
     }
 
-    // Bottom tag
-    const bottomY = H - 120;
-    ctx.fillStyle = "rgba(200,255,0,0.9)";
-    ctx.font = "black 42px system-ui, sans-serif";
-    ctx.textAlign = "center";
-    ctx.fillText("elpique.app", W / 2, bottomY);
+    // ── Franja inferior ────────────────────────────────────────────────────
+    const footerY = H - 220;
+    ctx.fillStyle = "#C8FF00";
+    ctx.fillRect(0, footerY, W, 200);
 
-    ctx.fillStyle = "rgba(225,212,194,0.4)";
-    ctx.font = "400 30px system-ui, sans-serif";
-    ctx.fillText("Reservas online · Sin llamadas · Sin esperas", W / 2, bottomY + 50);
+    // Texto footer oscuro
+    ctx.fillStyle = "#1A120B";
+    ctx.font = "900 40px Impact, Arial Black, sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText("ESCANEÁ · RESERVÁ · JUGÁ", W / 2, footerY + 68);
+
+    // Logo-main pequeño en footer
+    try {
+      const logoFoot = await loadImg("/assets/logo-main.png");
+      const fh = 70;
+      const fw = (logoFoot.width / logoFoot.height) * fh;
+      ctx.drawImage(logoFoot, (W - fw) / 2, footerY + 100, fw, fh);
+    } catch { /* nada */ }
 
     // Download
     const dataUrl = canvas.toDataURL("image/png");
