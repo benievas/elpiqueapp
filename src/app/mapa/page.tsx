@@ -3,12 +3,12 @@ export const dynamic = 'force-dynamic';
 
 import { useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import dynamic from "next/dynamic";
+import nextDynamic from "next/dynamic";
 import { ChevronLeft, MapPin, Clock, Phone, Star, X } from "lucide-react";
 import Link from "next/link";
 import CityBanner from "@/components/CityBanner";
 
-const MapaLeaflet = dynamic(() => import("@/components/MapaLeaflet"), {
+const MapaLeaflet = nextDynamic(() => import("@/components/MapaLeaflet"), {
   ssr: false,
   loading: () => (
     <div className="w-full h-full flex items-center justify-center bg-rodeo-dark">
