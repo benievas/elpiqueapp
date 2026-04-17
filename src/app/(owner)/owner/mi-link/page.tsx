@@ -2,13 +2,268 @@
 export const dynamic = 'force-dynamic';
 
 import { useState, useRef, useCallback, useEffect } from "react";
-import { motion } from "framer-motion";
-import { QrCode, Copy, Check, Share2, Download, ExternalLink, Instagram, MessageCircle, Loader } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import {
+  QrCode, Copy, Check, Share2, Download, ExternalLink,
+  Instagram, MessageCircle, Loader, ImagePlus, Sparkles, X,
+} from "lucide-react";
 import { QRCodeSVG, QRCodeCanvas } from "qrcode.react";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { supabase } from "@/lib/supabase";
 
 const APP_DOMAIN = "https://elpique.app";
+
+// ─── Flyer Generator ──────────────────────────────────────────────────────────
+
+function FlyerGenerator({ publicUrl, complexName }: { publicUrl: string; complexName: string }) {
+  const [logoDataUrl, setLogoDataUrl] = useState<string | null>(null);
+  const [generating, setGenerating] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const hiddenQrRef = useRef<HTMLDivElement>(null);
+
+  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => setLogoDataUrl(ev.target?.result as string);
+    reader.readAsDataURL(file);
+  };
+
+  const generateFlyer = useCallback(async () => {
+    setGenerating(true);
+
+    // Get QR canvas data from the hidden QRCodeCanvas
+    const qrCanvas = document.getElementById("flyer-qr-canvas") as HTMLCanvasElement | null;
+    const qrDataUrl = qrCanvas?.toDataURL("image/png") ?? null;
+
+    const canvas = document.createElement("canvas");
+    const W = 1080;
+    const H = 1920;
+    canvas.width = W;
+    canvas.height = H;
+    const ctx = canvas.getContext("2d")!;
+
+    // Background gradient
+    const grad = ctx.createLinearGradient(0, 0, 0, H);
+    grad.addColorStop(0, "#1A120B");
+    grad.addColorStop(0.5, "#291C0E");
+    grad.addColorStop(1, "#1A120B");
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, W, H);
+
+    // Decorative circle top-right
+    ctx.beginPath();
+    ctx.arc(W + 100, -100, 500, 0, Math.PI * 2);
+    ctx.fillStyle = "rgba(200,255,0,0.06)";
+    ctx.fill();
+
+    // Decorative circle bottom-left
+    ctx.beginPath();
+    ctx.arc(-150, H + 100, 500, 0, Math.PI * 2);
+    ctx.fillStyle = "rgba(200,255,0,0.04)";
+    ctx.fill();
+
+    // Top brand bar
+    ctx.fillStyle = "rgba(200,255,0,0.12)";
+    ctx.beginPath();
+    ctx.roundRect(60, 80, W - 120, 100, 20);
+    ctx.fill();
+
+    ctx.fillStyle = "#C8FF00";
+    ctx.font = "bold 36px system-ui, sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText("ElPiqueApp · Tu complejo deportivo online", W / 2, 142);
+
+    // Complex name
+    ctx.fillStyle = "#FFFFFF";
+    ctx.font = "black 88px system-ui, sans-serif";
+    ctx.textAlign = "center";
+    const name = complexName.toUpperCase();
+    // Wrap text if too long
+    const maxWidth = W - 120;
+    const words = name.split(" ");
+    let line = "";
+    const lines: string[] = [];
+    for (const word of words) {
+      const test = line ? `${line} ${word}` : word;
+      if (ctx.measureText(test).width > maxWidth && line) {
+        lines.push(line);
+        line = word;
+      } else {
+        line = test;
+      }
+    }
+    lines.push(line);
+    const nameY = 340;
+    lines.forEach((l, i) => ctx.fillText(l, W / 2, nameY + i * 100));
+
+    // "Escaneá y reservá" subtitle
+    const subtitleY = nameY + lines.length * 100 + 40;
+    ctx.fillStyle = "rgba(225,212,194,0.7)";
+    ctx.font = "500 44px system-ui, sans-serif";
+    ctx.fillText("Escaneá el QR y reservá tu cancha", W / 2, subtitleY);
+
+    // QR white card
+    const qrSize = 560;
+    const qrX = (W - qrSize) / 2;
+    const qrY = subtitleY + 80;
+    ctx.fillStyle = "#FFFFFF";
+    ctx.beginPath();
+    ctx.roundRect(qrX - 40, qrY - 40, qrSize + 80, qrSize + 80, 32);
+    ctx.fill();
+
+    // Draw QR
+    if (qrDataUrl) {
+      await new Promise<void>((resolve) => {
+        const img = new Image();
+        img.onload = () => {
+          ctx.drawImage(img, qrX, qrY, qrSize, qrSize);
+          resolve();
+        };
+        img.src = qrDataUrl;
+      });
+    }
+
+    // Owner logo (if uploaded)
+    if (logoDataUrl) {
+      await new Promise<void>((resolve) => {
+        const img = new Image();
+        img.onload = () => {
+          const logoSize = 200;
+          const logoX = (W - logoSize) / 2;
+          const logoY = qrY + qrSize + 120;
+          // Circle clip for logo
+          ctx.save();
+          ctx.beginPath();
+          ctx.arc(logoX + logoSize / 2, logoY + logoSize / 2, logoSize / 2 + 8, 0, Math.PI * 2);
+          ctx.fillStyle = "rgba(255,255,255,0.15)";
+          ctx.fill();
+          ctx.beginPath();
+          ctx.arc(logoX + logoSize / 2, logoY + logoSize / 2, logoSize / 2, 0, Math.PI * 2);
+          ctx.clip();
+          ctx.drawImage(img, logoX, logoY, logoSize, logoSize);
+          ctx.restore();
+          resolve();
+        };
+        img.src = logoDataUrl;
+      });
+    }
+
+    // Bottom tag
+    const bottomY = H - 120;
+    ctx.fillStyle = "rgba(200,255,0,0.9)";
+    ctx.font = "black 42px system-ui, sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText("elpique.app", W / 2, bottomY);
+
+    ctx.fillStyle = "rgba(225,212,194,0.4)";
+    ctx.font = "400 30px system-ui, sans-serif";
+    ctx.fillText("Reservas online · Sin llamadas · Sin esperas", W / 2, bottomY + 50);
+
+    // Download
+    const dataUrl = canvas.toDataURL("image/png");
+    const a = document.createElement("a");
+    a.href = dataUrl;
+    a.download = `flyer-historia-${complexName.toLowerCase().replace(/\s+/g, "-")}.png`;
+    a.click();
+
+    setGenerating(false);
+  }, [publicUrl, complexName, logoDataUrl]);
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 16 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 0.25 }}
+      style={{ background: "rgba(200,255,0,0.05)", border: "1px solid rgba(200,255,0,0.18)", borderRadius: "20px" }}
+      className="p-6 space-y-5"
+    >
+      <div className="flex items-center gap-3">
+        <Sparkles size={18} className="text-rodeo-lime" />
+        <p className="text-sm font-bold text-white">Generar flyer para historia</p>
+        <span className="text-xs px-2 py-0.5 rounded-full font-bold" style={{ background: "rgba(200,255,0,0.2)", color: "#C8FF00" }}>
+          Instagram 9:16
+        </span>
+      </div>
+      <p className="text-xs text-rodeo-cream/50 leading-relaxed">
+        Generamos un flyer listo para subir a tus historias de Instagram, con el QR de tu complejo y la marca de ElPiqueApp.
+        Podés sumar tu propio logo.
+      </p>
+
+      {/* Logo upload */}
+      <div>
+        <p className="text-xs font-bold uppercase tracking-wider text-rodeo-cream/50 mb-2">Logo del complejo (opcional)</p>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: "12px" }}
+            className="flex items-center gap-2 px-4 py-2.5 text-sm font-bold text-rodeo-cream/70 hover:text-white transition-all hover:bg-white/10"
+          >
+            <ImagePlus size={16} />
+            {logoDataUrl ? "Cambiar logo" : "Subir logo"}
+          </button>
+          {logoDataUrl && (
+            <div className="flex items-center gap-2">
+              <img src={logoDataUrl} alt="Logo preview" className="w-10 h-10 rounded-lg object-cover" />
+              <button onClick={() => setLogoDataUrl(null)} className="text-rodeo-cream/40 hover:text-white transition-colors">
+                <X size={14} />
+              </button>
+            </div>
+          )}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            onChange={handleLogoUpload}
+            className="hidden"
+          />
+        </div>
+      </div>
+
+      {/* Preview hint */}
+      <div style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "12px" }}
+        className="p-4 flex items-start gap-3"
+      >
+        <span className="text-2xl shrink-0">📱</span>
+        <div className="space-y-1">
+          <p className="text-xs font-bold text-white">El flyer incluye:</p>
+          <ul className="text-xs text-rodeo-cream/50 space-y-1">
+            {["Nombre de tu complejo en grande", "QR listo para escanear", logoDataUrl ? "Tu logo ✓" : "Tu logo (opcional)", "Branding de ElPiqueApp"].map((item) => (
+              <li key={item} className="flex items-center gap-2">
+                <span className="w-1 h-1 rounded-full bg-rodeo-lime/50 shrink-0" />
+                {item}
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+
+      <button
+        onClick={generateFlyer}
+        disabled={generating}
+        style={{ background: "rgba(200,255,0,0.9)", borderRadius: "14px" }}
+        className="w-full flex items-center justify-center gap-2 py-3.5 text-rodeo-dark font-black text-sm uppercase tracking-wider hover:brightness-105 disabled:opacity-60 transition-all"
+      >
+        {generating ? <Loader size={16} className="animate-spin" /> : <Download size={16} />}
+        {generating ? "Generando flyer..." : "Descargar flyer para historia"}
+      </button>
+
+      {/* Hidden QR canvas for flyer generation */}
+      <div style={{ position: "absolute", left: -9999, top: -9999 }} ref={hiddenQrRef}>
+        <QRCodeCanvas
+          id="flyer-qr-canvas"
+          value={publicUrl}
+          size={560}
+          bgColor="#ffffff"
+          fgColor="#1A120B"
+          level="M"
+        />
+      </div>
+    </motion.div>
+  );
+}
+
+// ─── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function MiLinkPage() {
   const { user } = useAuth();
@@ -26,7 +281,7 @@ export default function MiLinkPage() {
       .limit(1)
       .single()
       .then((response) => {
-        const data = response.data as any;
+        const data = response.data as { slug: string; nombre: string } | null;
         if (data) { setSlug(data.slug); setComplexName(data.nombre); }
         setLoadingSlug(false);
       });
@@ -36,7 +291,6 @@ export default function MiLinkPage() {
 
   const [copied, setCopied] = useState(false);
   const [downloading, setDownloading] = useState(false);
-  const canvasRef = useRef<HTMLDivElement>(null);
 
   const handleCopy = useCallback(async () => {
     await navigator.clipboard.writeText(publicUrl);
@@ -63,7 +317,6 @@ export default function MiLinkPage() {
   };
 
   const handleShareInstagram = () => {
-    // Instagram doesn't support direct link sharing via web — copy to clipboard instead
     handleCopy();
     alert("Link copiado. Pegalo en tu bio o historia de Instagram.");
   };
@@ -96,7 +349,7 @@ export default function MiLinkPage() {
         <h1 className="text-3xl font-black text-white uppercase tracking-tight">Mi Link y QR</h1>
         <p className="text-sm text-rodeo-cream/60 mt-1">
           {complexName && <span className="text-rodeo-lime font-bold">{complexName} · </span>}
-          Compartí el link en redes, imprimí el QR en tu local o descargalo para tus flyers.
+          Compartí, imprimí o generá un flyer listo para redes.
         </p>
       </div>
 
@@ -154,9 +407,7 @@ export default function MiLinkPage() {
         </div>
 
         <div className="flex flex-col md:flex-row items-center gap-6">
-          {/* SVG preview (visible) */}
           <div
-            ref={canvasRef}
             style={{ background: "white", borderRadius: "16px", padding: "16px" }}
             className="shrink-0"
           >
@@ -177,7 +428,6 @@ export default function MiLinkPage() {
             />
           </div>
 
-          {/* Hidden canvas for download */}
           <div style={{ display: "none" }}>
             <QRCodeCanvas
               id="qr-canvas"
@@ -202,7 +452,7 @@ export default function MiLinkPage() {
               El QR apunta directamente a tu complejo. Tus clientes lo escanean y ven tus canchas disponibles al instante.
             </p>
             <ul className="space-y-1.5 text-xs text-rodeo-cream/50">
-              {["Imprimilo en afiches o tarjetas", "Pegalo en la entrada del complejo", "Usalo en flyers digitales", "Alta resolución 512×512px"].map((tip) => (
+              {["Imprimilo en afiches o tarjetas", "Pegalo en la entrada del complejo", "Alta resolución 512×512px"].map((tip) => (
                 <li key={tip} className="flex items-center gap-2">
                   <span className="w-1 h-1 rounded-full bg-rodeo-lime/50" />
                   {tip}
@@ -212,7 +462,7 @@ export default function MiLinkPage() {
             <button
               onClick={handleDownloadQR}
               style={{ background: "rgba(200,255,0,0.9)", borderRadius: "12px" }}
-              className="flex items-center gap-2 px-5 py-2.5 text-rodeo-dark font-black text-sm hover:bg-rodeo-lime transition-all"
+              className="flex items-center gap-2 px-5 py-2.5 text-rodeo-dark font-black text-sm hover:brightness-105 transition-all"
             >
               <Download size={16} />
               {downloading ? "Descargando..." : "Descargar QR (PNG)"}
@@ -221,11 +471,14 @@ export default function MiLinkPage() {
         </div>
       </motion.div>
 
+      {/* Flyer Generator */}
+      <FlyerGenerator publicUrl={publicUrl} complexName={complexName} />
+
       {/* Compartir en redes */}
       <motion.div
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.2 }}
+        transition={{ delay: 0.3 }}
         style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "20px" }}
         className="p-6 space-y-4"
       >
@@ -269,21 +522,6 @@ export default function MiLinkPage() {
           </button>
         </div>
       </motion.div>
-
-      {/* Tip flyer */}
-      <div
-        style={{ background: "rgba(200,255,0,0.04)", border: "1px solid rgba(200,255,0,0.12)", borderRadius: "16px" }}
-        className="px-5 py-4 flex items-start gap-3"
-      >
-        <span className="text-xl shrink-0">💡</span>
-        <div>
-          <p className="text-sm font-bold text-white">Tip: Armá tu flyer con el QR</p>
-          <p className="text-xs text-rodeo-cream/50 mt-1 leading-relaxed">
-            Descargá el QR, abrí Canva o cualquier editor, y combinalo con el logo de tu complejo y el logo de ElPiqueApp.
-            Te generamos el texto automáticamente desde la sección <strong className="text-rodeo-cream/70">Flyers IA</strong> (próximamente).
-          </p>
-        </div>
-      </div>
     </div>
   );
 }

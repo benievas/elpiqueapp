@@ -786,7 +786,8 @@ export default function CanchasPage() {
     } else if (!authLoading && !user) {
       setLoadingData(false);
     }
-  }, [authLoading, user, fetchData]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authLoading, user?.id, fetchData]);
 
   // ─── Derived state ───────────────────────────────────────────────────────────
 
