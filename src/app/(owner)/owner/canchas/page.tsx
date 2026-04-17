@@ -390,7 +390,7 @@ function CourtModal({
               <input
                 type="number"
                 name="precio_por_hora"
-                value={form.precio_por_hora}
+                value={form.precio_por_hora === 0 ? "" : form.precio_por_hora}
                 onChange={handleChange}
                 min={0}
                 step={100}

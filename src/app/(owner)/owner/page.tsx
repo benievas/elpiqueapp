@@ -80,8 +80,15 @@ export default function OwnerPage() {
       <div>
         <p className="text-xs text-rodeo-cream/50 font-bold tracking-widest uppercase mb-1">Panel de Control</p>
         <h1 className="text-3xl font-black text-white uppercase tracking-tight">
-          {complexName ? `Bienvenido, ${complexName}` : profile?.nombre_completo ? `Hola, ${profile.nombre_completo.split(" ")[0]}` : "Bienvenido"}
+          {profile?.nombre_completo
+            ? `Hola, ${profile.nombre_completo.split(" ")[0]}`
+            : user?.email
+            ? `Hola, ${user.email.split("@")[0]}`
+            : "Bienvenido"}
         </h1>
+        {complexName && (
+          <p className="text-rodeo-lime font-black text-base uppercase tracking-wide mt-0.5">{complexName}</p>
+        )}
         <p className="text-sm text-rodeo-cream/60 mt-1">Gestioná tu complejo deportivo desde acá.</p>
       </div>
 

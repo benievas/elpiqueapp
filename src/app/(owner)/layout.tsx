@@ -35,13 +35,20 @@ export default function OwnerLayout({ children }: { children: React.ReactNode })
   const [trialBannerOpen, setTrialBannerOpen] = useState(true);
   const [timedOut, setTimedOut] = useState(false);
   const [complexName, setComplexName] = useState<string | null>(null);
+  const [showSignOut, setShowSignOut] = useState(false);
+  // Una vez inicializado no volvemos al spinner — evita cerrar modales abiertos
+  const [initialized, setInitialized] = useState(false);
+
+  useEffect(() => {
+    if (!authLoading && trial.state !== "loading") setInitialized(true);
+  }, [authLoading, trial.state]);
 
   // Timeout de seguridad: si después de 8s sigue cargando, redirigir al login
   useEffect(() => {
-    if (!authLoading && trial.state !== "loading") return;
+    if (initialized) return;
     const t = setTimeout(() => setTimedOut(true), 8000);
     return () => clearTimeout(t);
-  }, [authLoading, trial.state]);
+  }, [initialized]);
 
   // Fetch nombre del complejo para el sidebar
   useEffect(() => {
@@ -80,11 +87,8 @@ export default function OwnerLayout({ children }: { children: React.ReactNode })
   }, [authLoading, trial.state, trial.isBlocked, user, profile, isOwner, isAdmin, isBypassPage]);
 
   // ── Loading ─────────────────────────────────────────────────────────────────
-  if (authLoading || trial.state === "loading") {
-    if (timedOut) {
-      router.replace("/login");
-      return null;
-    }
+  if (!initialized) {
+    if (timedOut) { router.replace("/login"); return null; }
     return (
       <div className="flex items-center justify-center min-h-screen bg-rodeo-dark">
         <div className="w-8 h-8 border-2 border-rodeo-lime/30 border-t-rodeo-lime rounded-full animate-spin" />
@@ -102,7 +106,6 @@ export default function OwnerLayout({ children }: { children: React.ReactNode })
   const showGraciaBanner = trial.state === "gracia";
 
   const handleSignOut = async () => {
-    if (!window.confirm("¿Querés cerrar sesión?")) return;
     await signOut();
     router.push("/");
   };
@@ -183,10 +186,10 @@ export default function OwnerLayout({ children }: { children: React.ReactNode })
                 </div>
                 <div className="overflow-hidden">
                   <p className="text-[10px] text-rodeo-cream/50 font-bold uppercase tracking-wider">
-                    {profile?.nombre_completo || "Propietario"}
+                    {isAdmin ? "Administrador" : "Propietario"}
                   </p>
                   <p className="text-sm font-black text-white truncate">
-                    {complexName || "Mi Complejo"}
+                    {complexName || profile?.nombre_completo || "Mi Complejo"}
                   </p>
                 </div>
               </motion.div>
@@ -238,7 +241,7 @@ export default function OwnerLayout({ children }: { children: React.ReactNode })
           {/* Footer */}
           <div className="p-3 border-t border-white/10">
             <button
-              onClick={handleSignOut}
+              onClick={() => setShowSignOut(true)}
               className="w-full p-3 rounded-[12px] hover:bg-red-500/10 border border-transparent hover:border-red-500/20 flex items-center gap-3 transition-all text-rodeo-cream/60 hover:text-red-400"
             >
               <LogOut size={18} className="shrink-0" />
@@ -252,6 +255,59 @@ export default function OwnerLayout({ children }: { children: React.ReactNode })
           <div className="p-6 md:p-10 max-w-7xl mx-auto">{children}</div>
         </main>
       </div>
+
+      {/* Modal cierre de sesión */}
+      <AnimatePresence>
+        {showSignOut && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] flex items-center justify-center p-4"
+            style={{ background: "rgba(0,0,0,0.7)", backdropFilter: "blur(8px)" }}
+          >
+            <motion.div
+              initial={{ scale: 0.92, opacity: 0, y: 16 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.92, opacity: 0, y: 16 }}
+              transition={{ type: "spring", damping: 25, stiffness: 320 }}
+              style={{
+                background: "rgba(26,18,11,0.97)",
+                border: "1px solid rgba(255,255,255,0.12)",
+                borderRadius: "20px",
+                maxWidth: 360,
+                width: "100%",
+              }}
+              className="p-6 space-y-4"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-red-500/15 border border-red-500/30 flex items-center justify-center">
+                  <LogOut size={18} className="text-red-400" />
+                </div>
+                <div>
+                  <p className="text-base font-black text-white">¿Cerrar sesión?</p>
+                  <p className="text-xs text-rodeo-cream/50">Tendrás que volver a iniciar sesión</p>
+                </div>
+              </div>
+              <div className="flex gap-3 pt-1">
+                <button
+                  onClick={() => setShowSignOut(false)}
+                  className="flex-1 py-3 rounded-[12px] text-sm font-bold text-rodeo-cream/70 hover:text-white transition-colors"
+                  style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)" }}
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleSignOut}
+                  className="flex-1 py-3 rounded-[12px] text-sm font-black text-white bg-red-500 hover:bg-red-600 transition-colors"
+                >
+                  Cerrar sesión
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
