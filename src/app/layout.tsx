@@ -74,6 +74,7 @@ export default function RootLayout({
 
         {/* Inyección de variables de entorno públicas en runtime */}
         <script
+          suppressHydrationWarning
           dangerouslySetInnerHTML={{
             __html: `window.__ENV=${JSON.stringify({
               NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL ?? '',
@@ -92,7 +93,7 @@ export default function RootLayout({
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://generativelanguage.googleapis.com" />
       </head>
-      <body className="antialiased min-h-screen" style={{ background: "linear-gradient(160deg, #040D07 0%, #081810 40%, #050F09 70%, #030A06 100%)" }}>
+      <body suppressHydrationWarning className="antialiased min-h-screen" style={{ background: "linear-gradient(160deg, #040D07 0%, #081810 40%, #050F09 70%, #030A06 100%)" }}>
         <CityProvider>
           <DeviceDetection />
           {children}

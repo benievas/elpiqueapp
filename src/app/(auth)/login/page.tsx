@@ -5,7 +5,7 @@ import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
-import { Mail, Lock, Eye, EyeOff, ArrowRight, Loader, User, Building2 } from "lucide-react";
+import { Mail, Lock, Eye, EyeOff, ArrowRight, Loader, User, Building2, ChevronLeft } from "lucide-react";
 import { supabase, supabaseMut } from "@/lib/supabase";
 
 type Mode = "signin" | "signup";
@@ -193,6 +193,13 @@ function LoginForm() {
       </div>
 
       <div className="relative z-10 min-h-screen flex flex-col items-center justify-center px-6 py-10">
+        {/* Botón volver */}
+        <div className="absolute top-4 left-4">
+          <Link href="/explorar" className="flex items-center gap-1.5 px-3 py-2 rounded-[10px] bg-white/8 border border-white/10 text-rodeo-cream/70 hover:text-rodeo-cream hover:bg-white/12 transition-all text-sm">
+            <ChevronLeft size={16} /> Volver
+          </Link>
+        </div>
+
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}
           className="w-full max-w-md space-y-6">
 
