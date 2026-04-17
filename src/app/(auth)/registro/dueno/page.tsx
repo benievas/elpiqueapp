@@ -7,7 +7,7 @@ import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Building2, Mail, Lock, Eye, EyeOff, User, Phone,
-  ArrowRight, ArrowLeft, Loader, CheckCircle2, Rocket,
+  ArrowRight, ArrowLeft, Loader, CheckCircle2, Rocket, ChevronLeft,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 
@@ -119,6 +119,13 @@ function RegistroDuenoForm() {
           className="absolute -top-32 -right-32 w-96 h-96 bg-rodeo-lime/8 rounded-full blur-3xl" />
         <motion.div animate={{ scale: [1, 1.1, 1], opacity: [0.2, 0.4, 0.2] }} transition={{ duration: 10, repeat: Infinity, delay: 3 }}
           className="absolute -bottom-32 -left-32 w-96 h-96 bg-rodeo-terracotta/8 rounded-full blur-3xl" />
+      </div>
+
+      {/* Botón volver */}
+      <div className="absolute top-4 left-4 z-10">
+        <Link href="/login" className="flex items-center gap-1.5 px-3 py-2 rounded-[10px] bg-white/8 border border-white/10 text-rodeo-cream/70 hover:text-rodeo-cream hover:bg-white/12 transition-all text-sm">
+          <ChevronLeft size={16} /> Volver
+        </Link>
       </div>
 
       <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} className="relative z-10 w-full max-w-md space-y-6">

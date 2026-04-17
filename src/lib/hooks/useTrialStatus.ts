@@ -104,7 +104,7 @@ export function useTrialStatus(): TrialStatus {
     };
 
     fetchStatus();
-  }, [user, isOwner, isAdmin]);
+  }, [user, isOwner, isAdmin, authLoading]);
 
   return status;
 }
