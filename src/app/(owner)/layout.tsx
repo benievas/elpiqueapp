@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { useTrialStatus } from "@/lib/hooks/useTrialStatus";
+import { supabase } from "@/lib/supabase";
 
 const OWNER_MENU = [
   { icon: Building2, label: "Mi Complejo",   href: "/owner/complejo" },
@@ -33,6 +34,7 @@ export default function OwnerLayout({ children }: { children: React.ReactNode })
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [trialBannerOpen, setTrialBannerOpen] = useState(true);
   const [timedOut, setTimedOut] = useState(false);
+  const [complexName, setComplexName] = useState<string | null>(null);
 
   // Timeout de seguridad: si después de 8s sigue cargando, redirigir al login
   useEffect(() => {
@@ -40,6 +42,18 @@ export default function OwnerLayout({ children }: { children: React.ReactNode })
     const t = setTimeout(() => setTimedOut(true), 8000);
     return () => clearTimeout(t);
   }, [authLoading, trial.state]);
+
+  // Fetch nombre del complejo para el sidebar
+  useEffect(() => {
+    if (!user?.id) return;
+    supabase
+      .from("complexes")
+      .select("nombre")
+      .eq("owner_id", user.id)
+      .limit(1)
+      .maybeSingle()
+      .then(({ data }) => { if (data) setComplexName((data as { nombre: string }).nombre); });
+  }, [user?.id]);
 
   const isBypassPage = BYPASS_PAGES.some(p => pathname?.startsWith(p));
 
@@ -167,8 +181,12 @@ export default function OwnerLayout({ children }: { children: React.ReactNode })
                   <Building2 size={18} className="text-rodeo-lime" />
                 </div>
                 <div className="overflow-hidden">
-                  <p className="text-[10px] text-rodeo-cream/50 font-bold uppercase tracking-wider">Propietario</p>
-                  <p className="text-sm font-black text-white truncate">{profile?.nombre_completo || "Mi Negocio"}</p>
+                  <p className="text-[10px] text-rodeo-cream/50 font-bold uppercase tracking-wider">
+                    {profile?.nombre_completo || "Propietario"}
+                  </p>
+                  <p className="text-sm font-black text-white truncate">
+                    {complexName || "Mi Complejo"}
+                  </p>
                 </div>
               </motion.div>
             )}

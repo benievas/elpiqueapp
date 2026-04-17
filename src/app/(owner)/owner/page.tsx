@@ -27,6 +27,7 @@ const QUICK_ACCESS = [
 export default function OwnerPage() {
   const { user, profile } = useAuth();
   const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [complexName, setComplexName] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user?.id) return;
@@ -34,10 +35,11 @@ export default function OwnerPage() {
       // Fetch owner's complex IDs
       const { data: complejos } = await supabase
         .from("complexes")
-        .select("id, rating_promedio")
-        .eq("owner_id", user.id) as { data: { id: string; rating_promedio: number | null }[] | null };
+        .select("id, nombre, rating_promedio")
+        .eq("owner_id", user.id) as { data: { id: string; nombre: string; rating_promedio: number | null }[] | null };
 
       if (!complejos?.length) { setStats({ reservasHoy: 0, canchasActivas: 0, ingresosMes: 0, rating: null }); return; }
+      setComplexName(complejos[0].nombre);
 
       const complexIds = complejos.map((c) => c.id);
       const todayISO = new Date().toISOString().split("T")[0];
@@ -78,7 +80,7 @@ export default function OwnerPage() {
       <div>
         <p className="text-xs text-rodeo-cream/50 font-bold tracking-widest uppercase mb-1">Panel de Control</p>
         <h1 className="text-3xl font-black text-white uppercase tracking-tight">
-          {profile?.nombre_completo ? `Hola, ${profile.nombre_completo.split(" ")[0]}` : "Bienvenido"}
+          {complexName ? `Bienvenido, ${complexName}` : profile?.nombre_completo ? `Hola, ${profile.nombre_completo.split(" ")[0]}` : "Bienvenido"}
         </h1>
         <p className="text-sm text-rodeo-cream/60 mt-1">Gestioná tu complejo deportivo desde acá.</p>
       </div>
