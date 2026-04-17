@@ -1,9 +1,9 @@
 import { createServerClient } from '@supabase/ssr';
+import { createClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
 
 function buildRedirect(path: string, requestUrl: string): URL {
   const url = new URL(requestUrl);
-  // En localhost forzar http (Chrome bloquea https://localhost)
   if (url.hostname === 'localhost' || url.hostname === '127.0.0.1') {
     url.protocol = 'http:';
   }
@@ -51,12 +51,39 @@ export async function GET(request: NextRequest) {
   }
 
   if (data.session) {
-    // Determinar destino según rol
-    const { data: profile } = await supabase
+    const userId = data.session.user.id;
+    const userEmail = data.session.user.email ?? '';
+    const userMeta = data.session.user.user_metadata ?? {};
+
+    // Buscar perfil
+    let { data: profile } = await supabase
       .from('profiles')
       .select('rol')
-      .eq('id', data.session.user.id)
+      .eq('id', userId)
       .maybeSingle();
+
+    // Si no tiene perfil (Google OAuth, o email confirmado sin perfil previo), crearlo
+    if (!profile) {
+      const rol = (userMeta.rol as string) ?? 'jugador';
+      const nombre = (userMeta.nombre_completo as string)
+        ?? (userMeta.full_name as string)
+        ?? (userMeta.name as string)
+        ?? null;
+
+      const admin = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY!,
+      );
+      await admin.from('profiles').upsert({
+        id: userId,
+        email: userEmail,
+        nombre_completo: nombre,
+        rol,
+        ciudad: 'Catamarca',
+      }, { onConflict: 'id' });
+
+      profile = { rol };
+    }
 
     let destination = '/explorar';
     if (profile?.rol === 'propietario' || profile?.rol === 'admin' || profile?.rol === 'superadmin') {

@@ -62,7 +62,7 @@ function RegistroDuenoForm() {
       const { data: authData, error: signUpError } = await supabase.auth.signUp({
         email: email.trim().toLowerCase(),
         password,
-        options: { data: { nombre_completo: nombre.trim() } },
+        options: { data: { nombre_completo: nombre.trim(), rol: 'propietario' } },
       });
 
       if (signUpError) {
