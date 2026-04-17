@@ -44,7 +44,7 @@ export default function ActivarTrialPage() {
 
       if (insertError) throw insertError;
 
-      router.push("/owner?trial_activado=1");
+      router.push("/onboarding/dueno");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error al activar el trial");
     } finally {

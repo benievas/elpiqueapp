@@ -62,6 +62,8 @@ export async function GET(request: NextRequest) {
       .eq('id', userId)
       .maybeSingle();
 
+    const isNewProfile = !profile;
+
     // Si no tiene perfil (Google OAuth, o email confirmado sin perfil previo), crearlo
     if (!profile) {
       const rol = (userMeta.rol as string) ?? 'jugador';
@@ -85,7 +87,7 @@ export async function GET(request: NextRequest) {
       profile = { rol };
     }
 
-    let destination = '/explorar';
+    let destination = isNewProfile ? '/onboarding/jugador' : '/explorar';
     if (profile?.rol === 'propietario' || profile?.rol === 'admin' || profile?.rol === 'superadmin') {
       destination = '/owner';
     }

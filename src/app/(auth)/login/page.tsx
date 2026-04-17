@@ -64,7 +64,8 @@ function LoginForm() {
     if (profile?.rol === "propietario" || profile?.rol === "admin" || profile?.rol === "superadmin") {
       router.replace("/owner");
     } else {
-      router.replace("/explorar");
+      const onboarded = localStorage.getItem("player_onboarded");
+      router.replace(onboarded === "true" ? "/explorar" : "/onboarding/jugador");
     }
   };
 
@@ -166,7 +167,7 @@ function LoginForm() {
             rol: "jugador",
           }),
         });
-        router.push("/explorar");
+        router.push("/onboarding/jugador");
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error al crear la cuenta");
