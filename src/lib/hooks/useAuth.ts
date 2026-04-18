@@ -32,47 +32,64 @@ export function useAuth() {
   useEffect(() => {
     let mounted = true;
 
-    // Carga inicial de sesión
-    supabase.auth.getSession().then(async ({ data: { session }, error: sessionError }) => {
-      if (!mounted) return;
-      if (sessionError) { setError(sessionError); setLoading(false); return; }
-
-      if (session?.user) {
-        setUser(session.user);
-        const p = await fetchProfile(session.user.id);
-        if (mounted) setProfile(p);
-      }
+    // Safety timeout: if INITIAL_SESSION never fires, unblock after 6s
+    const timeout = setTimeout(() => {
       if (mounted) setLoading(false);
-    });
+    }, 6000);
 
-    // Escuchar cambios de sesión
+    // Single source of truth: onAuthStateChange handles ALL session states.
+    // No separate getSession() call — avoids race conditions where both paths
+    // try to update state simultaneously and cause flickering / stuck loading.
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (!mounted) return;
 
       if (session?.user) {
         setUser(session.user);
-        const p = await fetchProfile(session.user.id);
-        if (!mounted) return;
-        setProfile(p);
-        // Seteamos loading=false DESPUÉS de tener el perfil
-        if (event === 'INITIAL_SESSION') setLoading(false);
+
+        // Only fetch profile on events that change identity (not just token refresh)
+        if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN' || event === 'USER_UPDATED') {
+          try {
+            const p = await fetchProfile(session.user.id);
+            if (!mounted) return;
+            setProfile(p);
+          } catch (err) {
+            if (mounted) setError(err instanceof Error ? err : new Error('Profile fetch failed'));
+          }
+        }
+
+        if (event === 'INITIAL_SESSION') {
+          clearTimeout(timeout);
+          setLoading(false);
+        }
       } else {
         setUser(null);
         setProfile(null);
-        if (event === 'INITIAL_SESSION') setLoading(false);
+        if (event === 'INITIAL_SESSION') {
+          clearTimeout(timeout);
+          setLoading(false);
+        }
       }
     });
 
     return () => {
       mounted = false;
+      clearTimeout(timeout);
       subscription.unsubscribe();
     };
-  }, []); // Sin dependencias — supabase es una constante de módulo
+  }, []);
 
   const signOut = async () => {
-    await supabase.auth.signOut();
+    // scope:'local' ensures cookies are cleared even if network is unavailable
+    await supabase.auth.signOut({ scope: 'local' });
     setUser(null);
     setProfile(null);
+  };
+
+  // Allows pages to refresh profile after mutations (e.g. settings save)
+  const refreshProfile = async () => {
+    if (!user?.id) return;
+    const p = await fetchProfile(user.id);
+    setProfile(p);
   };
 
   return {
@@ -81,6 +98,7 @@ export function useAuth() {
     loading,
     error,
     signOut,
+    refreshProfile,
     isOwner: profile?.rol === 'propietario',
     isAdmin: profile?.rol === 'admin' || profile?.rol === 'superadmin',
     isSuperAdmin: profile?.rol === 'superadmin',

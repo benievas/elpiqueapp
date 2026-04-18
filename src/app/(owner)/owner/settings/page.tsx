@@ -1,18 +1,27 @@
 "use client";
 export const dynamic = 'force-dynamic';
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Save, Loader, Bell, Shield, Globe, Mail, Lock, Check, AlertTriangle } from "lucide-react";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { supabase, supabaseMut } from "@/lib/supabase";
 
 export default function OwnerSettingsPage() {
-  const { profile, user } = useAuth();
+  const { profile, user, refreshProfile } = useAuth();
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
-  const [telefono, setTelefono] = useState(profile?.telefono || "");
-  const [nombre, setNombre] = useState(profile?.nombre_completo || "");
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [telefono, setTelefono] = useState("");
+  const [nombre, setNombre] = useState("");
+
+  // Sync form when profile loads (useState initial value runs only once on mount)
+  useEffect(() => {
+    if (profile) {
+      setNombre(profile.nombre_completo || "");
+      setTelefono(profile.telefono || "");
+    }
+  }, [profile?.id]); // re-sync only if a different user loads
 
   // Email change
   const [newEmail, setNewEmail] = useState("");
@@ -27,13 +36,20 @@ export default function OwnerSettingsPage() {
     if (!user?.id) return;
     setLoading(true);
     setSuccess(false);
-    await supabaseMut
+    setSaveError(null);
+    const { error } = await supabaseMut
       .from("profiles")
-      .update({ telefono, nombre_completo: nombre })
+      .update({ telefono: telefono.trim(), nombre_completo: nombre.trim() })
       .eq("id", user.id);
     setLoading(false);
-    setSuccess(true);
-    setTimeout(() => setSuccess(false), 3000);
+    if (error) {
+      setSaveError("No se pudo guardar: " + error.message);
+    } else {
+      setSuccess(true);
+      setTimeout(() => setSuccess(false), 3000);
+      // Refresh profile so header/greeting show updated name immediately
+      await refreshProfile();
+    }
   };
 
   const handleEmailChange = async () => {
@@ -84,6 +100,7 @@ export default function OwnerSettingsPage() {
             type="text"
             value={nombre}
             onChange={(e) => setNombre(e.target.value)}
+            placeholder={profile ? "" : "Cargando..."}
             className="w-full px-4 py-3 rounded-[12px] bg-white/8 border border-white/10
               text-rodeo-cream text-sm focus:outline-none focus:border-rodeo-lime/50 transition-all"
           />
@@ -108,6 +125,16 @@ export default function OwnerSettingsPage() {
               text-rodeo-cream text-sm focus:outline-none focus:border-rodeo-lime/50 transition-all"
           />
         </div>
+
+        <AnimatePresence>
+          {saveError && (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="flex items-center gap-2 px-4 py-3 rounded-[10px] text-sm"
+              style={{ background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.3)", color: "#EF4444" }}>
+              <AlertTriangle size={14} />{saveError}
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         <motion.button
           onClick={handleSave}

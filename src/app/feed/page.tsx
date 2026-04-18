@@ -31,22 +31,22 @@ export default function FeedPage() {
   const { ciudadCorta: city } = useCityContext();
 
   useEffect(() => {
+    // Don't fetch until city resolves
+    if (!city) return;
     fetchPosts();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filtroTipo, city]);
 
   const fetchPosts = async () => {
+    setLoading(true);
     try {
+      // Use a separate complexes join without !inner to avoid errors if table is empty
       let query = supabase
         .from("feed_posts")
-        .select(
-          `
-          *,
-          complex_name:complexes!inner(nombre, ciudad)
-        `
-        )
+        .select("*, complexes(nombre, ciudad)")
         .eq("visible", true)
-        .eq("complexes.ciudad", city)
-        .order("created_at", { ascending: false });
+        .order("created_at", { ascending: false })
+        .limit(30);
 
       if (filtroTipo !== "todos") {
         query = query.eq("tipo", filtroTipo);
@@ -54,19 +54,29 @@ export default function FeedPage() {
 
       const { data, error } = await query;
 
-      if (error) throw error;
-      
-      // Mapear el nombre del complejo desde el objeto anidado o array
-      const postsMapeados = (data || []).map((p: any) => ({
-        ...p,
-        complex_name: Array.isArray(p.complex_name) 
-          ? p.complex_name[0]?.nombre 
-          : p.complex_name?.nombre
-      }));
-      
+      if (error) {
+        // Table might not exist yet — show empty state instead of hanging spinner
+        console.warn("feed_posts query error:", error.message);
+        setPosts([]);
+        return;
+      }
+
+      // Filter by city client-side (avoids complex server-side join filter)
+      const cityLower = city.toLowerCase();
+      const postsMapeados = (data || [])
+        .filter((p: any) => {
+          const c = Array.isArray(p.complexes) ? p.complexes[0] : p.complexes;
+          return !c || c.ciudad?.toLowerCase() === cityLower;
+        })
+        .map((p: any) => {
+          const c = Array.isArray(p.complexes) ? p.complexes[0] : p.complexes;
+          return { ...p, complex_name: c?.nombre ?? null };
+        });
+
       setPosts(postsMapeados as Post[]);
     } catch (err) {
       console.error("Error fetching posts:", err);
+      setPosts([]);
     } finally {
       setLoading(false);
     }

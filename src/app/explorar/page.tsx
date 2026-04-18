@@ -1,156 +1,43 @@
 "use client";
 export const dynamic = 'force-dynamic';
 
-import { useState, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { motion } from "framer-motion";
-import { ChevronLeft, Search, X, Star, MapPin, Users } from "lucide-react";
+import { ChevronLeft, Search, X, Star, MapPin, Users, Loader } from "lucide-react";
 import Link from "next/link";
 import CityBanner from "@/components/CityBanner";
 import { useCityContext } from "@/lib/context/CityContext";
+import { supabase } from "@/lib/supabase";
 
-// --- TIPOS ---
-type Complejo = typeof TODOS_LOS_COMPLEJOS[number];
+type Complejo = {
+  id: string;
+  nombre: string;
+  deporte_principal: string;
+  deportes: string[];
+  direccion: string;
+  ciudad: string;
+  rating_promedio: number | null;
+  total_reviews: number;
+  imagen_principal: string | null;
+  slug: string;
+  activo: boolean;
+  _canchas_count?: number;
+};
 
-// --- DATOS MULTI-CIUDAD ---
-const TODOS_LOS_COMPLEJOS = [
-  // ── CATAMARCA ──────────────────────────────────────────────────────────────
-  {
-    id: 1,
-    nombre: "Sportivo Central",
-    deporte: "Fútbol",
-    ubicacion: "Av. Libertad 1234",
-    ciudad: "Catamarca",
-    provincia: "Catamarca",
-    lat: -28.4685, lng: -65.7872,
-    rating: 4.8, reseñas: 312,
-    imagen: "https://images.unsplash.com/photo-1461896836934-ffe607ba8211?q=80&w=600",
-    slug: "sportivo-central", canchas: 8, abierto: true,
-  },
-  {
-    id: 2,
-    nombre: "Padel Club Elite",
-    deporte: "Padel",
-    ubicacion: "Calle Rivadavia 567",
-    ciudad: "Catamarca",
-    provincia: "Catamarca",
-    lat: -28.4720, lng: -65.7810,
-    rating: 4.9, reseñas: 189,
-    imagen: "https://images.unsplash.com/photo-1487180144351-b8472da7d491?q=80&w=600",
-    slug: "padel-club-elite", canchas: 6, abierto: true,
-  },
-  {
-    id: 3,
-    nombre: "Arena Vóley Catamarca",
-    deporte: "Vóley",
-    ubicacion: "Calle San Martín 890",
-    ciudad: "Catamarca",
-    provincia: "Catamarca",
-    lat: -28.4658, lng: -65.7850,
-    rating: 4.7, reseñas: 98,
-    imagen: "https://images.unsplash.com/photo-1561214115-f2f134cc4912?q=80&w=600",
-    slug: "arena-voley", canchas: 4, abierto: true,
-  },
-  {
-    id: 4,
-    nombre: "Tenis Club Catamarca",
-    deporte: "Tenis",
-    ubicacion: "Parque Municipal",
-    ciudad: "Catamarca",
-    provincia: "Catamarca",
-    lat: -28.4740, lng: -65.7830,
-    rating: 4.6, reseñas: 156,
-    imagen: "https://images.unsplash.com/photo-1595435934249-5df7ed86e1c0?q=80&w=600",
-    slug: "tenis-club", canchas: 5, abierto: true,
-  },
-  {
-    id: 5,
-    nombre: "Básquet Arena Catamarca",
-    deporte: "Básquetbol",
-    ubicacion: "Centro Deportivo Municipal",
-    ciudad: "Catamarca",
-    provincia: "Catamarca",
-    lat: -28.4700, lng: -65.7895,
-    rating: 4.5, reseñas: 124,
-    imagen: "https://images.unsplash.com/photo-1546519638-68e109498ffc?q=80&w=600",
-    slug: "basquet-arena", canchas: 3, abierto: true,
-  },
-  // ── TUCUMÁN ────────────────────────────────────────────────────────────────
-  {
-    id: 6,
-    nombre: "Fútbol Park Tucumán",
-    deporte: "Fútbol",
-    ubicacion: "Av. Aconquija 2100",
-    ciudad: "Tucumán",
-    provincia: "Tucumán",
-    lat: -26.8002, lng: -65.2080,
-    rating: 4.7, reseñas: 203,
-    imagen: "https://images.unsplash.com/photo-1574629810360-7efbbe195018?q=80&w=600",
-    slug: "futbol-park-tucuman", canchas: 10, abierto: true,
-  },
-  {
-    id: 7,
-    nombre: "Padel Norte Tucumán",
-    deporte: "Padel",
-    ubicacion: "Calle Corrientes 450",
-    ciudad: "Tucumán",
-    provincia: "Tucumán",
-    lat: -26.8120, lng: -65.2210,
-    rating: 4.8, reseñas: 87,
-    imagen: "https://images.unsplash.com/photo-1487180144351-b8472da7d491?q=80&w=600",
-    slug: "padel-norte-tucuman", canchas: 4, abierto: true,
-  },
-  {
-    id: 8,
-    nombre: "Tenis Club del Norte",
-    deporte: "Tenis",
-    ubicacion: "Parque 9 de Julio",
-    ciudad: "Tucumán",
-    provincia: "Tucumán",
-    lat: -26.8050, lng: -65.2150,
-    rating: 4.6, reseñas: 112,
-    imagen: "https://images.unsplash.com/photo-1595435934249-5df7ed86e1c0?q=80&w=600",
-    slug: "tenis-norte-tucuman", canchas: 6, abierto: true,
-  },
-  // ── CÓRDOBA ────────────────────────────────────────────────────────────────
-  {
-    id: 9,
-    nombre: "Complejo Deportivo Córdoba",
-    deporte: "Fútbol",
-    ubicacion: "Av. Colón 1800",
-    ciudad: "Córdoba",
-    provincia: "Córdoba",
-    lat: -31.4130, lng: -64.1800,
-    rating: 4.9, reseñas: 445,
-    imagen: "https://images.unsplash.com/photo-1574629810360-7efbbe195018?q=80&w=600",
-    slug: "complejo-deportivo-cordoba", canchas: 12, abierto: true,
-  },
-  {
-    id: 10,
-    nombre: "Padel Center Córdoba",
-    deporte: "Padel",
-    ubicacion: "Barrio Nueva Córdoba",
-    ciudad: "Córdoba",
-    provincia: "Córdoba",
-    lat: -31.4280, lng: -64.1950,
-    rating: 4.8, reseñas: 231,
-    imagen: "https://images.unsplash.com/photo-1487180144351-b8472da7d491?q=80&w=600",
-    slug: "padel-center-cordoba", canchas: 8, abierto: true,
-  },
-  {
-    id: 11,
-    nombre: "Arena Deportes Córdoba",
-    deporte: "Básquetbol",
-    ubicacion: "Alta Córdoba",
-    ciudad: "Córdoba",
-    provincia: "Córdoba",
-    lat: -31.4050, lng: -64.1850,
-    rating: 4.7, reseñas: 178,
-    imagen: "https://images.unsplash.com/photo-1546519638-68e109498ffc?q=80&w=600",
-    slug: "arena-deportes-cordoba", canchas: 5, abierto: true,
-  },
-];
+const DEPORTES = ["Todos", "Fútbol", "Padel", "Vóley", "Tenis", "Básquetbol", "Hockey", "Squash"];
 
-const DEPORTES = ["Todos", "Fútbol", "Padel", "Vóley", "Tenis", "Básquetbol"];
+const DEPORTE_MAP: Record<string, string> = {
+  futbol: "Fútbol", padel: "Padel", tenis: "Tenis",
+  voley: "Vóley", basquet: "Básquetbol", hockey: "Hockey", squash: "Squash",
+};
+
+const FALLBACK_IMGS: Record<string, string> = {
+  futbol: "https://images.unsplash.com/photo-1461896836934-ffe607ba8211?q=80&w=600",
+  padel: "https://images.unsplash.com/photo-1487180144351-b8472da7d491?q=80&w=600",
+  tenis: "https://images.unsplash.com/photo-1595435934249-5df7ed86e1c0?q=80&w=600",
+  voley: "https://images.unsplash.com/photo-1561214115-f2f134cc4912?q=80&w=600",
+  basquet: "https://images.unsplash.com/photo-1546519638-68e109498ffc?q=80&w=600",
+};
 
 function Estrellas({ cantidad }: { cantidad: number }) {
   return (
@@ -163,23 +50,65 @@ function Estrellas({ cantidad }: { cantidad: number }) {
 }
 
 export default function ExplorarPage() {
-  const { ciudadCorta, loading } = useCityContext();
+  const { ciudadCorta, loading: cityLoading } = useCityContext();
+  const [complejos, setComplejos] = useState<Complejo[]>([]);
+  const [loadingData, setLoadingData] = useState(true);
   const [busqueda, setBusqueda] = useState("");
   const [deporte, setDeporte] = useState("Todos");
 
-  // Filtrar por ciudad + búsqueda + deporte
-  const complejosDeCiudad = useMemo(
-    () => TODOS_LOS_COMPLEJOS.filter((c) => c.ciudad === ciudadCorta),
-    [ciudadCorta]
-  );
+  useEffect(() => {
+    if (cityLoading) return;
+    fetchComplejos();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ciudadCorta, cityLoading]);
+
+  const fetchComplejos = async () => {
+    setLoadingData(true);
+    try {
+      const { data, error } = await supabase
+        .from("complexes")
+        .select("id, nombre, deporte_principal, deportes, direccion, ciudad, rating_promedio, total_reviews, imagen_principal, slug, activo")
+        .eq("activo", true)
+        .eq("ciudad", ciudadCorta)
+        .order("nombre");
+
+      if (error) throw error;
+
+      // Fetch court counts per complex
+      const ids = (data || []).map((c: Complejo) => c.id);
+      let countMap: Record<string, number> = {};
+      if (ids.length > 0) {
+        const { data: courts } = await supabase
+          .from("courts")
+          .select("complex_id")
+          .in("complex_id", ids)
+          .eq("activa", true);
+        (courts || []).forEach((c: { complex_id: string }) => {
+          countMap[c.complex_id] = (countMap[c.complex_id] || 0) + 1;
+        });
+      }
+
+      const enriched = (data || []).map((c: Complejo) => ({ ...c, _canchas_count: countMap[c.id] || 0 }));
+      setComplejos(enriched);
+    } catch (err) {
+      console.error("Error fetching complejos:", err);
+      setComplejos([]);
+    } finally {
+      setLoadingData(false);
+    }
+  };
 
   const filtrados = useMemo(() => {
-    return complejosDeCiudad.filter((c) => {
+    return complejos.filter((c) => {
       const coincideBusqueda = c.nombre.toLowerCase().includes(busqueda.toLowerCase());
-      const coincideDeporte = deporte === "Todos" || c.deporte === deporte;
-      return coincideBusqueda && coincideDeporte;
+      if (deporte === "Todos") return coincideBusqueda;
+      // Match by deporte_principal or deportes array
+      const deportesLabel = [c.deporte_principal, ...(c.deportes || [])].map(d => DEPORTE_MAP[d] || d);
+      return coincideBusqueda && deportesLabel.some(d => d === deporte);
     });
-  }, [busqueda, deporte, complejosDeCiudad]);
+  }, [busqueda, deporte, complejos]);
+
+  const isLoading = cityLoading || loadingData;
 
   return (
     <div className="relative min-h-screen bg-rodeo-dark text-rodeo-cream font-sans overflow-x-hidden">
@@ -239,7 +168,11 @@ export default function ExplorarPage() {
           </div>
 
           {/* RESULTADO */}
-          {!loading && complejosDeCiudad.length === 0 ? (
+          {isLoading ? (
+            <div className="flex items-center justify-center py-16">
+              <Loader size={28} className="animate-spin text-rodeo-lime" />
+            </div>
+          ) : complejos.length === 0 ? (
             <div
               style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "20px" }}
               className="p-12 text-center"
@@ -259,59 +192,66 @@ export default function ExplorarPage() {
             </p>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {filtrados.map((complejo, i) => (
-                <motion.div
-                  key={complejo.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.3, delay: i * 0.05 }}
-                >
-                  <Link
-                    href={`/complejo/${complejo.slug}`}
-                    style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "16px" }}
-                    className="overflow-hidden hover:bg-white/8 transition-all group block"
+              {filtrados.map((complejo, i) => {
+                const deporteLabel = DEPORTE_MAP[complejo.deporte_principal] || complejo.deporte_principal;
+                const img = complejo.imagen_principal || FALLBACK_IMGS[complejo.deporte_principal] || FALLBACK_IMGS.futbol;
+                const rating = complejo.rating_promedio ?? 0;
+                return (
+                  <motion.div
+                    key={complejo.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.3, delay: i * 0.05 }}
                   >
-                    <div className="h-44 overflow-hidden relative">
-                      <img src={complejo.imagen} alt={complejo.nombre} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
-                      <div className="absolute inset-0 bg-gradient-to-t from-rodeo-dark via-transparent to-transparent" />
-                      <div className="absolute top-3 right-3">
-                        <span style={{ background: "rgba(200,255,0,0.2)", border: "1px solid rgba(200,255,0,0.4)", borderRadius: "8px" }}
-                          className="inline-block px-2.5 py-1 text-rodeo-lime text-[11px] font-bold">
-                          {complejo.deporte}
-                        </span>
-                      </div>
-                      <div className="absolute bottom-3 left-3">
-                        <span style={{ background: "rgba(34,197,94,0.2)", border: "1px solid rgba(74,222,128,0.3)", borderRadius: "8px" }}
-                          className="inline-block px-2.5 py-1 text-green-400 text-[11px] font-bold">
-                          ● Abierto
-                        </span>
-                      </div>
-                    </div>
-                    <div className="p-4 flex flex-col gap-3">
-                      <div>
-                        <h3 className="text-sm font-bold text-white leading-tight">{complejo.nombre}</h3>
-                        <div className="flex items-center gap-1 text-xs text-rodeo-cream/50 mt-1">
-                          <MapPin size={11} />{complejo.ubicacion}
+                    <Link
+                      href={`/complejo/${complejo.slug}`}
+                      style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "16px" }}
+                      className="overflow-hidden hover:bg-white/8 transition-all group block"
+                    >
+                      <div className="h-44 overflow-hidden relative">
+                        <img src={img} alt={complejo.nombre} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+                        <div className="absolute inset-0 bg-gradient-to-t from-rodeo-dark via-transparent to-transparent" />
+                        <div className="absolute top-3 right-3">
+                          <span style={{ background: "rgba(200,255,0,0.2)", border: "1px solid rgba(200,255,0,0.4)", borderRadius: "8px" }}
+                            className="inline-block px-2.5 py-1 text-rodeo-lime text-[11px] font-bold">
+                            {deporteLabel}
+                          </span>
+                        </div>
+                        <div className="absolute bottom-3 left-3">
+                          <span style={{ background: "rgba(34,197,94,0.2)", border: "1px solid rgba(74,222,128,0.3)", borderRadius: "8px" }}
+                            className="inline-block px-2.5 py-1 text-green-400 text-[11px] font-bold">
+                            ● Abierto
+                          </span>
                         </div>
                       </div>
-                      <div className="flex items-center justify-between pt-2 border-t border-white/5">
-                        <div className="flex items-center gap-1">
-                          <Estrellas cantidad={Math.round(complejo.rating)} />
-                          <span className="text-xs font-bold text-white ml-1">{complejo.rating}</span>
-                          <span className="text-xs text-rodeo-cream/40">({complejo.reseñas})</span>
+                      <div className="p-4 flex flex-col gap-3">
+                        <div>
+                          <h3 className="text-sm font-bold text-white leading-tight">{complejo.nombre}</h3>
+                          <div className="flex items-center gap-1 text-xs text-rodeo-cream/50 mt-1">
+                            <MapPin size={11} />{complejo.direccion}
+                          </div>
                         </div>
-                        <div className="flex items-center gap-1 text-xs text-rodeo-cream/50">
-                          <Users size={11} />{complejo.canchas} canchas
+                        <div className="flex items-center justify-between pt-2 border-t border-white/5">
+                          <div className="flex items-center gap-1">
+                            <Estrellas cantidad={Math.round(rating)} />
+                            <span className="text-xs font-bold text-white ml-1">{rating > 0 ? rating.toFixed(1) : "—"}</span>
+                            {complejo.total_reviews > 0 && (
+                              <span className="text-xs text-rodeo-cream/40">({complejo.total_reviews})</span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-1 text-xs text-rodeo-cream/50">
+                            <Users size={11} />{complejo._canchas_count} {complejo._canchas_count === 1 ? "cancha" : "canchas"}
+                          </div>
                         </div>
+                        <button style={{ background: "rgba(200,255,0,0.15)", border: "1px solid rgba(200,255,0,0.4)", borderRadius: "10px" }}
+                          className="w-full py-2 text-rodeo-lime text-xs font-bold hover:bg-rodeo-lime/25 transition-all">
+                          Ver Canchas →
+                        </button>
                       </div>
-                      <button style={{ background: "rgba(200,255,0,0.15)", border: "1px solid rgba(200,255,0,0.4)", borderRadius: "10px" }}
-                        className="w-full py-2 text-rodeo-lime text-xs font-bold hover:bg-rodeo-lime/25 transition-all">
-                        Ver Canchas →
-                      </button>
-                    </div>
-                  </Link>
-                </motion.div>
-              ))}
+                    </Link>
+                  </motion.div>
+                );
+              })}
             </div>
           )}
         </div>

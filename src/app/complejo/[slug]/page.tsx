@@ -103,8 +103,7 @@ export default function ComplejoPage({
           .from("complexes")
           .select("*")
           .eq("slug", slug)
-          .eq("activo", true)
-          .single() as { data: Omit<DBComplejo, "canchas"> | null; error: unknown };
+          .maybeSingle() as { data: Omit<DBComplejo, "canchas"> | null; error: unknown };
 
         if (error || !complexData) {
           setNotFound(true);
