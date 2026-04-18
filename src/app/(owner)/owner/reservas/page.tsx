@@ -487,6 +487,50 @@ export default function ReservasPage() {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [showNewModal, setShowNewModal] = useState(false);
 
+  // ── Realtime subscription ──────────────────────────────────────────────────
+
+  useEffect(() => {
+    if (!user?.id) return;
+
+    // Listen for new/updated reservations on complexes owned by this user
+    const channel = supabase
+      .channel("reservations-realtime")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "reservations" },
+        async (payload) => {
+          const record = payload.new as { complex_id?: string } | null;
+          if (!record?.complex_id) return;
+
+          // Fetch full reservation with joins to update local state
+          const { data } = await supabase
+            .from("reservations")
+            .select(`*, court:courts(nombre, deporte), jugador:profiles!user_id(nombre_completo, email, telefono)`)
+            .eq("id", (payload.new as { id: string }).id)
+            .maybeSingle();
+
+          if (!data) return;
+
+          if (payload.eventType === "INSERT") {
+            setReservations((prev) => {
+              // Avoid duplicates
+              if (prev.some((r) => r.id === (data as ReservationWithDetails).id)) return prev;
+              return [data as ReservationWithDetails, ...prev];
+            });
+          } else if (payload.eventType === "UPDATE") {
+            setReservations((prev) =>
+              prev.map((r) => (r.id === (data as ReservationWithDetails).id ? (data as ReservationWithDetails) : r))
+            );
+          } else if (payload.eventType === "DELETE") {
+            setReservations((prev) => prev.filter((r) => r.id !== (payload.old as { id: string }).id));
+          }
+        }
+      )
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [user?.id]);
+
   // ── Fetch ──────────────────────────────────────────────────────────────────
 
   useEffect(() => {

@@ -2,12 +2,15 @@
 
 import { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowRight, Clock, Minus, Plus, Check, X, MessageCircle } from "lucide-react";
+import { ArrowRight, Clock, Minus, Plus, Check, X, MessageCircle, LogIn } from "lucide-react";
 import TimelineAvailability from "./TimelineAvailability";
 import DatePickerCustom from "./DatePickerCustom";
+import { useAuth } from "@/lib/hooks/useAuth";
+import { supabaseMut } from "@/lib/supabase";
 
 interface Court {
-  id: number;
+  id: number;        // índice visual (1, 2, 3...)
+  realId: string;    // UUID real en DB
   nombre: string;
   deporte: string;
   precio: number;
@@ -19,6 +22,7 @@ interface AvailabilityWidgetProps {
     nombre: string;
     whatsapp: string;
   };
+  complexId: string;
   canchas: Court[];
 }
 
@@ -43,14 +47,12 @@ function obtenerProximosDiasDisponibles(): string[] {
   return dias;
 }
 
-// Agrega N horas a una hora en formato "HH:00"
 function sumarHoras(hora: string, cantidad: number): string {
   const h = parseInt(hora.split(":")[0]);
   const nuevaHora = h + cantidad;
   return `${nuevaHora.toString().padStart(2, "0")}:00`;
 }
 
-// Retorna el array de horas cubiertas por el rango (sin incluir la hora de fin)
 function horasEnRango(inicio: string, duracion: number): string[] {
   const slots: string[] = [];
   for (let i = 0; i < duracion; i++) {
@@ -59,7 +61,6 @@ function horasEnRango(inicio: string, duracion: number): string[] {
   return slots;
 }
 
-// Verifica que todas las horas en el rango estén disponibles
 function horasLibres(
   inicio: string,
   duracion: number,
@@ -77,8 +78,10 @@ const MIN_DURACION = 1;
 
 export default function AvailabilityWidget({
   complejo,
+  complexId,
   canchas,
 }: AvailabilityWidgetProps) {
+  const { user, isAuthenticated } = useAuth();
   const proximosDias = useMemo(() => obtenerProximosDiasDisponibles(), []);
   const [fechaSeleccionada, setFechaSeleccionada] = useState(proximosDias[0]);
   const [canchaSeleccionada, setCanchaSeleccionada] = useState<number>(
@@ -88,33 +91,29 @@ export default function AvailabilityWidget({
   const [duracion, setDuracion] = useState(1);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [reservaSent, setReservaSent] = useState(false);
+  const [savingReserva, setSavingReserva] = useState(false);
 
   const disponibilidad = generarDisponibilidad(fechaSeleccionada, canchaSeleccionada);
 
-  const canchaNombre = canchas.find((c) => c.id === canchaSeleccionada)?.nombre || "";
+  const cancha = canchas.find((c) => c.id === canchaSeleccionada);
+  const canchaNombre = cancha?.nombre || "";
   const fechaFormato = new Date(fechaSeleccionada + "T00:00:00").toLocaleDateString("es-AR", {
     weekday: "long",
     day: "numeric",
     month: "long",
   });
 
-  const cancha = canchas.find((c) => c.id === canchaSeleccionada);
   const precioTotal = cancha ? cancha.precio * duracion : 0;
-
-  // Calcular hora de fin
   const horaFin = horaSeleccionada ? sumarHoras(horaSeleccionada, duracion) : null;
 
-  // Array de horas cubiertas por el rango actual
   const horasEnRangoActual: string[] = horaSeleccionada
     ? horasEnRango(horaSeleccionada, duracion)
     : [];
 
-  // Verificar si el rango seleccionado es válido
   const rangoValido = horaSeleccionada
     ? horasLibres(horaSeleccionada, duracion, disponibilidad)
     : false;
 
-  // Cambiar duración solo si el nuevo rango está disponible
   function handleSetDuracion(delta: number) {
     if (!horaSeleccionada) return;
     const nuevaDuracion = duracion + delta;
@@ -138,6 +137,33 @@ export default function AvailabilityWidget({
     );
     return `https://wa.me/${complejo.whatsapp}?text=${mensaje}`;
   };
+
+  // Guarda la reserva como pendiente en DB (solo si logueado)
+  async function handleConfirmarEnvio() {
+    setSavingReserva(true);
+    if (isAuthenticated && user && cancha && horaSeleccionada && horaFin) {
+      try {
+        await supabaseMut.from("reservations").insert({
+          court_id: cancha.realId,
+          complex_id: complexId,
+          user_id: user.id,
+          fecha: fechaSeleccionada,
+          hora_inicio: horaSeleccionada,
+          hora_fin: horaFin,
+          precio_total: precioTotal,
+          estado: "pendiente",
+          confirmada_por_propietario: false,
+          whatsapp_link: generarLinkWhatsApp(),
+          notas_usuario: `Solicitud vía web — ${fechaFormato}, ${horaSeleccionada}–${horaFin} (${duracion}h)`,
+        });
+      } catch {
+        // Silently ignore — the WhatsApp message already went through
+      }
+    }
+    setSavingReserva(false);
+    setShowConfirmModal(false);
+    setReservaSent(true);
+  }
 
   return (
     <div className="space-y-6">
@@ -228,7 +254,6 @@ export default function AvailabilityWidget({
             </h3>
           </div>
 
-          {/* Contador +/- */}
           <div className="flex items-center gap-4 mb-4">
             <button
               onClick={() => handleSetDuracion(-1)}
@@ -243,9 +268,7 @@ export default function AvailabilityWidget({
             </button>
 
             <div className="flex-1 text-center">
-              <span className="text-2xl font-black text-rodeo-lime">
-                {duracion}
-              </span>
+              <span className="text-2xl font-black text-rodeo-lime">{duracion}</span>
               <span className="text-rodeo-cream/50 text-sm ml-1.5">
                 hora{duracion !== 1 ? "s" : ""}
               </span>
@@ -270,20 +293,16 @@ export default function AvailabilityWidget({
             </button>
           </div>
 
-          {/* Barra visual 1-6 horas */}
           <div className="flex gap-1">
             {Array.from({ length: MAX_DURACION }, (_, i) => i + 1).map((slot) => {
               const isFilled = slot <= duracion;
               const isReachable =
                 horasLibres(horaSeleccionada, slot, disponibilidad) &&
                 parseInt(sumarHoras(horaSeleccionada, slot).split(":")[0]) <= 24;
-
               return (
                 <button
                   key={slot}
-                  onClick={() => {
-                    if (isReachable) setDuracion(slot);
-                  }}
+                  onClick={() => { if (isReachable) setDuracion(slot); }}
                   disabled={!isReachable}
                   title={`${slot}h`}
                   className={`flex-1 h-2.5 rounded-full transition-all ${
@@ -319,7 +338,6 @@ export default function AvailabilityWidget({
           transition={{ type: "spring", stiffness: 200 }}
           className="liquid-panel p-6 bg-rodeo-lime/10 border-rodeo-lime/40 space-y-6"
         >
-          {/* Resumen — 4 celdas: Cancha / Inicio / Fin / Duración */}
           <div className="grid grid-cols-4 gap-3 text-center">
             <div>
               <p className="text-xs text-rodeo-cream/60 mb-1">Cancha</p>
@@ -339,7 +357,6 @@ export default function AvailabilityWidget({
             </div>
           </div>
 
-          {/* Precio por hora × N = total */}
           <div
             style={{
               background: "rgba(200,255,0,0.06)",
@@ -362,7 +379,6 @@ export default function AvailabilityWidget({
             </div>
           </div>
 
-          {/* CTA */}
           {reservaSent ? (
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
@@ -373,7 +389,11 @@ export default function AvailabilityWidget({
                 <Check size={22} className="text-rodeo-lime" />
               </div>
               <p className="text-sm font-bold text-white text-center">¡Solicitud enviada!</p>
-              <p className="text-xs text-rodeo-cream/50 text-center">El dueño te confirmará la disponibilidad por WhatsApp.</p>
+              <p className="text-xs text-rodeo-cream/50 text-center">
+                {isAuthenticated
+                  ? "Tu reserva quedó registrada como pendiente. El dueño la confirmará pronto."
+                  : "El dueño te confirmará la disponibilidad por WhatsApp."}
+              </p>
               <button
                 onClick={() => { setReservaSent(false); setHoraSeleccionada(null); setDuracion(1); }}
                 className="text-xs text-rodeo-lime/70 hover:text-rodeo-lime underline transition-colors"
@@ -393,6 +413,7 @@ export default function AvailabilityWidget({
               <ArrowRight size={20} />
             </a>
           )}
+
           <p className="text-center text-xs text-rodeo-cream/40">
             El precio es estimado. El dueño lo confirmará por WhatsApp.
           </p>
@@ -430,7 +451,8 @@ export default function AvailabilityWidget({
                 <div>
                   <p className="text-base font-black text-white">¿Enviaste el mensaje?</p>
                   <p className="text-xs text-rodeo-cream/50 mt-1 leading-relaxed">
-                    Se abrió WhatsApp con tu solicitud para <span className="text-rodeo-lime font-bold">{canchaNombre}</span>. ¿Pudiste enviarlo?
+                    Se abrió WhatsApp con tu solicitud para{" "}
+                    <span className="text-rodeo-lime font-bold">{canchaNombre}</span>.
                   </p>
                 </div>
               </div>
@@ -444,6 +466,20 @@ export default function AvailabilityWidget({
                 <p>💰 Total estimado: <span className="text-rodeo-lime font-bold">${precioTotal.toLocaleString()}</span></p>
               </div>
 
+              {/* Si no está logueado, mostrar aviso */}
+              {!isAuthenticated && (
+                <div
+                  style={{ background: "rgba(200,255,0,0.06)", border: "1px solid rgba(200,255,0,0.2)", borderRadius: "12px" }}
+                  className="flex items-center gap-3 px-4 py-3"
+                >
+                  <LogIn size={16} className="text-rodeo-lime shrink-0" />
+                  <p className="text-xs text-rodeo-cream/60 leading-relaxed">
+                    <a href="/login" className="text-rodeo-lime font-bold hover:underline">Iniciá sesión</a>{" "}
+                    para que tu reserva quede registrada y el dueño la confirme en el panel.
+                  </p>
+                </div>
+              )}
+
               <div className="flex gap-3">
                 <button
                   onClick={() => setShowConfirmModal(false)}
@@ -454,11 +490,16 @@ export default function AvailabilityWidget({
                   No pude
                 </button>
                 <button
-                  onClick={() => { setShowConfirmModal(false); setReservaSent(true); }}
-                  className="flex-1 py-3 rounded-[14px] text-sm font-black text-rodeo-dark transition-all"
+                  onClick={handleConfirmarEnvio}
+                  disabled={savingReserva}
+                  className="flex-1 py-3 rounded-[14px] text-sm font-black text-rodeo-dark transition-all disabled:opacity-60 flex items-center justify-center gap-1.5"
                   style={{ background: "rgba(200,255,0,0.95)" }}
                 >
-                  <Check size={14} className="inline mr-1.5" />
+                  {savingReserva ? (
+                    <div className="w-4 h-4 border-2 border-rodeo-dark/30 border-t-rodeo-dark rounded-full animate-spin" />
+                  ) : (
+                    <Check size={14} />
+                  )}
                   Sí, enviado
                 </button>
               </div>

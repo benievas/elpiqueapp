@@ -192,9 +192,10 @@ export default function ComplejoPage({
   const rating = complejo.rating_promedio || 0;
   const canchas = complejo.canchas || [];
 
-  // Adapt courts for AvailabilityWidget (which expects old shape with numeric id, precio, disponible)
+  // Adapt courts for AvailabilityWidget
   const canchasWidget = canchas.map((c, idx) => ({
     id: idx + 1,
+    realId: c.id,
     nombre: c.nombre,
     deporte: c.deporte,
     precio: c.precio_por_hora,
@@ -409,11 +410,11 @@ export default function ComplejoPage({
           <div className="md:sticky md:top-6">
             {/* Widget reservas — solo visible en desktop en la columna */}
             <div className="hidden md:block">
-              <AvailabilityWidget complejo={complejo} canchas={canchasWidget} />
+              <AvailabilityWidget complejo={complejo} complexId={complejo.id} canchas={canchasWidget} />
             </div>
             {/* En mobile, Availability Widget va inline entre secciones */}
             <div className="md:hidden">
-              <AvailabilityWidget complejo={complejo} canchas={canchasWidget} />
+              <AvailabilityWidget complejo={complejo} complexId={complejo.id} canchas={canchasWidget} />
             </div>
 
             {/* CTA WhatsApp (solo desktop en columna) */}
