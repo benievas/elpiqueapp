@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ArrowRight, Clock, Minus, Plus, Check, X, MessageCircle, LogIn } from "lucide-react";
 import TimelineAvailability from "./TimelineAvailability";
 import DatePickerCustom from "./DatePickerCustom";
 import { useAuth } from "@/lib/hooks/useAuth";
-import { supabaseMut } from "@/lib/supabase";
+import { supabase, supabaseMut } from "@/lib/supabase";
 
 interface Court {
   id: number;        // índice visual (1, 2, 3...)
@@ -24,16 +24,6 @@ interface AvailabilityWidgetProps {
   };
   complexId: string;
   canchas: Court[];
-}
-
-// Genera mock availability data
-function generarDisponibilidad(fecha: string, canchaid: number): Record<string, boolean> {
-  const disponibilidad: Record<string, boolean> = {};
-  for (let hora = 6; hora <= 23; hora++) {
-    const horaStr = `${hora.toString().padStart(2, "0")}:00`;
-    disponibilidad[horaStr] = (hora + canchaid) % 3 !== 0;
-  }
-  return disponibilidad;
 }
 
 function obtenerProximosDiasDisponibles(): string[] {
@@ -73,6 +63,57 @@ function horasLibres(
   return true;
 }
 
+// Horario por defecto si el complejo no tiene datos (06:00–23:00)
+function disponibilidadDefault(): Record<string, boolean> {
+  const result: Record<string, boolean> = {};
+  for (let h = 6; h <= 23; h++) {
+    result[`${h.toString().padStart(2, "0")}:00`] = true;
+  }
+  return result;
+}
+
+async function fetchDisponibilidadReal(courtRealId: string, fecha: string): Promise<Record<string, boolean>> {
+  const result = disponibilidadDefault();
+  try {
+    // Bloquear slots con reservas pendientes o confirmadas
+    const { data: reservas } = await supabase
+      .from("reservations")
+      .select("hora_inicio, hora_fin")
+      .eq("court_id", courtRealId)
+      .eq("fecha", fecha)
+      .in("estado", ["pendiente", "confirmada"]) as { data: { hora_inicio: string; hora_fin: string }[] | null };
+
+    if (reservas) {
+      for (const r of reservas) {
+        const start = parseInt(r.hora_inicio);
+        const end = parseInt(r.hora_fin);
+        for (let h = start; h < end; h++) {
+          result[`${h.toString().padStart(2, "0")}:00`] = false;
+        }
+      }
+    }
+
+    // Aplicar slots explícitos de court_availability (bloques manuales del owner)
+    const { data: slots } = await supabase
+      .from("court_availability")
+      .select("hora_inicio, disponible")
+      .eq("court_id", courtRealId)
+      .eq("fecha", fecha) as { data: { hora_inicio: string; disponible: boolean }[] | null };
+
+    if (slots) {
+      for (const slot of slots) {
+        const h = parseInt(slot.hora_inicio);
+        if (h >= 6 && h <= 23) {
+          result[`${h.toString().padStart(2, "0")}:00`] = slot.disponible;
+        }
+      }
+    }
+  } catch {
+    // Si hay error de red, devuelve todo disponible
+  }
+  return result;
+}
+
 const MAX_DURACION = 6;
 const MIN_DURACION = 1;
 
@@ -92,10 +133,28 @@ export default function AvailabilityWidget({
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [reservaSent, setReservaSent] = useState(false);
   const [savingReserva, setSavingReserva] = useState(false);
+  const [saveError, setSaveError] = useState(false);
 
-  const disponibilidad = generarDisponibilidad(fechaSeleccionada, canchaSeleccionada);
+  // Disponibilidad real desde DB
+  const [disponibilidad, setDisponibilidad] = useState<Record<string, boolean>>(disponibilidadDefault());
+  const [loadingSlots, setLoadingSlots] = useState(false);
 
   const cancha = canchas.find((c) => c.id === canchaSeleccionada);
+
+  const cargarDisponibilidad = useCallback(async () => {
+    if (!cancha?.realId) return;
+    setLoadingSlots(true);
+    setHoraSeleccionada(null);
+    setDuracion(1);
+    const data = await fetchDisponibilidadReal(cancha.realId, fechaSeleccionada);
+    setDisponibilidad(data);
+    setLoadingSlots(false);
+  }, [cancha?.realId, fechaSeleccionada]);
+
+  useEffect(() => {
+    cargarDisponibilidad();
+  }, [cargarDisponibilidad]);
+
   const canchaNombre = cancha?.nombre || "";
   const fechaFormato = new Date(fechaSeleccionada + "T00:00:00").toLocaleDateString("es-AR", {
     weekday: "long",
@@ -141,24 +200,28 @@ export default function AvailabilityWidget({
   // Guarda la reserva como pendiente en DB (solo si logueado)
   async function handleConfirmarEnvio() {
     setSavingReserva(true);
+    setSaveError(false);
     if (isAuthenticated && user && cancha && horaSeleccionada && horaFin) {
-      try {
-        await supabaseMut.from("reservations").insert({
-          court_id: cancha.realId,
-          complex_id: complexId,
-          user_id: user.id,
-          fecha: fechaSeleccionada,
-          hora_inicio: horaSeleccionada,
-          hora_fin: horaFin,
-          precio_total: precioTotal,
-          estado: "pendiente",
-          confirmada_por_propietario: false,
-          whatsapp_link: generarLinkWhatsApp(),
-          notas_usuario: `Solicitud vía web — ${fechaFormato}, ${horaSeleccionada}–${horaFin} (${duracion}h)`,
-        });
-      } catch {
-        // Silently ignore — the WhatsApp message already went through
+      const { error } = await supabaseMut.from("reservations").insert({
+        court_id: cancha.realId,
+        complex_id: complexId,
+        user_id: user.id,
+        fecha: fechaSeleccionada,
+        hora_inicio: horaSeleccionada,
+        hora_fin: horaFin,
+        precio_total: precioTotal,
+        estado: "pendiente",
+        confirmada_por_propietario: false,
+        whatsapp_link: generarLinkWhatsApp(),
+        notas_usuario: `Solicitud vía web — ${fechaFormato}, ${horaSeleccionada}–${horaFin} (${duracion}h)`,
+      });
+      if (error) {
+        setSavingReserva(false);
+        setSaveError(true);
+        return;
       }
+      // Refrescar disponibilidad para reflejar el slot recién ocupado
+      await cargarDisponibilidad();
     }
     setSavingReserva(false);
     setShowConfirmModal(false);
@@ -184,8 +247,6 @@ export default function AvailabilityWidget({
                 key={c.id}
                 onClick={() => {
                   setCanchaSeleccionada(c.id);
-                  setHoraSeleccionada(null);
-                  setDuracion(1);
                 }}
                 whileHover={{ scale: 1.01 }}
                 whileTap={{ scale: 0.99 }}
@@ -216,8 +277,6 @@ export default function AvailabilityWidget({
           selectedDate={fechaSeleccionada}
           onSelectDate={(d) => {
             setFechaSeleccionada(d);
-            setHoraSeleccionada(null);
-            setDuracion(1);
           }}
           availableDates={proximosDias}
         />
@@ -232,6 +291,7 @@ export default function AvailabilityWidget({
         <TimelineAvailability
           disponibilidad={disponibilidad}
           selectedHora={horaSeleccionada}
+          loading={loadingSlots}
           onSelectHora={(hora) => {
             setHoraSeleccionada(hora);
             setDuracion(1);
@@ -466,8 +526,19 @@ export default function AvailabilityWidget({
                 <p>💰 Total estimado: <span className="text-rodeo-lime font-bold">${precioTotal.toLocaleString()}</span></p>
               </div>
 
-              {/* Si no está logueado, mostrar aviso */}
-              {!isAuthenticated && (
+              {saveError && (
+                <div
+                  style={{ background: "rgba(255,60,60,0.08)", border: "1px solid rgba(255,60,60,0.25)", borderRadius: "12px" }}
+                  className="flex items-center gap-3 px-4 py-3"
+                >
+                  <span className="text-red-400 text-sm">⚠</span>
+                  <p className="text-xs text-red-300/80 leading-relaxed">
+                    No se pudo registrar tu reserva. Tu mensaje de WhatsApp sí fue enviado — el dueño la confirmará igual.
+                  </p>
+                </div>
+              )}
+
+              {!isAuthenticated && !saveError && (
                 <div
                   style={{ background: "rgba(200,255,0,0.06)", border: "1px solid rgba(200,255,0,0.2)", borderRadius: "12px" }}
                   className="flex items-center gap-3 px-4 py-3"
@@ -482,7 +553,7 @@ export default function AvailabilityWidget({
 
               <div className="flex gap-3">
                 <button
-                  onClick={() => setShowConfirmModal(false)}
+                  onClick={() => { setShowConfirmModal(false); setSaveError(false); }}
                   className="flex-1 py-3 rounded-[14px] text-sm font-bold text-rodeo-cream/60 hover:text-white transition-colors"
                   style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)" }}
                 >

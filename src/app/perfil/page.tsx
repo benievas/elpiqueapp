@@ -1,7 +1,7 @@
 "use client";
 export const dynamic = 'force-dynamic';
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import {
@@ -18,6 +18,43 @@ export default function PerfilPage() {
   const [tab, setTab] = useState<Tab>("reservas");
   const [loggingOut, setLoggingOut] = useState(false);
   const [loginLoading, setLoginLoading] = useState(false);
+  const [reservaciones, setReservaciones] = useState<Array<{
+    id: string; fecha: string; hora_inicio: string; hora_fin: string;
+    estado: string; precio_total: number;
+    court: { nombre: string; deporte: string } | null;
+    complex: { nombre: string } | null;
+  }>>([]);
+  const [misReviews, setMisReviews] = useState<Array<{
+    id: string; estrellas: number; texto: string | null; created_at: string;
+    complex: { nombre: string } | null;
+  }>>([]);
+  const [loadingData, setLoadingData] = useState(false);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    setLoadingData(true);
+    Promise.all([
+      supabase
+        .from("reservations")
+        .select("id, fecha, hora_inicio, hora_fin, estado, precio_total, court:courts(nombre, deporte), complex:complexes(nombre)")
+        .eq("user_id", user.id)
+        .order("fecha", { ascending: false })
+        .limit(20),
+      supabase
+        .from("reviews")
+        .select("id, estrellas, texto, created_at, complex:complexes(nombre)")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false })
+        .limit(10),
+    ]).then(([resRes, revRes]) => {
+      setReservaciones((resRes.data as any) ?? []);
+      setMisReviews((revRes.data as any) ?? []);
+    }).catch(() => {
+      // datos quedan vacíos, la UI muestra el estado vacío normalmente
+    }).finally(() => {
+      setLoadingData(false);
+    });
+  }, [user?.id]);
 
   const handleGoogleLogin = async () => {
     try {
@@ -204,25 +241,70 @@ export default function PerfilPage() {
 
         {/* Contenido de tab */}
         {tab === "reservas" && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="liquid-panel p-8 text-center space-y-3">
-            <Calendar size={32} className="mx-auto text-rodeo-lime/40" />
-            <p className="text-rodeo-cream/50 text-sm">No tenés reservas aún</p>
-            <p className="text-xs text-rodeo-cream/30">Tus próximas reservas aparecerán aquí</p>
-            <Link
-              href="/explorar"
-              className="inline-flex items-center gap-2 mt-2 px-5 py-2.5 rounded-[14px] text-sm font-bold"
-              style={{ background: "rgba(200,255,0,0.1)", border: "1px solid rgba(200,255,0,0.2)", color: "#C8FF00" }}
-            >
-              Explorar canchas <ArrowRight size={14} />
-            </Link>
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-3">
+            {loadingData ? (
+              <div className="liquid-panel p-8 flex justify-center">
+                <Loader size={24} className="animate-spin text-rodeo-lime" />
+              </div>
+            ) : reservaciones.length === 0 ? (
+              <div className="liquid-panel p-8 text-center space-y-3">
+                <Calendar size={32} className="mx-auto text-rodeo-lime/40" />
+                <p className="text-rodeo-cream/50 text-sm">No tenés reservas aún</p>
+                <Link href="/explorar" className="inline-flex items-center gap-2 mt-2 px-5 py-2.5 rounded-[14px] text-sm font-bold"
+                  style={{ background: "rgba(200,255,0,0.1)", border: "1px solid rgba(200,255,0,0.2)", color: "#C8FF00" }}>
+                  Explorar canchas <ArrowRight size={14} />
+                </Link>
+              </div>
+            ) : reservaciones.map((r) => {
+              const estadoColor: Record<string, string> = { pendiente: "#FFB300", confirmada: "#00E676", cancelada: "#FF4040", completada: "#40C4FF" };
+              const c = r.court as any;
+              const cx = r.complex as any;
+              return (
+                <div key={r.id} className="liquid-panel p-4 flex items-center gap-4">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-bold text-white truncate">{c?.nombre ?? "Cancha"}</p>
+                    <p className="text-xs text-rodeo-cream/50 truncate">{cx?.nombre}</p>
+                    <p className="text-xs text-rodeo-cream/40 mt-0.5">{r.fecha} · {r.hora_inicio}–{r.hora_fin}</p>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <p className="text-sm font-black text-white">${r.precio_total.toLocaleString()}</p>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: `${estadoColor[r.estado]}18`, color: estadoColor[r.estado] }}>
+                      {r.estado}
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
           </motion.div>
         )}
 
         {tab === "resenas" && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="liquid-panel p-8 text-center space-y-3">
-            <Star size={32} className="mx-auto text-rodeo-lime/40" />
-            <p className="text-rodeo-cream/50 text-sm">No hay reseñas aún</p>
-            <p className="text-xs text-rodeo-cream/30">Después de reservar podés calificar cada cancha</p>
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-3">
+            {loadingData ? (
+              <div className="liquid-panel p-8 flex justify-center">
+                <Loader size={24} className="animate-spin text-rodeo-lime" />
+              </div>
+            ) : misReviews.length === 0 ? (
+              <div className="liquid-panel p-8 text-center space-y-3">
+                <Star size={32} className="mx-auto text-rodeo-lime/40" />
+                <p className="text-rodeo-cream/50 text-sm">No hay reseñas aún</p>
+                <p className="text-xs text-rodeo-cream/30">Después de reservar podés calificar cada cancha</p>
+              </div>
+            ) : misReviews.map((r) => {
+              const cx = r.complex as any;
+              return (
+                <div key={r.id} className="liquid-panel p-4 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-bold text-white">{cx?.nombre ?? "Complejo"}</p>
+                    <div className="flex gap-0.5">
+                      {[1,2,3,4,5].map(i => <Star key={i} size={12} className={i <= r.estrellas ? "text-yellow-400 fill-yellow-400" : "text-white/20"} />)}
+                    </div>
+                  </div>
+                  {r.texto && <p className="text-xs text-rodeo-cream/60">{r.texto}</p>}
+                  <p className="text-[10px] text-rodeo-cream/30">{new Date(r.created_at).toLocaleDateString("es-AR")}</p>
+                </div>
+              );
+            })}
           </motion.div>
         )}
 

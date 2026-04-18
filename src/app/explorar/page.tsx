@@ -5,6 +5,8 @@ import { useState, useEffect, useMemo } from "react";
 import { motion } from "framer-motion";
 import { ChevronLeft, Search, X, Star, MapPin, Users, Loader } from "lucide-react";
 import Link from "next/link";
+import Image from "next/image";
+import { Skeleton } from "@/components/ui/Skeleton";
 import CityBanner from "@/components/CityBanner";
 import { useCityContext } from "@/lib/context/CityContext";
 import { supabase } from "@/lib/supabase";
@@ -53,6 +55,7 @@ export default function ExplorarPage() {
   const { ciudadCorta, loading: cityLoading } = useCityContext();
   const [complejos, setComplejos] = useState<Complejo[]>([]);
   const [loadingData, setLoadingData] = useState(true);
+  const [fetchError, setFetchError] = useState(false);
   const [busqueda, setBusqueda] = useState("");
   const [deporte, setDeporte] = useState("Todos");
 
@@ -64,6 +67,7 @@ export default function ExplorarPage() {
 
   const fetchComplejos = async () => {
     setLoadingData(true);
+    setFetchError(false);
     try {
       const { data, error } = await supabase
         .from("complexes")
@@ -92,7 +96,7 @@ export default function ExplorarPage() {
       setComplejos(enriched);
     } catch (err) {
       console.error("Error fetching complejos:", err);
-      setComplejos([]);
+      setFetchError(true);
     } finally {
       setLoadingData(false);
     }
@@ -169,8 +173,33 @@ export default function ExplorarPage() {
 
           {/* RESULTADO */}
           {isLoading ? (
-            <div className="flex items-center justify-center py-16">
-              <Loader size={28} className="animate-spin text-rodeo-lime" />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {[...Array(4)].map((_, i) => (
+                <div key={i} style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "16px" }} className="overflow-hidden">
+                  <Skeleton className="h-44 w-full" rounded="sm" />
+                  <div className="p-4 space-y-3">
+                    <Skeleton className="h-4 w-3/4" />
+                    <Skeleton className="h-3 w-1/2" />
+                    <Skeleton className="h-8 w-full mt-2" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : fetchError ? (
+            <div
+              style={{ background: "rgba(255,60,60,0.06)", border: "1px solid rgba(255,60,60,0.2)", borderRadius: "20px" }}
+              className="p-10 text-center"
+            >
+              <p className="text-3xl mb-3">⚠️</p>
+              <p className="text-base font-black text-white mb-1">No se pudo cargar</p>
+              <p className="text-sm text-rodeo-cream/50 mb-5">Hubo un problema al conectar. Verificá tu conexión.</p>
+              <button
+                onClick={fetchComplejos}
+                style={{ background: "rgba(200,255,0,0.15)", border: "1px solid rgba(200,255,0,0.3)", borderRadius: "12px" }}
+                className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-bold text-rodeo-lime"
+              >
+                <Loader size={14} /> Reintentar
+              </button>
             </div>
           ) : complejos.length === 0 ? (
             <div
@@ -209,7 +238,7 @@ export default function ExplorarPage() {
                       className="overflow-hidden hover:bg-white/8 transition-all group block"
                     >
                       <div className="h-44 overflow-hidden relative">
-                        <img src={img} alt={complejo.nombre} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+                        <Image src={img} alt={complejo.nombre} fill className="object-cover group-hover:scale-110 transition-transform duration-500" sizes="(max-width: 768px) 100vw, 50vw" />
                         <div className="absolute inset-0 bg-gradient-to-t from-rodeo-dark via-transparent to-transparent" />
                         <div className="absolute top-3 right-3">
                           <span style={{ background: "rgba(200,255,0,0.2)", border: "1px solid rgba(200,255,0,0.4)", borderRadius: "8px" }}

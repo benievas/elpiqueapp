@@ -3,7 +3,9 @@ export const dynamic = 'force-dynamic';
 
 import { useState, useEffect, use } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
+import { Skeleton } from "@/components/ui/Skeleton";
 import { motion } from "framer-motion";
 import {
   ChevronLeft,
@@ -20,7 +22,8 @@ import {
   Zap,
 } from "lucide-react";
 import AvailabilityWidget from "@/components/AvailabilityWidget";
-import { supabase } from "@/lib/supabase";
+import { supabase, supabaseMut } from "@/lib/supabase";
+import { useAuth } from "@/lib/hooks/useAuth";
 
 // --- Tipos DB ---
 interface DBCourt {
@@ -92,9 +95,15 @@ export default function ComplejoPage({
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
 
+  const { user, isAuthenticated } = useAuth();
   const [favorito, setFavorito] = useState(false);
   const [imagenActiva, setImagenActiva] = useState(0);
   const [linkCopiado, setLinkCopiado] = useState(false);
+  const [reviewEstrellas, setReviewEstrellas] = useState(0);
+  const [reviewTexto, setReviewTexto] = useState("");
+  const [reviewSaving, setReviewSaving] = useState(false);
+  const [reviewSaved, setReviewSaved] = useState(false);
+  const [reviews, setReviews] = useState<{ id: string; estrellas: number; texto: string | null; created_at: string; autor?: string }[]>([]);
   // abierto se computa client-side para evitar hydration mismatch (#418)
   const [abierto, setAbierto] = useState<boolean | null>(null);
   useEffect(() => {
@@ -129,6 +138,23 @@ export default function ComplejoPage({
           .order("nombre") as { data: DBCourt[] | null };
 
         setComplejo({ ...complexData, canchas: courtsData || [] });
+
+        // Fetch reviews
+        const { data: reviewsData } = await supabase
+          .from("reviews")
+          .select("id, estrellas, texto, created_at, profiles!user_id(nombre_completo)")
+          .eq("complex_id", complexData.id)
+          .order("created_at", { ascending: false })
+          .limit(10);
+        if (reviewsData) {
+          setReviews(reviewsData.map((r: any) => ({
+            id: r.id,
+            estrellas: r.estrellas,
+            texto: r.texto,
+            created_at: r.created_at,
+            autor: Array.isArray(r.profiles) ? r.profiles[0]?.nombre_completo : r.profiles?.nombre_completo ?? "Jugador",
+          })));
+        }
       } catch {
         setNotFound(true);
       } finally {
@@ -163,8 +189,16 @@ export default function ComplejoPage({
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-rodeo-dark">
-        <div className="w-8 h-8 border-2 border-rodeo-lime/30 border-t-rodeo-lime rounded-full animate-spin" />
+      <div className="relative min-h-screen bg-rodeo-dark">
+        <Skeleton className="h-56 md:h-80 w-full" rounded="sm" />
+        <div className="max-w-7xl mx-auto px-4 md:px-8 py-6 space-y-4">
+          <Skeleton className="h-8 w-2/3" />
+          <Skeleton className="h-4 w-1/2" />
+          <Skeleton className="h-4 w-1/3" />
+          <div className="grid md:grid-cols-2 gap-3 mt-6">
+            {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-28" />)}
+          </div>
+        </div>
       </div>
     );
   }
@@ -206,11 +240,13 @@ export default function ComplejoPage({
     <div className="relative min-h-screen bg-rodeo-dark text-rodeo-cream font-sans">
       {/* FONDO FIXED */}
       <div className="fixed inset-0 z-0">
-        <img
+        <Image
           src={complejo.imagen_principal || "https://images.unsplash.com/photo-1461896836934-ffe607ba8211?q=80&w=2000"}
           alt="Fondo"
+          fill
           style={{ filter: "blur(20px)" }}
-          className="w-full h-full object-cover scale-110"
+          className="object-cover scale-110"
+          sizes="100vw"
         />
         <div className="absolute inset-0 bg-rodeo-dark/85" />
       </div>
@@ -220,10 +256,12 @@ export default function ComplejoPage({
 
         {/* GALERÍA HERO — full width */}
         <div className="relative h-56 md:h-80 overflow-hidden">
-          <img
+          <Image
             src={todasLasImagenes[imagenActiva] || "https://images.unsplash.com/photo-1461896836934-ffe607ba8211?q=80&w=2000"}
             alt={complejo.nombre}
-            className="w-full h-full object-cover"
+            fill
+            className="object-cover"
+            sizes="100vw"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-rodeo-dark/90 via-transparent to-transparent" />
           {/* Botones flotantes */}
@@ -262,9 +300,9 @@ export default function ComplejoPage({
               <button
                 key={i}
                 onClick={() => setImagenActiva(i)}
-                className={`w-12 h-9 shrink-0 rounded-lg overflow-hidden border-2 transition-all ${imagenActiva === i ? "border-rodeo-lime" : "border-white/20 opacity-50"}`}
+                className={`relative w-12 h-9 shrink-0 rounded-lg overflow-hidden border-2 transition-all ${imagenActiva === i ? "border-rodeo-lime" : "border-white/20 opacity-50"}`}
               >
-                <img src={img} alt="" className="w-full h-full object-cover" />
+                <Image src={img} alt="" fill className="object-cover" sizes="48px" />
               </button>
             ))}
           </div>
@@ -391,17 +429,88 @@ export default function ComplejoPage({
                 <MessageSquare size={15} className="text-rodeo-lime" />
                 <h3 className="text-xs font-bold tracking-widest uppercase text-rodeo-cream/60">Reseñas</h3>
               </div>
-              {([] as { autor: string; estrellas: number; texto: string }[]).map((r, i) => (
-                <div key={i} className="flex flex-col gap-2 border-b border-white/5 pb-4 last:border-0 last:pb-0">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-bold text-white">{r.autor}</span>
-                    <Estrellas cantidad={r.estrellas} />
-                  </div>
-                  <p className="text-xs text-rodeo-cream/60 leading-relaxed">{r.texto}</p>
+
+              {/* Reviews list */}
+              {reviews.length > 0 && (
+                <div className="space-y-3 mb-4">
+                  {reviews.map((r) => (
+                    <div key={r.id} className="border-b border-white/5 pb-4 last:border-0">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-sm font-bold text-white">{r.autor}</span>
+                        <div className="flex gap-0.5">
+                          {[1,2,3,4,5].map(i => (
+                            <Star key={i} size={11} className={i <= r.estrellas ? "text-yellow-400 fill-yellow-400" : "text-white/20"} />
+                          ))}
+                        </div>
+                      </div>
+                      {r.texto && <p className="text-xs text-rodeo-cream/60 leading-relaxed">{r.texto}</p>}
+                    </div>
+                  ))}
                 </div>
-              ))}
-              {complejo.total_reviews === 0 && (
-                <p className="text-xs text-rodeo-cream/40 text-center py-2">Aún no hay reseñas para este complejo.</p>
+              )}
+              {reviews.length === 0 && (
+                <p className="text-xs text-rodeo-cream/40 text-center py-2 mb-4">Aún no hay reseñas para este complejo.</p>
+              )}
+
+              {/* Review form */}
+              {!reviewSaved ? (
+                isAuthenticated ? (
+                  <div className="space-y-3 pt-3 border-t border-white/8">
+                    <p className="text-xs font-bold text-rodeo-cream/50 uppercase tracking-widest">Tu opinión</p>
+                    {/* Stars */}
+                    <div className="flex gap-2">
+                      {[1,2,3,4,5].map(i => (
+                        <button key={i} onClick={() => setReviewEstrellas(i)} className="transition-transform hover:scale-110">
+                          <Star size={22} className={i <= reviewEstrellas ? "text-yellow-400 fill-yellow-400" : "text-white/25"} />
+                        </button>
+                      ))}
+                    </div>
+                    <textarea
+                      value={reviewTexto}
+                      onChange={e => setReviewTexto(e.target.value)}
+                      placeholder="Contá tu experiencia (opcional)"
+                      rows={3}
+                      style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "12px", color: "#E8F0E4", resize: "none", outline: "none" }}
+                      className="w-full px-4 py-3 text-sm placeholder:text-rodeo-cream/25"
+                    />
+                    <button
+                      onClick={async () => {
+                        if (!reviewEstrellas || !user) return;
+                        setReviewSaving(true);
+                        await supabaseMut.from("reviews").insert({
+                          complex_id: complejo.id,
+                          court_id: canchas[0]?.id ?? null,
+                          user_id: user.id,
+                          estrellas: reviewEstrellas,
+                          texto: reviewTexto.trim() || null,
+                        });
+                        setReviewSaving(false);
+                        setReviewSaved(true);
+                      }}
+                      disabled={!reviewEstrellas || reviewSaving}
+                      style={{ background: reviewEstrellas ? "rgba(200,255,0,0.9)" : "rgba(255,255,255,0.1)", borderRadius: "12px" }}
+                      className="flex items-center gap-2 px-5 py-2.5 text-sm font-black text-rodeo-dark disabled:opacity-50 transition-all"
+                    >
+                      {reviewSaving ? <div className="w-4 h-4 border-2 border-rodeo-dark/30 border-t-rodeo-dark rounded-full animate-spin" /> : null}
+                      {reviewSaving ? "Enviando..." : "Enviar reseña"}
+                    </button>
+                  </div>
+                ) : (
+                  <div
+                    style={{ background: "rgba(200,255,0,0.05)", border: "1px solid rgba(200,255,0,0.15)", borderRadius: "14px" }}
+                    className="flex items-center gap-3 px-4 py-3 mt-3"
+                  >
+                    <MessageSquare size={16} className="text-rodeo-lime shrink-0" />
+                    <p className="text-xs text-rodeo-cream/60">
+                      <a href="/login" className="text-rodeo-lime font-bold hover:underline">Iniciá sesión</a> para dejar tu reseña y ayudar a otros jugadores.
+                    </p>
+                  </div>
+                )
+              ) : (
+                <div className="flex items-center gap-2 px-4 py-3 mt-3 rounded-[12px]" style={{ background: "rgba(200,255,0,0.1)", border: "1px solid rgba(200,255,0,0.2)" }}>
+                  <span className="text-rodeo-lime">✓</span>
+                  <p className="text-xs text-rodeo-lime font-bold">¡Gracias por tu reseña!</p>
+                </div>
               )}
             </div>
           </div>

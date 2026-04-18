@@ -70,11 +70,15 @@ function NewReservationModal({ courts, userId, onClose, onSaved }: NewReservatio
 
   const selectedCourt = courts.find((c) => c.id === courtId) ?? null;
 
+  // Recalcular precio según cancha + horario seleccionado
   useEffect(() => {
-    if (selectedCourt) {
-      setPrecioTotal(selectedCourt.precio_por_hora);
-    }
-  }, [courtId]);
+    if (!selectedCourt) return;
+    const [h1, m1] = horaInicio.split(":").map(Number);
+    const [h2, m2] = horaFin.split(":").map(Number);
+    const duracionHoras = ((h2 * 60 + m2) - (h1 * 60 + m1)) / 60;
+    const dur = duracionHoras > 0 ? duracionHoras : 1;
+    setPrecioTotal(Math.round(selectedCourt.precio_por_hora * dur));
+  }, [courtId, horaInicio, horaFin]);
 
   async function handleSave() {
     if (!courtId || !fecha || !horaInicio || !horaFin || !jugadorNombre.trim()) {
@@ -273,6 +277,16 @@ function NewReservationModal({ courts, userId, onClose, onSaved }: NewReservatio
             style={inputStyle}
             className="w-full px-3 py-2.5 text-sm"
           />
+          {selectedCourt && (() => {
+            const [h1, m1] = horaInicio.split(":").map(Number);
+            const [h2, m2] = horaFin.split(":").map(Number);
+            const dur = ((h2 * 60 + m2) - (h1 * 60 + m1)) / 60;
+            return dur > 0 ? (
+              <p className="text-[11px] text-rodeo-cream/35">
+                ${selectedCourt.precio_por_hora.toLocaleString()}/h × {dur}h — podés editarlo manualmente
+              </p>
+            ) : null;
+          })()}
         </div>
 
         {/* Notas */}

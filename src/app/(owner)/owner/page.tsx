@@ -32,35 +32,38 @@ export default function OwnerPage() {
   useEffect(() => {
     if (!user?.id) return;
     const fetchStats = async () => {
-      // Fetch owner's complex IDs
-      const { data: complejos } = await supabase
-        .from("complexes")
-        .select("id, nombre, rating_promedio")
-        .eq("owner_id", user.id) as { data: { id: string; nombre: string; rating_promedio: number | null }[] | null };
+      try {
+        const { data: complejos } = await supabase
+          .from("complexes")
+          .select("id, nombre, rating_promedio")
+          .eq("owner_id", user.id) as { data: { id: string; nombre: string; rating_promedio: number | null }[] | null };
 
-      if (!complejos?.length) { setStats({ reservasHoy: 0, canchasActivas: 0, ingresosMes: 0, rating: null }); return; }
-      setComplexName(complejos[0].nombre);
+        if (!complejos?.length) { setStats({ reservasHoy: 0, canchasActivas: 0, ingresosMes: 0, rating: null }); return; }
+        setComplexName(complejos[0].nombre);
 
-      const complexIds = complejos.map((c) => c.id);
-      const todayISO = new Date().toISOString().split("T")[0];
-      const firstOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split("T")[0];
+        const complexIds = complejos.map((c) => c.id);
+        const todayISO = new Date().toISOString().split("T")[0];
+        const firstOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split("T")[0];
 
-      const [reservasHoyRes, canchasRes, ingresosMesRes] = await Promise.all([
-        supabase.from("reservations").select("id", { count: "exact", head: true }).in("complex_id", complexIds).eq("fecha", todayISO),
-        supabase.from("courts").select("id", { count: "exact", head: true }).in("complex_id", complexIds).eq("activa", true),
-        supabase.from("reservations").select("precio_total").in("complex_id", complexIds).in("estado", ["confirmada", "completada"]).gte("fecha", firstOfMonth),
-      ]);
+        const [reservasHoyRes, canchasRes, ingresosMesRes] = await Promise.all([
+          supabase.from("reservations").select("id", { count: "exact", head: true }).in("complex_id", complexIds).eq("fecha", todayISO),
+          supabase.from("courts").select("id", { count: "exact", head: true }).in("complex_id", complexIds).eq("activa", true),
+          supabase.from("reservations").select("precio_total").in("complex_id", complexIds).in("estado", ["confirmada", "completada"]).gte("fecha", firstOfMonth),
+        ]);
 
-      const ingresosTotal = (ingresosMesRes.data || []).reduce((s: number, r: { precio_total: number }) => s + (r.precio_total || 0), 0);
-      const withRating = complejos.filter((c) => c.rating_promedio);
-      const avgRating = withRating.length ? withRating.reduce((s, c) => s + (c.rating_promedio ?? 0), 0) / withRating.length : null;
+        const ingresosTotal = (ingresosMesRes.data || []).reduce((s: number, r: { precio_total: number }) => s + (r.precio_total || 0), 0);
+        const withRating = complejos.filter((c) => c.rating_promedio);
+        const avgRating = withRating.length ? withRating.reduce((s, c) => s + (c.rating_promedio ?? 0), 0) / withRating.length : null;
 
-      setStats({
-        reservasHoy: reservasHoyRes.count ?? 0,
-        canchasActivas: canchasRes.count ?? 0,
-        ingresosMes: ingresosTotal,
-        rating: avgRating || null,
-      });
+        setStats({
+          reservasHoy: reservasHoyRes.count ?? 0,
+          canchasActivas: canchasRes.count ?? 0,
+          ingresosMes: ingresosTotal,
+          rating: avgRating || null,
+        });
+      } catch {
+        setStats({ reservasHoy: 0, canchasActivas: 0, ingresosMes: 0, rating: null });
+      }
     };
     fetchStats();
   }, [user?.id]);

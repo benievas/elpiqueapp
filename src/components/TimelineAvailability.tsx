@@ -8,6 +8,7 @@ interface TimelineAvailabilityProps {
   selectedHora: string | null;
   onSelectHora: (hora: string) => void;
   horasEnRango?: string[];
+  loading?: boolean;
 }
 
 export default function TimelineAvailability({
@@ -15,6 +16,7 @@ export default function TimelineAvailability({
   selectedHora,
   onSelectHora,
   horasEnRango,
+  loading = false,
 }: TimelineAvailabilityProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const ahora = new Date().getHours();
@@ -32,7 +34,19 @@ export default function TimelineAvailability({
 
       {/* Timeline scroll */}
       <div className="overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-rodeo-lime/30 scrollbar-track-white/5">
+        {loading ? (
+          <div className="flex gap-1 px-4 py-2 min-w-max">
+            {Array.from({ length: 10 }).map((_, i) => (
+              <div
+                key={i}
+                className="min-w-[60px] h-14 rounded-lg"
+                style={{ background: "linear-gradient(90deg, rgba(255,255,255,0.05) 25%, rgba(255,255,255,0.1) 50%, rgba(255,255,255,0.05) 75%)", backgroundSize: "200% 100%", animation: "skeleton-shimmer 1.5s infinite" }}
+              />
+            ))}
+          </div>
+        ) : null}
         <motion.div
+          style={{ display: loading ? "none" : undefined }}
           ref={scrollRef}
           className="flex gap-1 min-w-max px-4 py-2 bg-white/2 rounded-liquid border border-white/10"
           drag="x"

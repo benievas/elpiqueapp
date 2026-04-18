@@ -3,6 +3,7 @@ import "./globals.css";
 import DeviceDetection from "@/components/DeviceDetection";
 import BottomNav from "@/components/BottomNav";
 import { CityProvider } from "@/lib/context/CityContext";
+import QueryProvider from "@/components/providers/QueryProvider";
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || "https://matchpro.ar"),
@@ -39,6 +40,7 @@ export const metadata: Metadata = {
     description: "Reserva canchas deportivas en tu ciudad",
     images: ["/og-image.png"],
   },
+  manifest: "/manifest.json",
   icons: {
     icon: "/assets/logo2.png",
     shortcut: "/assets/logo2.png",
@@ -92,13 +94,20 @@ export default function RootLayout({
         {/* Preconnect para recursos externos */}
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://generativelanguage.googleapis.com" />
+
+        {/* PWA */}
+        <link rel="manifest" href="/manifest.json" />
+        <meta name="apple-mobile-web-app-title" content="ElPiqueApp" />
+        <link rel="apple-touch-icon" href="/assets/logo2.png" />
       </head>
       <body suppressHydrationWarning className="antialiased min-h-screen" style={{ background: "linear-gradient(160deg, #040D07 0%, #081810 40%, #050F09 70%, #030A06 100%)" }}>
-        <CityProvider>
-          <DeviceDetection />
-          {children}
-          <BottomNav />
-        </CityProvider>
+        <QueryProvider>
+          <CityProvider>
+            <DeviceDetection />
+            {children}
+            <BottomNav />
+          </CityProvider>
+        </QueryProvider>
       </body>
     </html>
   );

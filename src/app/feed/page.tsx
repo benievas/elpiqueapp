@@ -6,7 +6,8 @@ import Link from "next/link";
 import Image from "next/image";
 import { motion } from "framer-motion";
 import { supabase } from "@/lib/supabase";
-import { Heart, MessageCircle, Share2, Loader, ChevronLeft } from "lucide-react";
+import { Heart, MessageCircle, Share2, ChevronLeft } from "lucide-react";
+import { Skeleton } from "@/components/ui/Skeleton";
 import CityBanner from "@/components/CityBanner";
 import { useCityContext } from "@/lib/context/CityContext";
 
@@ -104,8 +105,28 @@ export default function FeedPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-rodeo-dark">
-        <Loader className="animate-spin text-rodeo-lime" size={32} />
+      <div className="min-h-screen bg-gradient-to-b from-rodeo-dark via-rodeo-brown to-rodeo-dark pb-28">
+        <header className="sticky top-0 z-30 px-5 py-4 flex items-center gap-4 bg-rodeo-dark/60 backdrop-blur-md border-b border-white/5">
+          <div className="w-10 h-10 rounded-full border border-white/20 bg-white/8 flex items-center justify-center">
+            <ChevronLeft className="text-rodeo-cream" size={20} />
+          </div>
+          <div>
+            <h1 className="text-lg font-black text-white tracking-wide">Feed</h1>
+            <p className="text-xs text-rodeo-cream/50">Noticias, promos y eventos</p>
+          </div>
+        </header>
+        <div className="max-w-2xl mx-auto px-5 pt-6 space-y-6">
+          {[...Array(3)].map((_, i) => (
+            <div key={i} className="liquid-panel overflow-hidden">
+              <Skeleton className="h-48 w-full" rounded="sm" />
+              <div className="p-6 space-y-3">
+                <Skeleton className="h-5 w-3/4" />
+                <Skeleton className="h-3 w-1/3" />
+                <Skeleton className="h-16 w-full" />
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     );
   }
