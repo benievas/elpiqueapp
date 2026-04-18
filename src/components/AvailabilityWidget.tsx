@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { motion } from "framer-motion";
-import { ArrowRight, Clock, Minus, Plus } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { ArrowRight, Clock, Minus, Plus, Check, X, MessageCircle } from "lucide-react";
 import TimelineAvailability from "./TimelineAvailability";
 import DatePickerCustom from "./DatePickerCustom";
 
@@ -86,6 +86,8 @@ export default function AvailabilityWidget({
   );
   const [horaSeleccionada, setHoraSeleccionada] = useState<string | null>(null);
   const [duracion, setDuracion] = useState(1);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [reservaSent, setReservaSent] = useState(false);
 
   const disponibilidad = generarDisponibilidad(fechaSeleccionada, canchaSeleccionada);
 
@@ -361,20 +363,109 @@ export default function AvailabilityWidget({
           </div>
 
           {/* CTA */}
-          <a
-            href={generarLinkWhatsApp()}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="w-full py-4 rounded-liquid bg-rodeo-lime text-rodeo-dark font-bold text-center hover:bg-rodeo-lime/90 transition-all flex items-center justify-center gap-2 text-base hover:shadow-lg hover:shadow-rodeo-lime/40"
-          >
-            Confirmar Reserva por WhatsApp 🚀
-            <ArrowRight size={20} />
-          </a>
+          {reservaSent ? (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="flex flex-col items-center gap-3 py-4"
+            >
+              <div className="w-12 h-12 rounded-full bg-rodeo-lime/20 border border-rodeo-lime/40 flex items-center justify-center">
+                <Check size={22} className="text-rodeo-lime" />
+              </div>
+              <p className="text-sm font-bold text-white text-center">¡Solicitud enviada!</p>
+              <p className="text-xs text-rodeo-cream/50 text-center">El dueño te confirmará la disponibilidad por WhatsApp.</p>
+              <button
+                onClick={() => { setReservaSent(false); setHoraSeleccionada(null); setDuracion(1); }}
+                className="text-xs text-rodeo-lime/70 hover:text-rodeo-lime underline transition-colors"
+              >
+                Hacer otra reserva
+              </button>
+            </motion.div>
+          ) : (
+            <a
+              href={generarLinkWhatsApp()}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={() => setShowConfirmModal(true)}
+              className="w-full py-4 rounded-liquid bg-rodeo-lime text-rodeo-dark font-bold text-center hover:bg-rodeo-lime/90 transition-all flex items-center justify-center gap-2 text-base hover:shadow-lg hover:shadow-rodeo-lime/40"
+            >
+              Confirmar Reserva por WhatsApp 🚀
+              <ArrowRight size={20} />
+            </a>
+          )}
           <p className="text-center text-xs text-rodeo-cream/40">
             El precio es estimado. El dueño lo confirmará por WhatsApp.
           </p>
         </motion.div>
       )}
+
+      {/* Modal confirmación post-WhatsApp */}
+      <AnimatePresence>
+        {showConfirmModal && !reservaSent && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center p-4"
+            style={{ background: "rgba(0,0,0,0.75)", backdropFilter: "blur(8px)" }}
+          >
+            <motion.div
+              initial={{ scale: 0.92, opacity: 0, y: 30 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.92, opacity: 0, y: 30 }}
+              transition={{ type: "spring", damping: 25, stiffness: 300 }}
+              style={{
+                background: "rgba(26,18,11,0.98)",
+                border: "1px solid rgba(255,255,255,0.12)",
+                borderRadius: "24px",
+                maxWidth: 380,
+                width: "100%",
+              }}
+              className="p-6 space-y-5"
+            >
+              <div className="flex items-start gap-4">
+                <div className="w-12 h-12 rounded-2xl bg-green-500/15 border border-green-500/30 flex items-center justify-center shrink-0">
+                  <MessageCircle size={22} className="text-green-400" />
+                </div>
+                <div>
+                  <p className="text-base font-black text-white">¿Enviaste el mensaje?</p>
+                  <p className="text-xs text-rodeo-cream/50 mt-1 leading-relaxed">
+                    Se abrió WhatsApp con tu solicitud para <span className="text-rodeo-lime font-bold">{canchaNombre}</span>. ¿Pudiste enviarlo?
+                  </p>
+                </div>
+              </div>
+
+              <div
+                style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "14px" }}
+                className="px-4 py-3 text-xs text-rodeo-cream/60 space-y-1"
+              >
+                <p>📅 {fechaFormato}</p>
+                <p>🕐 {horaSeleccionada} → {horaFin} ({duracion}h)</p>
+                <p>💰 Total estimado: <span className="text-rodeo-lime font-bold">${precioTotal.toLocaleString()}</span></p>
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowConfirmModal(false)}
+                  className="flex-1 py-3 rounded-[14px] text-sm font-bold text-rodeo-cream/60 hover:text-white transition-colors"
+                  style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)" }}
+                >
+                  <X size={14} className="inline mr-1.5" />
+                  No pude
+                </button>
+                <button
+                  onClick={() => { setShowConfirmModal(false); setReservaSent(true); }}
+                  className="flex-1 py-3 rounded-[14px] text-sm font-black text-rodeo-dark transition-all"
+                  style={{ background: "rgba(200,255,0,0.95)" }}
+                >
+                  <Check size={14} className="inline mr-1.5" />
+                  Sí, enviado
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

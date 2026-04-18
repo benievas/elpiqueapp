@@ -61,11 +61,14 @@ function LoginForm() {
       .eq("id", userId)
       .maybeSingle();
 
+    // Usar window.location.href (recarga completa) en lugar de router.replace.
+    // Esto garantiza que el middleware lea las cookies de sesión recién escritas
+    // y no redirija de vuelta a /login por leer un estado de auth stale.
     if (profile?.rol === "propietario" || profile?.rol === "admin" || profile?.rol === "superadmin") {
-      router.replace("/owner");
+      window.location.href = "/owner";
     } else {
       const onboarded = localStorage.getItem("player_onboarded");
-      router.replace(onboarded === "true" ? "/explorar" : "/onboarding/jugador");
+      window.location.href = onboarded === "true" ? "/explorar" : "/onboarding/jugador";
     }
   };
 

@@ -3,7 +3,6 @@ export const dynamic = 'force-dynamic';
 
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import {
   ChevronLeft, LogOut, Building2, User, Star,
@@ -15,7 +14,6 @@ import { supabase } from "@/lib/supabase";
 type Tab = "reservas" | "resenas";
 
 export default function PerfilPage() {
-  const router = useRouter();
   const { user, profile, loading, signOut, isOwner, isAuthenticated } = useAuth();
   const [tab, setTab] = useState<Tab>("reservas");
   const [loggingOut, setLoggingOut] = useState(false);
@@ -36,7 +34,7 @@ export default function PerfilPage() {
   const handleLogout = async () => {
     setLoggingOut(true);
     await signOut();
-    router.push("/");
+    window.location.href = "/";
   };
 
   const iniciales = profile?.nombre_completo

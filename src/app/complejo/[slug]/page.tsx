@@ -95,6 +95,16 @@ export default function ComplejoPage({
   const [favorito, setFavorito] = useState(false);
   const [imagenActiva, setImagenActiva] = useState(0);
   const [linkCopiado, setLinkCopiado] = useState(false);
+  // abierto se computa client-side para evitar hydration mismatch (#418)
+  const [abierto, setAbierto] = useState<boolean | null>(null);
+  useEffect(() => {
+    if (!complejo) return;
+    const now = new Date();
+    const h = now.getHours() * 100 + now.getMinutes();
+    const [openH, openM] = complejo.horario_abierto.split(":").map(Number);
+    const [closeH, closeM] = complejo.horario_cierre.split(":").map(Number);
+    setAbierto(h >= openH * 100 + openM && h < closeH * 100 + closeM);
+  }, [complejo]);
 
   useEffect(() => {
     const fetchComplejo = async () => {
@@ -175,14 +185,6 @@ export default function ComplejoPage({
   }
 
   // Compute derived values
-  const abierto = (() => {
-    const now = new Date();
-    const h = now.getHours() * 100 + now.getMinutes();
-    const [openH, openM] = complejo.horario_abierto.split(":").map(Number);
-    const [closeH, closeM] = complejo.horario_cierre.split(":").map(Number);
-    return h >= openH * 100 + openM && h < closeH * 100 + closeM;
-  })();
-
   const horario = `${complejo.horario_abierto} – ${complejo.horario_cierre}`;
   const diasAtencion = complejo.dias_abiertos?.join(", ") || "Todos los días";
   const ubicacion = `${complejo.direccion}, ${complejo.ciudad}`;
