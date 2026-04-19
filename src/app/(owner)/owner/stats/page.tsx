@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/hooks/useAuth";
+import { useActiveComplex } from "@/lib/context/ActiveComplexContext";
 import type { Deporte, EstadoReserva } from "@/types/database";
 
 // ─── Local types for fetched data ────────────────────────────────────────────
@@ -97,6 +98,7 @@ const sectionVariant = {
 
 export default function StatsPage() {
   const { user, loading: authLoading } = useAuth();
+  const { activeComplexId } = useActiveComplex();
 
   const [complejos, setComplejos] = useState<ComplexSummary[]>([]);
   const [reservations, setReservations] = useState<ReservationRow[]>([]);
@@ -107,26 +109,20 @@ export default function StatsPage() {
   // ── Fetch ──────────────────────────────────────────────────────────────────
 
   useEffect(() => {
-    if (!user) return;
+    if (!user || !activeComplexId) return;
 
     const fetchAll = async () => {
       setDataLoading(true);
 
-      // 1. Complexes
+      // 1. Complex summary
       const { data: complejoData } = await supabase
         .from("complexes")
         .select("id, nombre, rating_promedio, total_reviews")
-        .eq("owner_id", user.id);
+        .eq("id", activeComplexId)
+        .maybeSingle();
 
-      const complejoList: ComplexSummary[] = complejoData ?? [];
+      const complejoList: ComplexSummary[] = complejoData ? [complejoData as ComplexSummary] : [];
       setComplejos(complejoList);
-
-      const complexIds = complejoList.map((c) => c.id);
-
-      if (complexIds.length === 0) {
-        setDataLoading(false);
-        return;
-      }
 
       // 2. Reservations — last 30 days
       const thirtyDaysAgo = new Date();
@@ -136,7 +132,7 @@ export default function StatsPage() {
       const { data: resData } = await supabase
         .from("reservations")
         .select("id, fecha, precio_total, estado, court_id")
-        .in("complex_id", complexIds)
+        .eq("complex_id", activeComplexId)
         .gte("fecha", fromDate)
         .order("fecha", { ascending: true });
 
@@ -146,7 +142,7 @@ export default function StatsPage() {
       const { data: courtData } = await supabase
         .from("courts")
         .select("id, nombre, deporte, precio_por_hora, activa")
-        .in("complex_id", complexIds);
+        .eq("complex_id", activeComplexId);
 
       setCourts((courtData ?? []) as CourtRow[]);
 
@@ -154,7 +150,7 @@ export default function StatsPage() {
       const { data: reviewData } = await supabase
         .from("reviews")
         .select("id, estrellas, texto, created_at, court:courts(nombre)")
-        .in("complex_id", complexIds)
+        .eq("complex_id", activeComplexId)
         .order("created_at", { ascending: false })
         .limit(5);
 
@@ -174,7 +170,7 @@ export default function StatsPage() {
     };
 
     fetchAll();
-  }, [user]);
+  }, [user, activeComplexId]);
 
   // ── Derived metrics ────────────────────────────────────────────────────────
 

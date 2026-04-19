@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { supabase, supabaseMut } from "@/lib/supabase";
 import { useAuth } from "@/lib/hooks/useAuth";
+import { useActiveComplex } from "@/lib/context/ActiveComplexContext";
 import type { Reservation, EstadoReserva } from "@/types/database";
 
 // ─── Extended type with joins ─────────────────────────────────────────────────
@@ -489,6 +490,7 @@ function DeleteButton({
 
 export default function ReservasPage() {
   const { user, loading: authLoading } = useAuth();
+  const { activeComplexId } = useActiveComplex();
 
   const [reservations, setReservations] = useState<ReservationWithDetails[]>([]);
   const [courts, setCourts] = useState<CourtOption[]>([]);
@@ -552,51 +554,29 @@ export default function ReservasPage() {
     if (!user) return;
 
     async function fetchReservations() {
+      if (!activeComplexId) { setLoading(false); return; }
       setLoading(true);
       setError(null);
 
       try {
-        // 1) Fetch owner complexes
-        const { data: complejos, error: complejosError } = await supabase
-          .from("complexes")
-          .select("id, nombre")
-          .eq("owner_id", user!.id);
+        const [courtsRes, reservasRes] = await Promise.all([
+          supabase
+            .from("courts")
+            .select("id, nombre, deporte, precio_por_hora, complex_id")
+            .eq("complex_id", activeComplexId)
+            .eq("activa", true),
+          supabase
+            .from("reservations")
+            .select(`*, court:courts(nombre, deporte), jugador:profiles!user_id(nombre_completo, email, telefono)`)
+            .eq("complex_id", activeComplexId)
+            .order("fecha", { ascending: false })
+            .order("hora_inicio", { ascending: false })
+            .limit(100),
+        ]);
 
-        if (complejosError) throw complejosError;
-
-        const complexIds = ((complejos as any[]) ?? []).map((c) => c.id);
-
-        if (complexIds.length === 0) {
-          setReservations([]);
-          return;
-        }
-
-        // 2) Fetch courts for new-reservation modal
-        const { data: courtsData } = await supabase
-          .from("courts")
-          .select("id, nombre, deporte, precio_por_hora, complex_id")
-          .in("complex_id", complexIds)
-          .eq("activa", true);
-        setCourts((courtsData as any) ?? []);
-
-        // 3) Fetch reservations with joins
-        const { data, error: resError } = await supabase
-          .from("reservations")
-          .select(
-            `
-            *,
-            court:courts(nombre, deporte),
-            jugador:profiles!user_id(nombre_completo, email, telefono)
-          `
-          )
-          .in("complex_id", complexIds)
-          .order("fecha", { ascending: false })
-          .order("hora_inicio", { ascending: false })
-          .limit(100);
-
-        if (resError) throw resError;
-
-        setReservations((data as any) ?? []);
+        if (reservasRes.error) throw reservasRes.error;
+        setCourts((courtsRes.data as any) ?? []);
+        setReservations((reservasRes.data as any) ?? []);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Error al cargar reservas");
       } finally {
@@ -605,7 +585,7 @@ export default function ReservasPage() {
     }
 
     fetchReservations();
-  }, [user?.id, authLoading]);
+  }, [user?.id, authLoading, activeComplexId]);
 
   // ── Actions ────────────────────────────────────────────────────────────────
 

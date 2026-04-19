@@ -5,6 +5,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Building2, BarChart3, Calendar, ClipboardList, Crown, ArrowRight, Wallet, QrCode } from "lucide-react";
 import { useAuth } from "@/lib/hooks/useAuth";
+import { useActiveComplex } from "@/lib/context/ActiveComplexContext";
 import { supabase } from "@/lib/supabase";
 
 interface DashboardStats {
@@ -26,47 +27,38 @@ const QUICK_ACCESS = [
 
 export default function OwnerPage() {
   const { user, profile } = useAuth();
+  const { activeComplexId, activeComplexName } = useActiveComplex();
   const [stats, setStats] = useState<DashboardStats | null>(null);
-  const [complexName, setComplexName] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!user?.id) return;
+    if (!user?.id || !activeComplexId) return;
     const fetchStats = async () => {
       try {
-        const { data: complejos } = await supabase
-          .from("complexes")
-          .select("id, nombre, rating_promedio")
-          .eq("owner_id", user.id) as { data: { id: string; nombre: string; rating_promedio: number | null }[] | null };
-
-        if (!complejos?.length) { setStats({ reservasHoy: 0, canchasActivas: 0, ingresosMes: 0, rating: null }); return; }
-        setComplexName(complejos[0].nombre);
-
-        const complexIds = complejos.map((c) => c.id);
         const todayISO = new Date().toISOString().split("T")[0];
         const firstOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split("T")[0];
 
-        const [reservasHoyRes, canchasRes, ingresosMesRes] = await Promise.all([
-          supabase.from("reservations").select("id", { count: "exact", head: true }).in("complex_id", complexIds).eq("fecha", todayISO),
-          supabase.from("courts").select("id", { count: "exact", head: true }).in("complex_id", complexIds).eq("activa", true),
-          supabase.from("reservations").select("precio_total").in("complex_id", complexIds).in("estado", ["confirmada", "completada"]).gte("fecha", firstOfMonth),
+        const [reservasHoyRes, canchasRes, ingresosMesRes, complexRes] = await Promise.all([
+          supabase.from("reservations").select("id", { count: "exact", head: true }).eq("complex_id", activeComplexId).eq("fecha", todayISO),
+          supabase.from("courts").select("id", { count: "exact", head: true }).eq("complex_id", activeComplexId).eq("activa", true),
+          supabase.from("reservations").select("precio_total").eq("complex_id", activeComplexId).in("estado", ["confirmada", "completada"]).gte("fecha", firstOfMonth),
+          supabase.from("complexes").select("rating_promedio").eq("id", activeComplexId).maybeSingle(),
         ]);
 
         const ingresosTotal = (ingresosMesRes.data || []).reduce((s: number, r: { precio_total: number }) => s + (r.precio_total || 0), 0);
-        const withRating = complejos.filter((c) => c.rating_promedio);
-        const avgRating = withRating.length ? withRating.reduce((s, c) => s + (c.rating_promedio ?? 0), 0) / withRating.length : null;
+        const rating = (complexRes.data as { rating_promedio: number | null } | null)?.rating_promedio ?? null;
 
         setStats({
           reservasHoy: reservasHoyRes.count ?? 0,
           canchasActivas: canchasRes.count ?? 0,
           ingresosMes: ingresosTotal,
-          rating: avgRating || null,
+          rating,
         });
       } catch {
         setStats({ reservasHoy: 0, canchasActivas: 0, ingresosMes: 0, rating: null });
       }
     };
     fetchStats();
-  }, [user?.id]);
+  }, [user?.id, activeComplexId]);
 
   const formatARS = (n: number) => n.toLocaleString("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 0 });
 
@@ -89,8 +81,8 @@ export default function OwnerPage() {
             ? `Hola, ${user.email.split("@")[0]}`
             : "Bienvenido"}
         </h1>
-        {complexName && (
-          <p className="text-rodeo-lime font-black text-base uppercase tracking-wide mt-0.5">{complexName}</p>
+        {activeComplexName && (
+          <p className="text-rodeo-lime font-black text-base uppercase tracking-wide mt-0.5">{activeComplexName}</p>
         )}
         <p className="text-sm text-rodeo-cream/60 mt-1">Gestioná tu complejo deportivo desde acá.</p>
       </div>

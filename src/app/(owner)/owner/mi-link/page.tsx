@@ -9,7 +9,7 @@ import {
 } from "lucide-react";
 import { QRCodeSVG, QRCodeCanvas } from "qrcode.react";
 import { useAuth } from "@/lib/hooks/useAuth";
-import { supabase } from "@/lib/supabase";
+import { useActiveComplex } from "@/lib/context/ActiveComplexContext";
 
 const APP_DOMAIN = "https://elpique.app";
 
@@ -289,25 +289,10 @@ function FlyerGenerator({ publicUrl, complexName }: { publicUrl: string; complex
 
 export default function MiLinkPage() {
   const { user } = useAuth();
-  const [slug, setSlug] = useState<string | null>(null);
-  const [complexName, setComplexName] = useState<string>("");
-  const [loadingSlug, setLoadingSlug] = useState(true);
-
-  useEffect(() => {
-    if (!user?.id) return;
-    supabase
-      .from("complexes")
-      .select("slug, nombre")
-      .eq("owner_id", user.id)
-      .order("created_at", { ascending: true })
-      .limit(1)
-      .single()
-      .then((response) => {
-        const data = response.data as { slug: string; nombre: string } | null;
-        if (data) { setSlug(data.slug); setComplexName(data.nombre); }
-        setLoadingSlug(false);
-      });
-  }, [user?.id]);
+  const { activeComplexSlug, activeComplexName, loading: complexLoading } = useActiveComplex();
+  const slug = activeComplexSlug;
+  const complexName = activeComplexName ?? "";
+  const loadingSlug = complexLoading;
 
   const publicUrl = slug ? `${APP_DOMAIN}/complejo/${slug}` : "";
 

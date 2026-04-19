@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { supabase, supabaseMut } from "@/lib/supabase";
 import { useAuth } from "@/lib/hooks/useAuth";
+import { useActiveComplex } from "@/lib/context/ActiveComplexContext";
 import type { Court, CourtInsert, Complex, Deporte, EstadoCancha } from "@/types/database";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -722,13 +723,13 @@ function CourtCard({
 
 export default function CanchasPage() {
   const { user, loading: authLoading } = useAuth();
+  const { activeComplexId, setActiveComplexId } = useActiveComplex();
 
   const [complexes, setComplexes] = useState<Complex[]>([]);
   const [courts, setCourts] = useState<Court[]>([]);
   const [loadingData, setLoadingData] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
 
-  const [selectedComplexId, setSelectedComplexId] = useState<string | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [editingCourt, setEditingCourt] = useState<Court | null>(null);
 
@@ -738,7 +739,6 @@ export default function CanchasPage() {
     setLoadingData(true);
     setFetchError(null);
 
-    // Fetch complexes
     const { data: complexData, error: complexErr } = await supabase
       .from("complexes")
       .select("id, nombre, owner_id, slug, deporte_principal, deportes, descripcion, imagen_principal, galeria, video_url, lat, lng, ciudad, direccion, telefono, whatsapp, horario_abierto, horario_cierre, dias_abiertos, servicios, precio_promedio, rating_promedio, total_reviews, activo, created_at, updated_at")
@@ -759,10 +759,6 @@ export default function CanchasPage() {
       return;
     }
 
-    // Set default selected complex
-    setSelectedComplexId((prev) => prev ?? allComplexes[0].id);
-
-    // Fetch courts for all complexes
     const complexIds = allComplexes.map((c) => c.id);
     const { data: courtData, error: courtErr } = await supabase
       .from("courts")
@@ -791,9 +787,9 @@ export default function CanchasPage() {
 
   // ─── Derived state ───────────────────────────────────────────────────────────
 
-  const activeComplexId = selectedComplexId ?? complexes[0]?.id ?? null;
-  const visibleCourts = activeComplexId
-    ? courts.filter((c) => c.complex_id === activeComplexId)
+  const effectiveComplexId = activeComplexId ?? complexes[0]?.id ?? null;
+  const visibleCourts = effectiveComplexId
+    ? courts.filter((c) => c.complex_id === effectiveComplexId)
     : courts;
 
   // ─── Handlers ───────────────────────────────────────────────────────────────
@@ -915,8 +911,8 @@ export default function CanchasPage() {
     <div className="space-y-8">
       <PageHeader
         complexes={complexes}
-        activeComplexId={activeComplexId}
-        onSelectComplex={setSelectedComplexId}
+        activeComplexId={effectiveComplexId}
+        onSelectComplex={setActiveComplexId}
         onNewCourt={handleOpenCreate}
       />
 
@@ -959,10 +955,10 @@ export default function CanchasPage() {
 
       {/* Create/Edit Modal */}
       <AnimatePresence>
-        {showModal && activeComplexId && (
+        {showModal && effectiveComplexId && (
           <CourtModal
             editingCourt={editingCourt}
-            complexId={activeComplexId}
+            complexId={effectiveComplexId}
             onClose={handleCloseModal}
             onSaved={handleSaved}
           />

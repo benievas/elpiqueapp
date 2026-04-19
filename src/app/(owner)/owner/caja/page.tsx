@@ -1,7 +1,8 @@
 "use client";
 export const dynamic = 'force-dynamic';
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
+import { useActiveComplex } from "@/lib/context/ActiveComplexContext";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   DollarSign,
@@ -58,30 +59,42 @@ function nowTime() {
 }
 
 const HOY = typeof window !== "undefined" ? new Date().toISOString().split("T")[0] : "";
-const LS_KEY = `caja_${HOY}`;
-
-function leerCajaLS() {
-  try {
-    const raw = localStorage.getItem(LS_KEY);
-    if (!raw) return null;
-    return JSON.parse(raw) as { cajaAbierta: boolean; fondoInicial: string; movimientos: Movimiento[]; cajaCerrada: boolean };
-  } catch { return null; }
-}
 
 export default function CajaPage() {
-  const saved = typeof window !== "undefined" ? leerCajaLS() : null;
-  const [cajaAbierta, setCajaAbierta] = useState(saved?.cajaAbierta ?? false);
-  const [fondoInicial, setFondoInicial] = useState(saved?.fondoInicial ?? "");
-  const [movimientos, setMovimientos] = useState<Movimiento[]>(saved?.movimientos ?? []);
-  const [cajaCerrada, setCajaCerrada] = useState(saved?.cajaCerrada ?? false);
+  const { activeComplexId } = useActiveComplex();
+  const lsKey = activeComplexId ? `caja_${activeComplexId}_${HOY}` : null;
+
+  const [cajaAbierta, setCajaAbierta] = useState(false);
+  const [fondoInicial, setFondoInicial] = useState("");
+  const [movimientos, setMovimientos] = useState<Movimiento[]>([]);
+  const [cajaCerrada, setCajaCerrada] = useState(false);
+  const loadedRef = useRef<string | null>(null);
+
+  // Cargar desde localStorage cuando cambia el complejo activo
+  useEffect(() => {
+    if (!lsKey || loadedRef.current === lsKey) return;
+    loadedRef.current = lsKey;
+    try {
+      const raw = localStorage.getItem(lsKey);
+      if (raw) {
+        const saved = JSON.parse(raw) as { cajaAbierta: boolean; fondoInicial: string; movimientos: Movimiento[]; cajaCerrada: boolean };
+        setCajaAbierta(saved.cajaAbierta ?? false);
+        setFondoInicial(saved.fondoInicial ?? "");
+        setMovimientos(saved.movimientos ?? []);
+        setCajaCerrada(saved.cajaCerrada ?? false);
+      } else {
+        setCajaAbierta(false); setFondoInicial(""); setMovimientos([]); setCajaCerrada(false);
+      }
+    } catch { /* ignore */ }
+  }, [lsKey]);
 
   // Persistir en localStorage cada vez que cambia el estado
   useEffect(() => {
-    if (typeof window === "undefined") return;
+    if (typeof window === "undefined" || !lsKey) return;
     try {
-      localStorage.setItem(LS_KEY, JSON.stringify({ cajaAbierta, fondoInicial, movimientos, cajaCerrada }));
+      localStorage.setItem(lsKey, JSON.stringify({ cajaAbierta, fondoInicial, movimientos, cajaCerrada }));
     } catch { /* cuota llena, ignorar */ }
-  }, [cajaAbierta, fondoInicial, movimientos, cajaCerrada]);
+  }, [lsKey, cajaAbierta, fondoInicial, movimientos, cajaCerrada]);
 
   // Form nuevo movimiento
   const [tipo, setTipo] = useState<TipoMovimiento>("ingreso");
@@ -126,7 +139,7 @@ export default function CajaPage() {
   };
 
   const handleNuevaCaja = () => {
-    if (typeof window !== "undefined") localStorage.removeItem(LS_KEY);
+    if (typeof window !== "undefined" && lsKey) localStorage.removeItem(lsKey);
     setCajaAbierta(false);
     setCajaCerrada(false);
     setFondoInicial("");
