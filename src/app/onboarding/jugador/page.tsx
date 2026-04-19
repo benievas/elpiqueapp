@@ -52,7 +52,7 @@ export default function OnboardingJugadorPage() {
       <motion.img src="/assets/elpique.png" alt="ElPiqueApp" className="h-20 w-auto mx-auto"
         initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ delay: 0.1 }} />
       <div className="space-y-3">
-        <h1 className="text-3xl font-black text-white leading-tight">
+        <h1 style={{ fontFamily: "'Barlow Condensed', system-ui, sans-serif", fontWeight: 900, fontSize: "44px", letterSpacing: "-0.02em", textTransform: "uppercase", lineHeight: 0.95 }} className="text-white">
           Bienvenido a<br /><span className="text-rodeo-lime">ElPiqueApp</span>
         </h1>
         <p className="text-rodeo-cream/60 text-sm leading-relaxed max-w-xs mx-auto">
@@ -64,7 +64,7 @@ export default function OnboardingJugadorPage() {
     // Slide 1 — Cómo funciona
     <div key="s1" className="space-y-5">
       <div className="text-center space-y-1">
-        <h2 className="text-2xl font-black text-white">¿Cómo funciona?</h2>
+        <h2 style={{ fontFamily: "'Barlow Condensed', system-ui, sans-serif", fontWeight: 900, fontSize: "32px", letterSpacing: "-0.02em", textTransform: "uppercase", lineHeight: 0.95 }} className="text-white"><span className="section-slash">/</span>¿Cómo funciona?</h2>
         <p className="text-rodeo-cream/50 text-sm">Reservar es muy simple</p>
       </div>
       <div className="space-y-3">
@@ -89,7 +89,7 @@ export default function OnboardingJugadorPage() {
     // Slide 2 — Deportes favoritos
     <div key="s2" className="space-y-5">
       <div className="text-center space-y-1">
-        <h2 className="text-2xl font-black text-white">¿Qué deportes jugás?</h2>
+        <h2 style={{ fontFamily: "'Barlow Condensed', system-ui, sans-serif", fontWeight: 900, fontSize: "32px", letterSpacing: "-0.02em", textTransform: "uppercase", lineHeight: 0.95 }} className="text-white"><span className="section-slash">/</span>¿Qué deportes jugás?</h2>
         <p className="text-rodeo-cream/50 text-sm">Seleccioná tus favoritos (opcional)</p>
       </div>
       <div className="grid grid-cols-2 gap-3">

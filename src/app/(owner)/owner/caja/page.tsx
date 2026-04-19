@@ -155,7 +155,7 @@ export default function CajaPage() {
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-rodeo-lime/10 border border-rodeo-lime/20 text-rodeo-lime text-xs font-bold tracking-widest uppercase">
             <CheckCircle2 size={12} /> Caja Cerrada
           </div>
-          <h1 className="text-3xl font-black text-white uppercase tracking-tight">Resumen del día</h1>
+          <h1 style={{ fontFamily: "'Barlow Condensed', system-ui, sans-serif", fontWeight: 900, fontSize: "44px", letterSpacing: "-0.02em", textTransform: "uppercase", lineHeight: 0.95 }} className="text-white">Resumen del día</h1>
           <p className="text-sm text-rodeo-cream/50">{new Date().toLocaleDateString("es-AR", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}</p>
         </motion.div>
 
@@ -223,7 +223,7 @@ export default function CajaPage() {
       <div className="space-y-8 max-w-xl">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-2">
           <p className="text-xs text-rodeo-cream/50 font-bold tracking-widest uppercase">Panel de Control</p>
-          <h1 className="text-3xl font-black text-white uppercase tracking-tight">Caja y Cierre</h1>
+          <h1 style={{ fontFamily: "'Barlow Condensed', system-ui, sans-serif", fontWeight: 900, fontSize: "44px", letterSpacing: "-0.02em", textTransform: "uppercase", lineHeight: 0.95 }} className="text-white">Caja y Cierre</h1>
           <p className="text-sm text-rodeo-cream/60">Registrá ingresos y egresos del día. Cerrá la caja al final con el resumen completo.</p>
         </motion.div>
 
@@ -296,7 +296,7 @@ export default function CajaPage() {
           <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-green-500/15 border border-green-500/25 text-green-400 text-[10px] font-bold tracking-widest uppercase mb-2">
             <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" /> Caja abierta
           </div>
-          <h1 className="text-2xl font-black text-white uppercase tracking-tight">Caja del día</h1>
+          <h1 style={{ fontFamily: "'Barlow Condensed', system-ui, sans-serif", fontWeight: 900, fontSize: "32px", letterSpacing: "-0.02em", textTransform: "uppercase", lineHeight: 0.95 }} className="text-white">Caja del día</h1>
           <p className="text-xs text-rodeo-cream/50 mt-0.5">{new Date().toLocaleDateString("es-AR", { weekday: "long", day: "numeric", month: "long" })}</p>
         </div>
         <button

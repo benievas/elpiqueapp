@@ -506,19 +506,19 @@ export default function ReservasPage() {
   // ── Realtime subscription ──────────────────────────────────────────────────
 
   useEffect(() => {
-    if (!user?.id) return;
+    if (!user?.id || !activeComplexId) return;
 
-    // Listen for new/updated reservations on complexes owned by this user
     const channel = supabase
-      .channel("reservations-realtime")
+      .channel(`reservations-realtime-${activeComplexId}`)
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "reservations" },
+        { event: "*", schema: "public", table: "reservations", filter: `complex_id=eq.${activeComplexId}` },
         async (payload) => {
-          const record = payload.new as { complex_id?: string } | null;
-          if (!record?.complex_id) return;
+          if (payload.eventType === "DELETE") {
+            setReservations((prev) => prev.filter((r) => r.id !== (payload.old as { id: string }).id));
+            return;
+          }
 
-          // Fetch full reservation with joins to update local state
           const { data } = await supabase
             .from("reservations")
             .select(`*, court:courts(nombre, deporte), jugador:profiles!user_id(nombre_completo, email, telefono)`)
@@ -529,7 +529,6 @@ export default function ReservasPage() {
 
           if (payload.eventType === "INSERT") {
             setReservations((prev) => {
-              // Avoid duplicates
               if (prev.some((r) => r.id === (data as ReservationWithDetails).id)) return prev;
               return [data as ReservationWithDetails, ...prev];
             });
@@ -537,15 +536,13 @@ export default function ReservasPage() {
             setReservations((prev) =>
               prev.map((r) => (r.id === (data as ReservationWithDetails).id ? (data as ReservationWithDetails) : r))
             );
-          } else if (payload.eventType === "DELETE") {
-            setReservations((prev) => prev.filter((r) => r.id !== (payload.old as { id: string }).id));
           }
         }
       )
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
-  }, [user?.id]);
+  }, [user?.id, activeComplexId]);
 
   // ── Fetch ──────────────────────────────────────────────────────────────────
 
@@ -764,7 +761,7 @@ export default function ReservasPage() {
           <p className="text-xs text-rodeo-cream/50 font-bold tracking-widest uppercase">
             Panel de Control
           </p>
-          <h1 className="text-3xl font-black text-white uppercase tracking-tight flex items-center gap-3">
+          <h1 style={{ fontFamily: "'Barlow Condensed', system-ui, sans-serif", fontWeight: 900, fontSize: "44px", letterSpacing: "-0.02em", textTransform: "uppercase", lineHeight: 0.95 }} className="text-white flex items-center gap-3">
             Reservas
             {statusCounts.pendiente > 0 && (
               <span

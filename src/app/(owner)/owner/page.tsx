@@ -73,8 +73,8 @@ export default function OwnerPage() {
     <div className="space-y-8">
       {/* Header */}
       <div>
-        <p className="text-xs text-rodeo-cream/50 font-bold tracking-widest uppercase mb-1">Panel de Control</p>
-        <h1 className="text-3xl font-black text-white uppercase tracking-tight">
+        <p className="eyebrow text-rodeo-lime mb-2">Panel de Control</p>
+        <h1 style={{ fontFamily: "'Barlow Condensed', system-ui, sans-serif", fontWeight: 900, fontSize: "44px", letterSpacing: "-0.02em", textTransform: "uppercase", lineHeight: 0.95 }} className="text-white">
           {profile?.nombre_completo
             ? `Hola, ${profile.nombre_completo.split(" ")[0]}`
             : user?.email
@@ -96,7 +96,7 @@ export default function OwnerPage() {
             className="p-4 flex flex-col gap-2"
           >
             <span className="text-2xl">{stat.icon}</span>
-            <p className="text-xl font-black" style={{ color: stat.color }}>{stat.valor}</p>
+            <p style={{ fontFamily: "'Barlow Condensed', system-ui, sans-serif", fontWeight: 900, fontSize: "28px", letterSpacing: "-0.01em", lineHeight: 1, color: stat.color }}>{stat.valor}</p>
             <p className="text-xs text-rodeo-cream/50">{stat.label}</p>
           </div>
         ))}

@@ -84,7 +84,7 @@ export default function OwnerSettingsPage() {
     <div className="space-y-8 max-w-2xl">
       <div>
         <p className="text-xs text-rodeo-cream/50 font-bold tracking-widest uppercase mb-1">Ajustes</p>
-        <h1 className="text-3xl font-black text-white uppercase tracking-tight">Configuración</h1>
+        <h1 style={{ fontFamily: "'Barlow Condensed', system-ui, sans-serif", fontWeight: 900, fontSize: "44px", letterSpacing: "-0.02em", textTransform: "uppercase", lineHeight: 0.95 }} className="text-white">Configuración</h1>
       </div>
 
       {/* Perfil */}

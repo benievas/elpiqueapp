@@ -28,7 +28,7 @@ function ExitoContent() {
         transition={{ delay: 0.3 }}
         className="space-y-3"
       >
-        <h1 className="text-3xl font-black text-white">¡Pago exitoso!</h1>
+        <h1 style={{ fontFamily: "'Barlow Condensed', system-ui, sans-serif", fontWeight: 900, fontSize: "44px", letterSpacing: "-0.02em", textTransform: "uppercase", lineHeight: 0.95 }} className="text-white">¡Pago exitoso!</h1>
         <p className="text-rodeo-cream/60">
           Tu licencia {plan === "annual" ? "anual" : "mensual"} fue activada correctamente.
           Ya podés acceder a todas las funciones del panel de gestión.

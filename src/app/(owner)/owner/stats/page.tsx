@@ -370,7 +370,7 @@ export default function StatsPage() {
         <p className="text-xs text-rodeo-cream/50 font-bold tracking-widest uppercase">
           Panel de Control
         </p>
-        <h1 className="text-3xl font-black text-white uppercase tracking-tight">
+        <h1 style={{ fontFamily: "'Barlow Condensed', system-ui, sans-serif", fontWeight: 900, fontSize: "44px", letterSpacing: "-0.02em", textTransform: "uppercase", lineHeight: 0.95 }} className="text-white">
           Estadísticas
         </h1>
         <div className="flex flex-wrap items-center gap-3 mt-1">

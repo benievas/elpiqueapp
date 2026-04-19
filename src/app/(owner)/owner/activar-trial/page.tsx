@@ -80,7 +80,7 @@ export default function ActivarTrialPage() {
         {/* Card principal */}
         <div className="liquid-panel p-8 space-y-6 text-center">
           <div className="space-y-2">
-            <h1 className="text-3xl font-black text-white">
+            <h1 style={{ fontFamily: "'Barlow Condensed', system-ui, sans-serif", fontWeight: 900, fontSize: "36px", letterSpacing: "-0.02em", textTransform: "uppercase", lineHeight: 0.95 }} className="text-white">
               {complexId ? "Activar licencia para este complejo" : "¡Bienvenido a ElPiqueApp!"}
             </h1>
             <p className="text-rodeo-cream/60 text-sm leading-relaxed">

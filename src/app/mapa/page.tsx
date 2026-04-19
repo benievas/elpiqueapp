@@ -220,7 +220,7 @@ export default function MapaPage() {
                         <div className="w-1.5 h-1.5 rounded-full" style={{ background: accentColor }} />
                         {complejoSeleccionado.deporte}
                       </span>
-                      <h2 className="text-xl font-black text-white leading-tight">{complejoSeleccionado.nombre}</h2>
+                      <h2 style={{ fontFamily: "'Barlow Condensed', system-ui, sans-serif", fontWeight: 900, fontSize: "26px", letterSpacing: "-0.01em", textTransform: "uppercase", lineHeight: 1 }} className="text-white">{complejoSeleccionado.nombre}</h2>
                       <p className="text-xs text-rodeo-cream/50 mt-1">{complejoSeleccionado.descripcion}</p>
                     </div>
                     <button
@@ -310,7 +310,7 @@ export default function MapaPage() {
                 style={{ background: `${accentColor}18`, border: `1px solid ${accentColor}30`, color: accentColor }}>
                 {complejoSeleccionado.deporte}
               </span>
-              <h2 className="text-2xl font-black text-white">{complejoSeleccionado.nombre}</h2>
+              <h2 style={{ fontFamily: "'Barlow Condensed', system-ui, sans-serif", fontWeight: 900, fontSize: "32px", letterSpacing: "-0.02em", textTransform: "uppercase", lineHeight: 0.95 }} className="text-white">{complejoSeleccionado.nombre}</h2>
               <p className="text-sm text-rodeo-cream/50 mt-1">{complejoSeleccionado.descripcion}</p>
             </div>
             <div className="space-y-3">

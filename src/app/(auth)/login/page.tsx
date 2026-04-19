@@ -208,9 +208,12 @@ function LoginForm() {
           className="w-full max-w-md space-y-6">
 
           {/* Logo */}
-          <div className="flex flex-col items-center gap-2">
-            <motion.img src="/assets/elpique.png" alt="ElPiqueApp" className="h-16 w-auto" whileHover={{ scale: 1.05 }} />
-            <p className="text-rodeo-cream/70 text-sm">Reserva canchas deportivas en tu ciudad</p>
+          <div className="flex flex-col items-center gap-3">
+            <motion.img src="/assets/elpique.png" alt="ElPiqueApp" className="h-14 w-auto" whileHover={{ scale: 1.05 }} />
+            <h1 style={{ fontFamily: "'Barlow Condensed', system-ui, sans-serif", fontWeight: 900, fontSize: "38px", letterSpacing: "-0.02em", textTransform: "uppercase", lineHeight: 0.95 }} className="text-white text-center">
+              Jugá más.<br /><span className="text-rodeo-lime">Reservá rápido.</span>
+            </h1>
+            <p className="text-rodeo-cream/70 text-sm text-center">Canchas deportivas en tu ciudad.</p>
           </div>
 
           {/* Card */}
@@ -352,7 +355,7 @@ function LoginForm() {
               <Building2 size={18} className="text-rodeo-lime" />
             </div>
             <div className="flex-1">
-              <p className="text-sm font-black text-white">¿Sos dueño de un complejo?</p>
+              <p style={{ fontFamily: "'Barlow Condensed', system-ui, sans-serif", fontWeight: 900, fontSize: "18px", letterSpacing: "-0.01em", textTransform: "uppercase", lineHeight: 1 }} className="text-white">¿Sos dueño de un complejo?</p>
               <p className="text-xs text-rodeo-cream/50 mt-0.5">Registrá tu complejo y empezá con 30 días gratis.</p>
             </div>
             <Link href="/registro/dueno"

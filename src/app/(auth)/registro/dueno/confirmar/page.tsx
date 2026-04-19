@@ -18,7 +18,7 @@ function ConfirmarContent() {
             <Mail size={28} className="text-rodeo-lime" />
           </div>
           <div>
-            <h1 className="text-2xl font-black text-white mb-2">Confirmá tu email</h1>
+            <h1 style={{ fontFamily: "'Barlow Condensed', system-ui, sans-serif", fontWeight: 900, fontSize: "32px", letterSpacing: "-0.02em", textTransform: "uppercase", lineHeight: 0.95 }} className="text-white mb-2">Confirmá tu email</h1>
             <p className="text-rodeo-cream/60 text-sm leading-relaxed">
               Te enviamos un link de confirmación a{" "}
               <span className="text-white font-bold">{email}</span>.

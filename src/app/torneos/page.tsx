@@ -121,10 +121,9 @@ export default function TorneosPage() {
             >
               <ChevronLeft size={20} className="text-white" />
             </Link>
-            <div className="flex items-center gap-3">
-              <Trophy className="text-rodeo-lime" size={28} />
-              <h1 className="text-4xl md:text-5xl font-black text-white uppercase tracking-tight">Torneos</h1>
-            </div>
+            <h1 style={{ fontFamily: "'Barlow Condensed', system-ui, sans-serif", fontWeight: 900, letterSpacing: "-0.02em", textTransform: "uppercase", lineHeight: 0.95, fontSize: "clamp(36px, 6vw, 56px)" }} className="text-white">
+              <span className="section-slash">/</span>Torneos
+            </h1>
             <Link href="/feed"
               style={{ background: "rgba(200,255,0,0.12)", border: "1px solid rgba(200,255,0,0.25)", borderRadius: "12px" }}
               className="ml-auto flex items-center gap-2 px-4 py-2 hover:bg-rodeo-lime/20 transition-all text-rodeo-lime text-xs font-bold"
@@ -197,7 +196,7 @@ export default function TorneosPage() {
                       {/* Header */}
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
-                          <h3 className="text-lg font-black text-white uppercase mb-1">
+                          <h3 style={{ fontFamily: "'Barlow Condensed', system-ui, sans-serif", fontWeight: 900, fontSize: "22px", letterSpacing: "-0.01em", textTransform: "uppercase", lineHeight: 1 }} className="text-white mb-1">
                             {torneo.nombre}
                           </h3>
                           <p className={`text-xs font-bold ${color.text}`}>

@@ -103,7 +103,7 @@ export default function PerfilPage() {
               style={{ background: "rgba(200,255,0,0.1)", border: "2px solid rgba(200,255,0,0.2)" }}>
               <User size={36} className="text-rodeo-lime" />
             </div>
-            <h1 className="text-2xl font-black text-white">Tu Perfil</h1>
+            <h1 style={{ fontFamily: "'Barlow Condensed', system-ui, sans-serif", fontWeight: 900, fontSize: "42px", letterSpacing: "-0.02em", textTransform: "uppercase", lineHeight: 0.95 }} className="text-white">Tu perfil</h1>
             <p className="text-rodeo-cream/50 text-sm">Iniciá sesión para acceder a tus reservas, reseñas y panel de dueño.</p>
           </motion.div>
 
@@ -178,7 +178,7 @@ export default function PerfilPage() {
               </div>
             )}
             <div className="flex-1 min-w-0">
-              <p className="text-lg font-black text-white truncate">
+              <p style={{ fontFamily: "'Barlow Condensed', system-ui, sans-serif", fontWeight: 900, fontSize: "22px", letterSpacing: "-0.01em", textTransform: "uppercase", lineHeight: 1 }} className="text-white truncate">
                 {profile?.nombre_completo || user?.email?.split("@")[0]}
               </p>
               <p className="text-sm text-rodeo-cream/50 truncate">{user?.email}</p>

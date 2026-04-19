@@ -316,8 +316,20 @@ export default function ComplejoPage({
 
             {/* INFO PRINCIPAL */}
             <div>
-              <p className="text-xs font-semibold tracking-widest uppercase text-rodeo-cream/50 mb-1">{complejo.deporte_principal}</p>
-              <h1 className="text-3xl md:text-4xl font-black uppercase tracking-tight text-white leading-tight">{complejo.nombre}</h1>
+              <p className="eyebrow text-rodeo-lime mb-2">{complejo.deporte_principal}</p>
+              <h1
+                style={{
+                  fontFamily: "'Barlow Condensed', system-ui, sans-serif",
+                  fontWeight: 900,
+                  letterSpacing: "-0.02em",
+                  textTransform: "uppercase",
+                  lineHeight: 0.95,
+                  fontSize: "clamp(36px, 7vw, 56px)",
+                }}
+                className="text-white"
+              >
+                {complejo.nombre}
+              </h1>
               <div className="flex flex-wrap items-center gap-3 mt-2">
                 <div className="flex items-center gap-1.5">
                   <Estrellas cantidad={Math.round(rating)} />
@@ -353,10 +365,9 @@ export default function ComplejoPage({
               style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "16px" }}
               className="p-5 flex flex-col gap-3"
             >
-              <div className="flex items-center gap-2">
-                <Zap size={15} className="text-rodeo-lime" />
-                <h3 className="text-xs font-bold tracking-widest uppercase text-rodeo-cream/60">Sobre el complejo</h3>
-              </div>
+              <h3 style={{ fontFamily: "'Barlow Condensed', system-ui, sans-serif", fontWeight: 900, fontSize: "20px", letterSpacing: "-0.01em", textTransform: "uppercase", lineHeight: 1 }} className="text-white">
+                <span className="section-slash">/</span>Sobre el complejo
+              </h3>
               <p className="text-sm text-rodeo-cream/75 leading-relaxed">{complejo.descripcion}</p>
             </div>
 
@@ -365,10 +376,9 @@ export default function ComplejoPage({
               style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "16px" }}
               className="p-5"
             >
-              <div className="flex items-center gap-2 mb-4">
-                <Zap size={15} className="text-rodeo-lime" />
-                <h3 className="text-xs font-bold tracking-widest uppercase text-rodeo-cream/60">Todas las Canchas</h3>
-              </div>
+              <h3 style={{ fontFamily: "'Barlow Condensed', system-ui, sans-serif", fontWeight: 900, fontSize: "20px", letterSpacing: "-0.01em", textTransform: "uppercase", lineHeight: 1 }} className="text-white mb-4">
+                <span className="section-slash">/</span>Todas las canchas
+              </h3>
               <div className="grid md:grid-cols-2 gap-3">
                 {canchas.map((cancha) => {
                   const disponible = cancha.estado === "disponible";
@@ -380,10 +390,10 @@ export default function ComplejoPage({
                     >
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
-                          <h4 className="text-sm font-bold text-white">{cancha.nombre}</h4>
-                          <p className="text-xs text-rodeo-cream/50">{cancha.deporte} • {jugadoresPorSide}v{jugadoresPorSide}</p>
+                          <h4 style={{ fontFamily: "'Barlow Condensed', system-ui, sans-serif", fontWeight: 800, fontSize: "16px", letterSpacing: "-0.01em", textTransform: "uppercase", lineHeight: 1.1 }} className="text-white">{cancha.nombre}</h4>
+                          <p className="text-xs text-rodeo-cream/50 mt-0.5">{cancha.deporte} • {jugadoresPorSide}v{jugadoresPorSide}</p>
                         </div>
-                        <span className="text-xl font-black text-rodeo-lime">${(cancha.precio_por_hora / 1000).toFixed(0)}K</span>
+                        <span style={{ fontFamily: "'Barlow Condensed', system-ui, sans-serif", fontWeight: 900, fontSize: "24px", letterSpacing: "-0.01em", lineHeight: 1 }} className="text-rodeo-lime">${(cancha.precio_por_hora / 1000).toFixed(0)}K</span>
                       </div>
                       {disponible && (
                         <a
@@ -409,10 +419,9 @@ export default function ComplejoPage({
               style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "16px" }}
               className="p-5"
             >
-              <div className="flex items-center gap-2 mb-3">
-                <Users size={15} className="text-rodeo-lime" />
-                <h3 className="text-xs font-bold tracking-widest uppercase text-rodeo-cream/60">Servicios</h3>
-              </div>
+              <h3 style={{ fontFamily: "'Barlow Condensed', system-ui, sans-serif", fontWeight: 900, fontSize: "20px", letterSpacing: "-0.01em", textTransform: "uppercase", lineHeight: 1 }} className="text-white mb-3">
+                <span className="section-slash">/</span>Servicios
+              </h3>
               <div className="flex flex-wrap gap-2">
                 {complejo.servicios.map((s) => (
                   <span key={s} className="text-xs px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-rodeo-cream/70">✓ {s}</span>
@@ -425,10 +434,9 @@ export default function ComplejoPage({
               style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "16px" }}
               className="p-5 flex flex-col gap-4 mb-6"
             >
-              <div className="flex items-center gap-2">
-                <MessageSquare size={15} className="text-rodeo-lime" />
-                <h3 className="text-xs font-bold tracking-widest uppercase text-rodeo-cream/60">Reseñas</h3>
-              </div>
+              <h3 style={{ fontFamily: "'Barlow Condensed', system-ui, sans-serif", fontWeight: 900, fontSize: "20px", letterSpacing: "-0.01em", textTransform: "uppercase", lineHeight: 1 }} className="text-white">
+                <span className="section-slash">/</span>Reseñas
+              </h3>
 
               {/* Reviews list */}
               {reviews.length > 0 && (

@@ -988,7 +988,7 @@ function PageHeader({
           <p className="text-xs text-rodeo-cream/50 font-bold tracking-widest uppercase mb-1">
             Panel de Propietario
           </p>
-          <h1 className="text-3xl font-black text-white uppercase tracking-tight">Mis Canchas</h1>
+          <h1 style={{ fontFamily: "'Barlow Condensed', system-ui, sans-serif", fontWeight: 900, fontSize: "44px", letterSpacing: "-0.02em", textTransform: "uppercase", lineHeight: 0.95 }} className="text-white">Mis Canchas</h1>
           <p className="text-sm text-rodeo-cream/60 mt-1">
             Gestioná, editá y activá las canchas de tu complejo.
           </p>

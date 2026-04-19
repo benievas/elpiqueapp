@@ -135,7 +135,7 @@ function RegistroDuenoForm() {
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-rodeo-lime/10 border border-rodeo-lime/25 text-rodeo-lime text-sm font-black mb-1">
             <Building2 size={15} /> REGISTRO DE DUEÑO
           </div>
-          <h1 className="text-2xl font-black text-white">Sumá tu complejo</h1>
+          <h1 style={{ fontFamily: "'Barlow Condensed', system-ui, sans-serif", fontWeight: 900, fontSize: "38px", letterSpacing: "-0.02em", textTransform: "uppercase", lineHeight: 0.95 }} className="text-white">Sumá tu complejo</h1>
           <p className="text-rodeo-cream/50 text-sm">30 días gratis, sin tarjeta de crédito</p>
         </div>
 

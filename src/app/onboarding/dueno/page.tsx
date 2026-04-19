@@ -46,7 +46,7 @@ export default function OnboardingDuenoPage() {
         <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-rodeo-lime/10 border border-rodeo-lime/25 text-rodeo-lime text-xs font-black">
           30 DÍAS GRATIS ACTIVADOS ✓
         </div>
-        <h1 className="text-2xl font-black text-white leading-tight">
+        <h1 style={{ fontFamily: "'Barlow Condensed', system-ui, sans-serif", fontWeight: 900, fontSize: "38px", letterSpacing: "-0.02em", textTransform: "uppercase", lineHeight: 0.95 }} className="text-white">
           ¡Bienvenido al panel<br />de <span className="text-rodeo-lime">dueños</span>!
         </h1>
         <p className="text-rodeo-cream/60 text-sm leading-relaxed max-w-xs mx-auto">
@@ -62,7 +62,7 @@ export default function OnboardingDuenoPage() {
           <span className="text-rodeo-dark font-black text-sm">1</span>
         </div>
         <div>
-          <h2 className="text-xl font-black text-white">Completá tu complejo</h2>
+          <h2 style={{ fontFamily: "'Barlow Condensed', system-ui, sans-serif", fontWeight: 900, fontSize: "22px", letterSpacing: "-0.01em", textTransform: "uppercase", lineHeight: 1 }} className="text-white">Completá tu complejo</h2>
           <p className="text-rodeo-cream/50 text-xs">Datos básicos y de contacto</p>
         </div>
       </div>
@@ -91,7 +91,7 @@ export default function OnboardingDuenoPage() {
           <span className="text-rodeo-dark font-black text-sm">2</span>
         </div>
         <div>
-          <h2 className="text-xl font-black text-white">Agregá tus canchas</h2>
+          <h2 style={{ fontFamily: "'Barlow Condensed', system-ui, sans-serif", fontWeight: 900, fontSize: "22px", letterSpacing: "-0.01em", textTransform: "uppercase", lineHeight: 1 }} className="text-white">Agregá tus canchas</h2>
           <p className="text-rodeo-cream/50 text-xs">Disponibilidad y precios</p>
         </div>
       </div>
@@ -124,7 +124,7 @@ export default function OnboardingDuenoPage() {
         <div className="w-10 h-10 rounded-full bg-rodeo-lime flex items-center justify-center shrink-0">
           <span className="text-rodeo-dark font-black text-sm">3</span>
         </div>
-        <h2 className="text-xl font-black text-white">¡Compartí tu link!</h2>
+        <h2 style={{ fontFamily: "'Barlow Condensed', system-ui, sans-serif", fontWeight: 900, fontSize: "22px", letterSpacing: "-0.01em", textTransform: "uppercase", lineHeight: 1 }} className="text-white">¡Compartí tu link!</h2>
       </div>
       <p className="text-rodeo-cream/60 text-sm leading-relaxed max-w-xs mx-auto">
         Cada complejo tiene un link y QR único. Compartílo en redes sociales y WhatsApp para que los jugadores te encuentren fácil.

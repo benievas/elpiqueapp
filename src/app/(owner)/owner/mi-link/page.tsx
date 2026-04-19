@@ -339,7 +339,7 @@ export default function MiLinkPage() {
   if (!slug) {
     return (
       <div className="space-y-4 max-w-xl">
-        <h1 className="text-3xl font-black text-white uppercase tracking-tight">Mi Link y QR</h1>
+        <h1 style={{ fontFamily: "'Barlow Condensed', system-ui, sans-serif", fontWeight: 900, fontSize: "44px", letterSpacing: "-0.02em", textTransform: "uppercase", lineHeight: 0.95 }} className="text-white">Mi Link y QR</h1>
         <div style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "16px" }} className="p-8 text-center space-y-3">
           <p className="text-rodeo-cream/60 text-sm">Primero debés crear tu complejo para obtener tu link público.</p>
           <a href="/owner/complejo" style={{ background: "rgba(200,255,0,0.9)", borderRadius: "12px" }} className="inline-block px-6 py-2.5 text-rodeo-dark font-black text-sm">Crear complejo</a>
@@ -353,7 +353,7 @@ export default function MiLinkPage() {
       {/* Header */}
       <div>
         <p className="text-xs text-rodeo-cream/50 font-bold tracking-widest uppercase mb-1">Tu perfil público</p>
-        <h1 className="text-3xl font-black text-white uppercase tracking-tight">Mi Link y QR</h1>
+        <h1 style={{ fontFamily: "'Barlow Condensed', system-ui, sans-serif", fontWeight: 900, fontSize: "44px", letterSpacing: "-0.02em", textTransform: "uppercase", lineHeight: 0.95 }} className="text-white">Mi Link y QR</h1>
         <p className="text-sm text-rodeo-cream/60 mt-1">
           {complexName && <span className="text-rodeo-lime font-bold">{complexName} · </span>}
           Compartí, imprimí o generá un flyer listo para redes.

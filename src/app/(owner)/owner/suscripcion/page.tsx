@@ -149,7 +149,7 @@ export default function SuscripcionPage() {
           <Crown size={16} />
           LICENCIA ELPIQUEAPP
         </div>
-        <h1 className="text-3xl md:text-4xl font-black text-white">
+        <h1 style={{ fontFamily: "'Barlow Condensed', system-ui, sans-serif", fontWeight: 900, fontSize: "clamp(40px, 6vw, 56px)", letterSpacing: "-0.02em", textTransform: "uppercase", lineHeight: 0.95 }} className="text-white">
           {activeComplexName ? `Licencia — ${activeComplexName}` : "Gestioná tu complejo con todo incluido"}
         </h1>
         <p className="text-rodeo-cream/60 max-w-xl mx-auto">

@@ -139,8 +139,10 @@ export default function FeedPage() {
           <ChevronLeft className="text-rodeo-cream" size={20} />
         </Link>
         <div>
-          <h1 className="text-lg font-black text-white tracking-wide">Feed</h1>
-          <p className="text-xs text-rodeo-cream/50">Noticias, promos y eventos</p>
+          <h1 style={{ fontFamily: "'Barlow Condensed', system-ui, sans-serif", fontWeight: 900, fontSize: "22px", letterSpacing: "-0.01em", textTransform: "uppercase", lineHeight: 1 }} className="text-white">
+            <span className="section-slash">/</span>Feed
+          </h1>
+          <p className="text-xs text-rodeo-cream/50 mt-0.5">Noticias, promos y eventos</p>
         </div>
       </header>
       
@@ -211,7 +213,7 @@ export default function FeedPage() {
                     {/* Header */}
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
-                        <h3 className="text-xl font-black text-white uppercase mb-2">
+                        <h3 style={{ fontFamily: "'Barlow Condensed', system-ui, sans-serif", fontWeight: 900, fontSize: "24px", letterSpacing: "-0.01em", textTransform: "uppercase", lineHeight: 1 }} className="text-white mb-2">
                           {post.titulo}
                         </h3>
                         <div className="flex items-center gap-2">

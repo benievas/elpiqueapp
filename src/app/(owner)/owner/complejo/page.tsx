@@ -99,7 +99,7 @@ export default function OwnerComplejoPage() {
       <div className="flex items-center justify-between">
         <div>
           <p className="text-xs text-rodeo-cream/50 font-bold tracking-widest uppercase mb-1">Panel de Control</p>
-          <h1 className="text-3xl font-black text-white uppercase tracking-tight">Mi Complejo</h1>
+          <h1 style={{ fontFamily: "'Barlow Condensed', system-ui, sans-serif", fontWeight: 900, fontSize: "44px", letterSpacing: "-0.02em", textTransform: "uppercase", lineHeight: 0.95 }} className="text-white">Mi Complejo</h1>
         </div>
         <button onClick={openCreate} style={{ background:"rgba(200,255,0,0.9)", borderRadius:"12px" }} className="flex items-center gap-2 px-4 py-2.5 text-rodeo-dark font-black text-sm">
           <Plus size={16}/> Nuevo Complejo
@@ -117,7 +117,7 @@ export default function OwnerComplejoPage() {
             <motion.div key={c.id} initial={{opacity:0,y:16}} animate={{opacity:1,y:0}} style={{ background:"rgba(255,255,255,0.04)", border:"1px solid rgba(255,255,255,0.08)", borderRadius:"20px" }} className="p-6 space-y-5">
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <h2 className="text-xl font-black text-white uppercase">{c.nombre}</h2>
+                  <h2 style={{ fontFamily: "'Barlow Condensed', system-ui, sans-serif", fontWeight: 900, fontSize: "24px", letterSpacing: "-0.01em", textTransform: "uppercase", lineHeight: 1 }} className="text-white">{c.nombre}</h2>
                   <p className="text-sm text-rodeo-cream/50 mt-1">{c.descripcion}</p>
                 </div>
                 <button onClick={()=>openEdit(c)} style={{ background:"rgba(255,255,255,0.06)", border:"1px solid rgba(255,255,255,0.12)", borderRadius:"10px" }} className="p-2.5 hover:bg-white/10 transition-all shrink-0">
