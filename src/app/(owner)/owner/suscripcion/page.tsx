@@ -15,6 +15,7 @@ import {
   Shield,
 } from "lucide-react";
 import { useAuth } from "@/lib/hooks/useAuth";
+import { useActiveComplex } from "@/lib/context/ActiveComplexContext";
 import { supabase } from "@/lib/supabase";
 
 const FEATURES = [
@@ -37,6 +38,7 @@ type SubscriptionStatus = {
 
 export default function SuscripcionPage() {
   const { user, profile, loading: authLoading } = useAuth();
+  const { activeComplexId, activeComplexName } = useActiveComplex();
   const [selectedPlan, setSelectedPlan] = useState<"monthly" | "annual">("annual");
   const [loading, setLoading] = useState(false);
   const [subscription, setSubscription] = useState<SubscriptionStatus | null>(null);
@@ -45,41 +47,42 @@ export default function SuscripcionPage() {
 
   useEffect(() => {
     const searchParams = new URLSearchParams(window.location.search);
-    const errorParam = searchParams.get("error");
-    if (errorParam === "pago_fallido") {
+    if (searchParams.get("error") === "pago_fallido") {
       setError("El pago no pudo procesarse. Por favor, intentá de nuevo.");
     }
   }, []);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user || !activeComplexId) return;
     loadSubscription();
-  }, [user]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, activeComplexId]);
 
   const loadSubscription = async () => {
     if (!user) return;
     setLoadingSub(true);
     try {
-      const { data } = await supabase
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      let query: any = supabase
         .from("subscriptions" as never)
         .select("status, ends_at, is_trial")
-        .eq("user_id", user.id)
         .eq("plan", "owner")
-        .in("status", ["active", "trial"])
-        .maybeSingle() as { data: { status: string; ends_at: string | null; is_trial: boolean } | null };
+        .in("status", ["active", "trial"]);
+
+      if (activeComplexId) {
+        query = query.eq("complex_id", activeComplexId);
+      } else {
+        query = query.eq("user_id", user.id);
+      }
+
+      const { data } = await query.maybeSingle() as { data: { status: string; ends_at: string | null; is_trial: boolean } | null };
 
       if (data) {
         const endsAt = data.ends_at ? new Date(data.ends_at) : null;
         const daysLeft = endsAt
           ? Math.max(0, Math.ceil((endsAt.getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
           : 0;
-
-        setSubscription({
-          status: data.status as "active" | "trial",
-          endsAt: data.ends_at,
-          isTriial: data.is_trial,
-          daysLeft,
-        });
+        setSubscription({ status: data.status as "active" | "trial", endsAt: data.ends_at, isTriial: data.is_trial, daysLeft });
       } else {
         setSubscription({ status: "none", endsAt: null, isTriial: false, daysLeft: 0 });
       }
@@ -103,6 +106,7 @@ export default function SuscripcionPage() {
           plan: selectedPlan,
           userId: user.id,
           userEmail: user.email,
+          complexId: activeComplexId,
         }),
       });
 
@@ -146,7 +150,7 @@ export default function SuscripcionPage() {
           LICENCIA ELPIQUEAPP
         </div>
         <h1 className="text-3xl md:text-4xl font-black text-white">
-          Gestioná tu complejo con todo incluido
+          {activeComplexName ? `Licencia — ${activeComplexName}` : "Gestioná tu complejo con todo incluido"}
         </h1>
         <p className="text-rodeo-cream/60 max-w-xl mx-auto">
           Una licencia por complejo. Acceso completo a todas las funciones del panel de gestión.

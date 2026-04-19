@@ -29,8 +29,10 @@ function OwnerLayoutInner({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const { signOut, profile, loading: authLoading, user, isOwner, isAdmin } = useAuth();
-  const trial = useTrialStatus();
-  const { complexes, activeComplexId, activeComplexName, setActiveComplexId } = useActiveComplex();
+  const { complexes, activeComplexId, activeComplexName, setActiveComplexId, loading: complexLoading } = useActiveComplex();
+  // null mientras el contexto carga → trial no evalúa guards todavía
+  const trialComplexId = complexLoading ? null : (activeComplexId ?? undefined);
+  const trial = useTrialStatus(trialComplexId);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [trialBannerOpen, setTrialBannerOpen] = useState(true);
   const [timedOut, setTimedOut] = useState(false);
@@ -54,8 +56,19 @@ function OwnerLayoutInner({ children }: { children: React.ReactNode }) {
     if (authLoading || trial.state === "loading") return;
     if (!user) { router.replace("/login"); return; }
     if (profile && !isOwner && !isAdmin) { router.replace("/"); return; }
-    if (!isBypassPage && trial.state === "sin_plan") { router.replace("/owner/activar-trial"); return; }
-    if (!isBypassPage && trial.isBlocked) { router.replace("/owner/suscripcion"); }
+    if (!isBypassPage && trial.state === "sin_plan") {
+      const dest = activeComplexId
+        ? `/owner/activar-trial?complex_id=${activeComplexId}`
+        : "/owner/activar-trial";
+      router.replace(dest);
+      return;
+    }
+    if (!isBypassPage && trial.isBlocked) {
+      const dest = activeComplexId
+        ? `/owner/suscripcion?complex_id=${activeComplexId}`
+        : "/owner/suscripcion";
+      router.replace(dest);
+    }
   }, [authLoading, trial.state, trial.isBlocked, user, profile, isOwner, isAdmin, isBypassPage]);
 
   if (!initialized) {

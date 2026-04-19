@@ -6,7 +6,7 @@ import { useAuth } from './useAuth';
 
 export type TrialState =
   | 'loading'
-  | 'sin_plan'      // nunca activó trial
+  | 'sin_plan'      // nunca activó trial para este complejo
   | 'trial_activo'  // dentro de los 30 días
   | 'gracia'        // 30-32 días: acceso pero con aviso urgente
   | 'expirado'      // +32 días: acceso bloqueado
@@ -14,16 +14,22 @@ export type TrialState =
 
 export interface TrialStatus {
   state: TrialState;
-  diasRestantes: number;   // días de trial que quedan
-  diasGracia: number;      // días de prórroga que quedan (máx 2)
+  diasRestantes: number;
+  diasGracia: number;
   endsAt: Date | null;
-  isBlocked: boolean;      // true cuando hay que bloquear el panel
+  isBlocked: boolean;
 }
 
 const TRIAL_DAYS = 30;
 const GRACE_DAYS = 2;
 
-export function useTrialStatus(): TrialStatus {
+/**
+ * Retorna el estado de suscripción del complejo activo.
+ * complexId = null → espera aún (owner sin complejo: primer setup)
+ * complexId = string → consulta por complex_id (modelo per-complejo)
+ * complexId = undefined → fallback por user_id (compat. retroactiva)
+ */
+export function useTrialStatus(complexId?: string | null): TrialStatus {
   const { user, isOwner, isAdmin, loading: authLoading } = useAuth();
   const [status, setStatus] = useState<TrialStatus>({
     state: 'loading',
@@ -34,7 +40,6 @@ export function useTrialStatus(): TrialStatus {
   });
 
   useEffect(() => {
-    // Esperar a que useAuth termine de cargar antes de tomar decisiones
     if (authLoading) return;
 
     if (!user) {
@@ -42,31 +47,42 @@ export function useTrialStatus(): TrialStatus {
       return;
     }
 
-    // Admins nunca están bloqueados
+    // Admins nunca bloqueados
     if (isAdmin) {
       setStatus({ state: 'activa', diasRestantes: 999, diasGracia: 0, endsAt: null, isBlocked: false });
       return;
     }
-    // No es owner → no aplica trial
+
     if (!isOwner) {
       setStatus({ state: 'sin_plan', diasRestantes: 0, diasGracia: 0, endsAt: null, isBlocked: false });
       return;
     }
 
+    // null = aún cargando el complejo activo
+    if (complexId === null) return;
+
     const fetchStatus = async () => {
-      const { data } = await supabase
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      let query: any = supabase
         .from('subscriptions' as never)
         .select('status, is_trial, starts_at, ends_at')
-        .eq('user_id', user.id)
         .eq('plan', 'owner')
         .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle() as { data: {
-          status: string;
-          is_trial: boolean;
-          starts_at: string | null;
-          ends_at: string | null;
-        } | null };
+        .limit(1);
+
+      if (complexId) {
+        query = query.eq('complex_id', complexId);
+      } else {
+        // undefined: sin complejo todavía → fallback por user_id
+        query = query.eq('user_id', user.id);
+      }
+
+      const { data } = await query.maybeSingle() as { data: {
+        status: string;
+        is_trial: boolean;
+        starts_at: string | null;
+        ends_at: string | null;
+      } | null };
 
       if (!data) {
         setStatus({ state: 'sin_plan', diasRestantes: 0, diasGracia: 0, endsAt: null, isBlocked: false });
@@ -99,12 +115,11 @@ export function useTrialStatus(): TrialStatus {
         return;
       }
 
-      // Estado expired explícito
       setStatus({ state: 'expirado', diasRestantes: 0, diasGracia: 0, endsAt: null, isBlocked: true });
     };
 
     fetchStatus();
-  }, [user, isOwner, isAdmin, authLoading]);
+  }, [user, isOwner, isAdmin, authLoading, complexId]);
 
   return status;
 }

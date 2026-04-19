@@ -2,7 +2,7 @@
 export const dynamic = 'force-dynamic';
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import { Rocket, CheckCircle2, Loader, Crown, Calendar, Shield, Zap } from "lucide-react";
 import { useAuth } from "@/lib/hooks/useAuth";
@@ -19,9 +19,13 @@ const INCLUIDO = [
 
 export default function ActivarTrialPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Si viene desde el guard con un complex_id conocido (segundo complejo+)
+  const complexId = searchParams.get("complex_id");
 
   const handleActivar = async () => {
     if (!user) return;
@@ -32,7 +36,7 @@ export default function ActivarTrialPage() {
       const now = new Date().toISOString();
       const trialEnd = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
 
-      const { error: insertError } = await supabaseMut.from("subscriptions").insert({
+      const payload: Record<string, unknown> = {
         user_id: user.id,
         plan: "owner",
         status: "trial",
@@ -40,11 +44,17 @@ export default function ActivarTrialPage() {
         starts_at: now,
         ends_at: trialEnd,
         created_at: now,
-      });
+      };
 
+      // Si viene con complex_id ya resuelto (segundo+ complejo)
+      if (complexId) payload.complex_id = complexId;
+
+      const { error: insertError } = await supabaseMut.from("subscriptions").insert(payload);
       if (insertError) throw insertError;
 
-      router.push("/onboarding/dueno");
+      // Primer complejo → onboarding para crearlo
+      // Segundo+ complejo → ya existe, volver al panel
+      router.push(complexId ? "/owner" : "/onboarding/dueno");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error al activar el trial");
     } finally {
@@ -70,10 +80,14 @@ export default function ActivarTrialPage() {
         {/* Card principal */}
         <div className="liquid-panel p-8 space-y-6 text-center">
           <div className="space-y-2">
-            <h1 className="text-3xl font-black text-white">¡Bienvenido a ElPiqueApp!</h1>
+            <h1 className="text-3xl font-black text-white">
+              {complexId ? "Activar licencia para este complejo" : "¡Bienvenido a ElPiqueApp!"}
+            </h1>
             <p className="text-rodeo-cream/60 text-sm leading-relaxed">
-              Probá todas las funciones gratis durante 30 días. Sin compromisos.
-              Al vencer, elegís si querés continuar con un plan pago.
+              {complexId
+                ? "Cada complejo tiene su propia licencia. Probá 30 días gratis y luego elegís si continuar."
+                : "Probá todas las funciones gratis durante 30 días. Sin compromisos. Al vencer, elegís si querés continuar con un plan pago."
+              }
             </p>
           </div>
 
@@ -115,7 +129,7 @@ export default function ActivarTrialPage() {
           <div className="flex items-start gap-2.5 px-3 py-2.5 rounded-[12px] bg-white/5 border border-white/8 text-left">
             <Shield size={14} className="text-rodeo-cream/40 shrink-0 mt-0.5" />
             <p className="text-xs text-rodeo-cream/50 leading-relaxed">
-              Al vencer los 30 días tenés <span className="text-white font-bold">2 días de prórroga</span> para elegir un plan sin perder acceso a tu datos.
+              Al vencer los 30 días tenés <span className="text-white font-bold">2 días de prórroga</span> para elegir un plan sin perder acceso a tus datos.
             </p>
           </div>
 
