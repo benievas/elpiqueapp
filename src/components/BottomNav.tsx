@@ -1,24 +1,39 @@
 "use client";
 
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
-import { Home, Search, MapPin, Rss, Trophy, User, Building2 } from "lucide-react";
+import { Home, Search, MapPin, Rss, Trophy, User, Building2, Plus } from "lucide-react";
 import { useAuth } from "@/lib/hooks/useAuth";
+import { useState, useEffect, useRef } from "react";
 
-const navItems = [
-  { href: "/", label: "Inicio", Icon: Home },
+const NAV_ITEMS = [
+  { href: "/",        label: "Inicio",   Icon: Home },
   { href: "/explorar", label: "Explorar", Icon: Search },
-  { href: "/mapa", label: "Mapa", Icon: MapPin },
-  { href: "/feed", label: "Feed", Icon: Rss },
-  { href: "/torneos", label: "Torneos", Icon: Trophy },
-  { href: "/perfil", label: "Perfil", Icon: User },
+  { href: "/mapa",    label: "Mapa",     Icon: MapPin },
+  { href: "/feed",    label: "Feed",     Icon: Rss },
+  { href: "/torneos", label: "Torneos",  Icon: Trophy },
+  { href: "/perfil",  label: "Perfil",   Icon: User },
 ];
 
 export default function BottomNav() {
   const pathname = usePathname();
+  const router = useRouter();
   const { isOwner, isAdmin } = useAuth();
+  const [scrolled, setScrolled] = useState(false);
+  const lastScrollY = useRef(0);
 
-  // No mostrar en panel owner/admin ni en mapa (tiene su propia bottom sheet)
+  // Collapse nav on scroll down, expand on scroll up
+  useEffect(() => {
+    const onScroll = () => {
+      const y = window.scrollY;
+      if (y > 80 && y > lastScrollY.current) setScrolled(true);
+      else if (y < lastScrollY.current - 10) setScrolled(false);
+      lastScrollY.current = y;
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
   if (
     pathname.startsWith("/owner") ||
     pathname.startsWith("/admin") ||
@@ -26,98 +41,70 @@ export default function BottomNav() {
     pathname === "/mapa"
   ) return null;
 
+  const allItems = [
+    ...NAV_ITEMS,
+    ...(isOwner || isAdmin ? [{ href: "/owner", label: "Mi Panel", Icon: Building2 }] : []),
+  ];
+
   return (
-    <nav className="fixed bottom-4 left-3 right-3 z-40 md:hidden">
-      {/* Contenedor principal con Apple Liquid Glass premium */}
+    <nav className="fixed bottom-3 left-0 right-0 z-40 md:hidden flex items-center justify-center gap-2.5 px-4">
+
+      {/* Main nav pill */}
       <div
-        className="flex items-center justify-around px-1 py-2 relative overflow-hidden"
+        className={`flex items-center gap-0.5 transition-all duration-300 ease-out ${scrolled ? "opacity-85 scale-95" : ""}`}
         style={{
-          borderRadius: "30px",
-          /* Fondo glass con gradiente especular como iOS */
-          background: "linear-gradient(160deg, rgba(255,255,255,0.16) 0%, rgba(255,255,255,0.07) 40%, rgba(255,255,255,0.04) 100%)",
-          backdropFilter: "blur(52px) saturate(220%) brightness(1.15)",
-          WebkitBackdropFilter: "blur(52px) saturate(220%) brightness(1.15)",
-          /* Borde con highlights direccionales */
-          border: "1px solid rgba(255,255,255,0.26)",
-          borderTopColor: "rgba(255,255,255,0.42)",
-          borderLeftColor: "rgba(255,255,255,0.32)",
-          borderBottomColor: "rgba(255,255,255,0.08)",
-          /* Sombra multicapa */
-          boxShadow: [
-            "0 16px 48px rgba(0,0,0,0.6)",
-            "0 4px 16px rgba(0,0,0,0.35)",
-            "inset 0 2px 0 rgba(255,255,255,0.3)",
-            "inset 0 -1px 0 rgba(0,0,0,0.18)",
-            "inset 1px 0 0 rgba(255,255,255,0.14)",
-          ].join(", "),
+          padding: scrolled ? "5px 6px" : "7px 8px",
+          borderRadius: "28px",
+          background: "linear-gradient(160deg, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0.06) 45%, rgba(255,255,255,0.03) 100%)",
+          backdropFilter: "blur(48px) saturate(200%)",
+          WebkitBackdropFilter: "blur(48px) saturate(200%)",
+          border: "1px solid rgba(255,255,255,0.22)",
+          borderTopColor: "rgba(255,255,255,0.38)",
+          boxShadow: "0 16px 44px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.28)",
         }}
       >
-        {/* Reflejo especular superior — efecto Apple exacto */}
-        <div
-          style={{
-            position: "absolute",
-            top: 0, left: "10%", right: "10%",
-            height: "38%",
-            borderRadius: "0 0 60% 60%",
-            background: "linear-gradient(180deg, rgba(255,255,255,0.18) 0%, transparent 100%)",
-            pointerEvents: "none",
-          }}
-        />
-
-        {[...navItems, ...(isOwner || isAdmin ? [{ href: "/owner", label: "Mi Panel", Icon: Building2 }] : [])].map(({ href, label, Icon }) => {
-          const isActive = pathname === href || (href !== "/" && pathname.startsWith(href));
+        {allItems.map(({ href, label, Icon }) => {
+          const isActive = href === "/" ? pathname === "/" : pathname.startsWith(href);
           return (
             <Link
               key={href}
               href={href}
-              className="flex flex-col items-center gap-[3px] relative"
-              style={{ padding: "6px 10px", borderRadius: "18px", transition: "all 0.2s ease" }}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: isActive ? 6 : 0,
+                padding: scrolled ? "7px 8px" : "8px 10px",
+                borderRadius: "20px",
+                background: isActive
+                  ? "linear-gradient(160deg, rgba(200,255,0,0.24), rgba(200,255,0,0.08))"
+                  : "transparent",
+                border: isActive
+                  ? "1px solid rgba(200,255,0,0.35)"
+                  : "1px solid transparent",
+                boxShadow: isActive
+                  ? "inset 0 1px 0 rgba(255,255,255,0.3), 0 0 16px rgba(200,255,0,0.18)"
+                  : "none",
+                color: isActive ? "#C8FF00" : "rgba(232,240,228,0.5)",
+                transition: "all 360ms cubic-bezier(0.34, 1.3, 0.64, 1)",
+                overflow: "hidden",
+                whiteSpace: "nowrap",
+              }}
             >
-              {/* Fondo activo con glass lime */}
-              {isActive && (
-                <div
-                  style={{
-                    position: "absolute",
-                    inset: 0,
-                    borderRadius: "18px",
-                    background: "linear-gradient(160deg, rgba(200,255,0,0.22) 0%, rgba(200,255,0,0.1) 100%)",
-                    border: "1px solid rgba(200,255,0,0.3)",
-                    boxShadow: "inset 0 1px 0 rgba(200,255,0,0.3), 0 0 16px rgba(200,255,0,0.12)",
-                  }}
-                />
-              )}
-              {/* Reflejo especular sobre ítem activo */}
-              {isActive && (
-                <div
-                  style={{
-                    position: "absolute",
-                    top: 0, left: 0, right: 0,
-                    height: "50%",
-                    borderRadius: "18px 18px 0 0",
-                    background: "linear-gradient(180deg, rgba(255,255,255,0.15) 0%, transparent 100%)",
-                    pointerEvents: "none",
-                  }}
-                />
-              )}
-
               <Icon
-                size={21}
-                strokeWidth={isActive ? 2.4 : 1.7}
-                style={{
-                  color: isActive ? "#C8FF00" : "rgba(232,240,228,0.48)",
-                  filter: isActive ? "drop-shadow(0 0 5px rgba(200,255,0,0.55))" : "none",
-                  position: "relative",
-                  transition: "all 0.2s ease",
-                }}
+                size={scrolled ? 17 : 18}
+                strokeWidth={isActive ? 2.3 : 1.8}
+                style={{ flexShrink: 0, transition: "all 0.2s" }}
               />
+              {/* Label only visible for active item */}
               <span
                 style={{
-                  fontSize: "9.5px",
-                  fontWeight: isActive ? 700 : 500,
+                  fontSize: "12px",
+                  fontWeight: 700,
+                  maxWidth: isActive && !scrolled ? "80px" : "0px",
+                  opacity: isActive && !scrolled ? 1 : 0,
+                  overflow: "hidden",
+                  transition: "max-width 380ms cubic-bezier(0.34, 1.3, 0.64, 1), opacity 260ms",
                   letterSpacing: "0.01em",
-                  color: isActive ? "#C8FF00" : "rgba(232,240,228,0.42)",
-                  position: "relative",
-                  transition: "all 0.2s ease",
                 }}
               >
                 {label}
@@ -126,6 +113,32 @@ export default function BottomNav() {
           );
         })}
       </div>
+
+      {/* FAB — nueva reserva */}
+      <button
+        onClick={() => router.push("/explorar")}
+        aria-label="Reservar cancha"
+        style={{
+          width: 48,
+          height: 48,
+          borderRadius: "999px",
+          background: "linear-gradient(135deg, #C8FF00 0%, #A8D800 100%)",
+          color: "#040D07",
+          border: "1px solid rgba(255,255,255,0.3)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          boxShadow: "0 8px 24px rgba(200,255,0,0.45), inset 0 1px 0 rgba(255,255,255,0.5)",
+          flexShrink: 0,
+          transition: "transform 260ms cubic-bezier(0.34, 1.56, 0.64, 1)",
+        }}
+        onMouseEnter={e => (e.currentTarget.style.transform = "scale(1.08) rotate(8deg)")}
+        onMouseLeave={e => (e.currentTarget.style.transform = "scale(1)")}
+        onMouseDown={e => (e.currentTarget.style.transform = "scale(0.92)")}
+        onMouseUp={e => (e.currentTarget.style.transform = "scale(1.08)")}
+      >
+        <Plus size={22} strokeWidth={2.5} />
+      </button>
     </nav>
   );
 }

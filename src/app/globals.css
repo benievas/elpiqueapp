@@ -124,6 +124,41 @@ body {
   }
 }
 
+/* ── Display / Barlow Condensed ── */
+@utility font-display {
+  font-family: 'Barlow Condensed', 'SF Pro Display', system-ui, sans-serif;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+  text-transform: uppercase;
+  line-height: 0.95;
+}
+
+/* ── Eyebrow ── */
+@utility eyebrow {
+  font-family: 'Inter', system-ui, sans-serif;
+  font-weight: 700;
+  font-size: 11px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+
+/* ── Section header slash style ── */
+@utility section-slash {
+  color: #C8FF00;
+  filter: drop-shadow(0 0 10px rgba(200,255,0,0.5));
+  margin-right: 6px;
+}
+
+/* ── Grain texture overlay ── */
+@utility bg-grain {
+  background-image:
+    radial-gradient(circle at 20% 30%, rgba(255,255,255,0.05) 0 1px, transparent 1px),
+    radial-gradient(circle at 80% 70%, rgba(255,255,255,0.04) 0 1px, transparent 1px);
+  background-size: 38px 38px, 56px 56px;
+  mix-blend-mode: overlay;
+  pointer-events: none;
+}
+
 /* ── Scrollbars ── */
 @utility no-scrollbar {
   &::-webkit-scrollbar { display: none; }

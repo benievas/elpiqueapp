@@ -128,7 +128,9 @@ export default function ExplorarPage() {
           <Link href="/" className="w-10 h-10 rounded-full border border-white/20 bg-white/8 hover:bg-white/15 flex items-center justify-center transition-all">
             <ChevronLeft className="text-rodeo-cream" size={20} />
           </Link>
-          <h1 className="text-lg font-black text-rodeo-cream tracking-wide">Explorar Complejos</h1>
+          <h1 style={{ fontFamily: "'Barlow Condensed', system-ui, sans-serif", fontWeight: 900, fontSize: "22px", letterSpacing: "-0.01em", textTransform: "uppercase", lineHeight: 1 }} className="text-rodeo-cream">
+            <span className="section-slash">/</span>Explorar
+          </h1>
           <div className="w-10" />
         </header>
 
@@ -255,7 +257,7 @@ export default function ExplorarPage() {
                       </div>
                       <div className="p-4 flex flex-col gap-3">
                         <div>
-                          <h3 className="text-sm font-bold text-white leading-tight">{complejo.nombre}</h3>
+                          <h3 style={{ fontFamily: "'Barlow Condensed', system-ui, sans-serif", fontWeight: 900, fontSize: "18px", letterSpacing: "-0.01em", textTransform: "uppercase", lineHeight: 1.05 }} className="text-white">{complejo.nombre}</h3>
                           <div className="flex items-center gap-1 text-xs text-rodeo-cream/50 mt-1">
                             <MapPin size={11} />{complejo.direccion}
                           </div>

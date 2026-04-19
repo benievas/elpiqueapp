@@ -258,7 +258,16 @@ export default function Home() {
             className="absolute inset-0 w-full h-full object-cover z-0"
           />
         </AnimatePresence>
-        <div className="absolute inset-0 bg-black/50 z-0 backdrop-blur-sm" />
+        {/* Overlay multicapa — radial lime + gradient vertical, sin blur */}
+        <div className="absolute inset-0 z-0 pointer-events-none" style={{
+          background: [
+            "radial-gradient(60% 50% at 75% 0%, rgba(200,255,0,0.12), transparent 70%)",
+            "radial-gradient(40% 50% at 10% 100%, rgba(0,230,118,0.08), transparent 60%)",
+            "linear-gradient(180deg, rgba(4,13,7,0.3) 0%, rgba(4,13,7,0.2) 50%, rgba(4,13,7,0.78) 100%)",
+          ].join(", "),
+        }} />
+        {/* Grain texture */}
+        <div className="absolute inset-0 z-0 opacity-40 bg-grain" />
 
         {/* NAVBAR — flotante sin fondo, elementos directamente sobre el hero */}
         <header className="absolute top-0 w-full px-6 md:px-12 py-5 flex justify-between items-center z-20">
@@ -301,10 +310,10 @@ export default function Home() {
                 transition={{ duration: 0.5 }}
                 className="flex flex-col gap-4"
               >
-                <span className="text-sm font-semibold tracking-[0.3em] text-rodeo-cream/80 uppercase">
+                <span className="eyebrow" style={{ color: "rgba(232,240,228,0.82)" }}>
                   {activeItem.subtitle}
                 </span>
-                <h1 className="text-5xl md:text-7xl font-black leading-[0.9] tracking-tighter text-white uppercase">
+                <h1 className="font-display" style={{ fontSize: "clamp(48px, 8vw, 96px)", color: "#fff", margin: "10px 0 0", maxWidth: 640 }}>
                   {activeItem.title}
                 </h1>
                 <p className="text-base md:text-lg text-rodeo-cream/90 max-w-md mt-2 font-light leading-relaxed">
@@ -382,7 +391,7 @@ export default function Home() {
               <ChevronRight size={24} />
             </button>
           </div>
-          <div className="text-6xl md:text-8xl font-black text-white/20 tracking-tighter tabular-nums leading-none">
+          <div className="font-display" style={{ fontSize: "clamp(72px, 12vw, 128px)", color: "rgba(255,255,255,0.14)", letterSpacing: "-0.02em", lineHeight: "0.8" }}>
             0{currentIndex + 1}
           </div>
         </footer>
@@ -409,7 +418,9 @@ export default function Home() {
       {/* ACCESO RÁPIDO */}
       <section className="px-6 py-12">
         <div className="max-w-4xl mx-auto">
-          <h2 className="text-xs font-bold tracking-widest uppercase text-rodeo-cream/40 mb-5">Acceso Rápido</h2>
+          <h2 className="font-display mb-6" style={{ fontSize: "clamp(28px, 4vw, 40px)", color: "#fff" }}>
+            <span className="section-slash">/</span>Acceso Rápido
+          </h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             {ACCESO_RAPIDO.map((item) => {
               const Icono = item.icono;
@@ -432,13 +443,15 @@ export default function Home() {
       {/* STATS */}
       <section className="px-6 py-12 border-t border-white/5">
         <div className="max-w-4xl mx-auto">
-          <h2 className="text-xs font-bold tracking-widest uppercase text-rodeo-cream/40 mb-8">ElPiqueApp en Números</h2>
+          <h2 className="font-display mb-8" style={{ fontSize: "clamp(28px, 4vw, 40px)", color: "#fff" }}>
+            <span className="section-slash">/</span>ElPiqueApp en Números
+          </h2>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
             {MOCK_STATS.map((stat, i) => (
               <motion.div key={i} initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.5, delay: i * 0.1 }} className="flex flex-col gap-1">
-                <div className="text-4xl font-black text-white leading-none">
+                <div className="font-display" style={{ fontSize: 44, color: "#fff", lineHeight: "0.95", letterSpacing: "-0.02em" }}>
                   {stat.valor}
-                  {stat.unidad && <span className="text-2xl text-rodeo-cream/40 ml-1">{stat.unidad}</span>}
+                  {stat.unidad && <span style={{ fontSize: 28, color: "#C8FF00" }}>{stat.unidad}</span>}
                 </div>
                 <p className="text-xs text-rodeo-cream/50 leading-relaxed">{stat.descripcion}</p>
               </motion.div>
@@ -450,7 +463,9 @@ export default function Home() {
       {/* COMPLEJOS DESTACADOS */}
       <section className="py-12 border-t border-white/5">
         <div className="max-w-4xl mx-auto">
-          <h2 className="text-2xl font-black uppercase tracking-tight text-white px-6 mb-6">Complejos Destacados</h2>
+          <h2 className="font-display px-6 mb-6" style={{ fontSize: "clamp(28px, 4vw, 40px)", color: "#fff" }}>
+            <span className="section-slash">/</span>Complejos Destacados
+          </h2>
           <div className="flex gap-4 overflow-x-auto px-6 pb-4 snap-x snap-mandatory scroll-smooth scrollbar-thin">
             {destacadosAleatorios.map((lugar, i) => (
               <Link key={i} href={`/complejo/${lugar.slug}`} className="w-64 shrink-0 liquid-panel overflow-hidden hover:bg-white/10 transition-colors snap-start">
@@ -484,8 +499,8 @@ export default function Home() {
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-rodeo-lime/10 border border-rodeo-lime/20 text-rodeo-lime text-xs font-bold tracking-widest uppercase">
                 <Zap size={12} /> ¿Qué es ElPiqueApp?
               </div>
-              <h2 className="text-3xl md:text-4xl font-black text-white uppercase tracking-tight leading-tight">
-                La app deportiva de Catamarca
+              <h2 className="font-display" style={{ fontSize: "clamp(32px, 5vw, 52px)", color: "#fff" }}>
+                La app deportiva<br/>de Catamarca
               </h2>
               <p className="text-rodeo-cream/70 leading-relaxed">
                 ElPiqueApp conecta jugadores con complejos deportivos de forma simple y rápida. Buscás la cancha, elegís el horario disponible y reservás directo por WhatsApp — sin apps extra, sin complicaciones.
@@ -622,7 +637,9 @@ export default function Home() {
 
           {/* Ventajas competitivas */}
           <div className="max-w-3xl mx-auto">
-            <p className="text-xs font-bold tracking-widest uppercase text-rodeo-cream/40 mb-6 text-center">¿Por qué ElPiqueApp y no otra plataforma?</p>
+            <h2 className="font-display mb-6 text-center" style={{ fontSize: "clamp(28px, 4vw, 40px)", color: "#fff" }}>
+              <span className="section-slash">/</span>¿Por qué ElPiqueApp?
+            </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-8">
               {[
                 { icon: Zap, highlight: "Canchas ilimitadas", text: "Sin límite de canchas por complejo. Agregá todas las que tenés." },
