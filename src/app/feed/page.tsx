@@ -188,14 +188,36 @@ export default function FeedPage() {
               const tipoColor = getTipoColor(post.tipo);
               const isLiked = likedPosts.has(post.id);
 
+              const compartir = async (e: React.MouseEvent) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const url = `${window.location.origin}/feed/${post.id}`;
+                const shareData = { title: post.titulo, text: post.contenido.slice(0, 140), url };
+                const nav = navigator as Navigator & { share?: (d: ShareData) => Promise<void> };
+                if (nav.share) {
+                  try { await nav.share(shareData); return; } catch { /* cancelled */ }
+                }
+                try { await navigator.clipboard.writeText(url); alert("Enlace copiado"); }
+                catch { alert(url); }
+              };
+
+              const toggleLike = (e: React.MouseEvent) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const newLiked = new Set(likedPosts);
+                if (newLiked.has(post.id)) newLiked.delete(post.id);
+                else newLiked.add(post.id);
+                setLikedPosts(newLiked);
+              };
+
               return (
                 <motion.div
                   key={post.id}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: idx * 0.1 }}
-                  className="liquid-panel overflow-hidden"
                 >
+                  <Link href={`/feed/${post.id}`} className="block liquid-panel overflow-hidden hover:border-white/25 transition-colors">
                   {/* Imagen */}
                   {post.imagen_principal && (
                     <div className="relative h-64 overflow-hidden bg-white/2">
@@ -240,15 +262,7 @@ export default function FeedPage() {
                     <div className="flex items-center justify-between pt-4 border-t border-white/10">
                       <div className="flex gap-4">
                         <button
-                          onClick={() => {
-                            const newLiked = new Set(likedPosts);
-                            if (newLiked.has(post.id)) {
-                              newLiked.delete(post.id);
-                            } else {
-                              newLiked.add(post.id);
-                            }
-                            setLikedPosts(newLiked);
-                          }}
+                          onClick={toggleLike}
                           className={`flex items-center gap-2 text-sm font-bold transition-colors ${
                             isLiked
                               ? "text-red-400"
@@ -259,18 +273,19 @@ export default function FeedPage() {
                             size={18}
                             className={isLiked ? "fill-current" : ""}
                           />
-                          {isLiked ? "Me encanta" : "Me encanta"}
+                          Me encanta
                         </button>
-                        <button className="flex items-center gap-2 text-sm font-bold text-rodeo-cream/60 hover:text-rodeo-lime transition-colors">
+                        <span className="flex items-center gap-2 text-sm font-bold text-rodeo-cream/60">
                           <MessageCircle size={18} />
                           Comentar
-                        </button>
+                        </span>
                       </div>
-                      <button className="p-2 hover:bg-white/5 rounded-lg transition-colors">
-                        <Share2 size={18} className="text-rodeo-cream/60" />
+                      <button onClick={compartir} className="p-2 hover:bg-white/10 rounded-lg transition-colors" title="Compartir">
+                        <Share2 size={18} className="text-rodeo-cream/60 hover:text-rodeo-lime" />
                       </button>
                     </div>
                   </div>
+                  </Link>
                 </motion.div>
               );
             })}
