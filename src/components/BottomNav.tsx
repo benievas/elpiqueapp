@@ -38,6 +38,7 @@ export default function BottomNav() {
     pathname.startsWith("/owner") ||
     pathname.startsWith("/admin") ||
     pathname.startsWith("/onboarding") ||
+    pathname.startsWith("/complejo/") ||
     pathname === "/mapa"
   ) return null;
 

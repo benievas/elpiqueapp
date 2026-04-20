@@ -6,7 +6,7 @@ import { CityProvider } from "@/lib/context/CityContext";
 import QueryProvider from "@/components/providers/QueryProvider";
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || "https://matchpro.ar"),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || "https://elpiqueapp.com"),
   title: "ElPiqueApp - Reserva Canchas Deportivas",
   description: "Plataforma de reservas de canchas deportivas en Catamarca, Buenos Aires y Mendoza. Encuentra complejos, reserva canchas y participa en torneos.",
   keywords: [
@@ -21,7 +21,7 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     locale: "es_AR",
-    url: process.env.NEXT_PUBLIC_APP_URL || "https://matchpro.ar",
+    url: process.env.NEXT_PUBLIC_APP_URL || "https://elpiqueapp.com",
     siteName: "ElPiqueApp",
     title: "ElPiqueApp - Reserva Canchas Deportivas",
     description: "La plataforma más completa para reservar canchas deportivas",
