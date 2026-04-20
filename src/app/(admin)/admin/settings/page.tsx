@@ -66,7 +66,7 @@ export default function AdminSettingsPage() {
         </Link>
         <div>
           <p className="text-xs font-bold tracking-widest uppercase text-rodeo-cream/40">Admin</p>
-          <h1 className="text-2xl font-black text-white uppercase tracking-tight">Configuración</h1>
+          <h1 style={{ fontFamily: "'Barlow Condensed', system-ui, sans-serif", fontWeight: 900, fontSize: "28px", letterSpacing: "-0.02em", textTransform: "uppercase", lineHeight: 0.95 }} className="text-white"><span className="section-slash">/</span>Configuración</h1>
         </div>
       </div>
 

@@ -98,7 +98,7 @@ export default function AdminDashboard() {
       <div className="flex items-center justify-between">
         <div>
           <p className="text-xs font-bold tracking-widest uppercase text-rodeo-cream/40">Superadmin</p>
-          <h1 className="text-3xl font-black text-white uppercase tracking-tight mt-0.5">Dashboard</h1>
+          <h1 style={{ fontFamily: "'Barlow Condensed', system-ui, sans-serif", fontWeight: 900, fontSize: "34px", letterSpacing: "-0.02em", textTransform: "uppercase", lineHeight: 0.95 }} className="text-white mt-0.5"><span className="section-slash">/</span>Dashboard</h1>
         </div>
         <button onClick={load} disabled={loading}
           style={{ background: "rgba(200,255,0,0.1)", border: "1px solid rgba(200,255,0,0.2)", borderRadius: "10px" }}

@@ -5,7 +5,7 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { supabase, supabaseMut } from "@/lib/supabase";
-import { MapPin, Phone, Clock, Star, Edit, Plus, Loader, X, Save } from "lucide-react";
+import { MapPin, Phone, Clock, Star, Edit, Plus, Loader, X, Save, Upload, Image as ImageIcon } from "lucide-react";
 
 interface Complex {
   id: string;
@@ -24,6 +24,8 @@ interface Complex {
   deporte_principal: string;
   deportes: string[];
   servicios: string[];
+  imagen_principal: string | null;
+  galeria: string[] | null;
 }
 
 const DEPORTES = ["futbol","padel","tenis","voley","basquet"];
@@ -52,8 +54,10 @@ export default function OwnerComplejoPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
-  const emptyForm = { nombre:"", descripcion:"", ciudad:"Catamarca", direccion:"", telefono:"", whatsapp:"", horario_abierto:"08:00", horario_cierre:"22:00", deporte_principal:"futbol", deportes:["futbol"] as string[], servicios:[] as string[] };
+  const emptyForm = { nombre:"", descripcion:"", ciudad:"Catamarca", direccion:"", telefono:"", whatsapp:"", horario_abierto:"08:00", horario_cierre:"22:00", deporte_principal:"futbol", deportes:["futbol"] as string[], servicios:[] as string[], imagen_principal:"" as string, galeria:[] as string[] };
   const [form, setForm] = useState(emptyForm);
+  const [uploadingMain, setUploadingMain] = useState(false);
+  const [uploadingGallery, setUploadingGallery] = useState(false);
 
   useEffect(() => { if (user) fetchComplejos(); }, [user]);
 
@@ -66,15 +70,52 @@ export default function OwnerComplejoPage() {
   const openCreate = () => { setEditing(null); setForm(emptyForm); setError(""); setShowModal(true); };
   const openEdit = (c: Complex) => {
     setEditing(c);
-    setForm({ nombre: c.nombre, descripcion: c.descripcion || "", ciudad: c.ciudad, direccion: c.direccion, telefono: c.telefono || "", whatsapp: c.whatsapp, horario_abierto: c.horario_abierto, horario_cierre: c.horario_cierre, deporte_principal: c.deporte_principal, deportes: c.deportes || [], servicios: c.servicios || [] });
+    setForm({ nombre: c.nombre, descripcion: c.descripcion || "", ciudad: c.ciudad, direccion: c.direccion, telefono: c.telefono || "", whatsapp: c.whatsapp, horario_abierto: c.horario_abierto, horario_cierre: c.horario_cierre, deporte_principal: c.deporte_principal, deportes: c.deportes || [], servicios: c.servicios || [], imagen_principal: c.imagen_principal || "", galeria: c.galeria || [] });
     setError(""); setShowModal(true);
   };
+
+  const uploadImage = async (file: File): Promise<string> => {
+    if (!user) throw new Error("No autenticado");
+    const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
+    const path = `${user.id}/${Date.now()}-${Math.random().toString(36).slice(2,8)}.${ext}`;
+    const { error: upErr } = await supabaseMut.storage.from("complex-images").upload(path, file, { cacheControl: "3600", upsert: false });
+    if (upErr) throw upErr;
+    const { data } = supabaseMut.storage.from("complex-images").getPublicUrl(path);
+    return data.publicUrl;
+  };
+
+  const handleMainUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) { setError("La imagen no puede superar 5MB."); return; }
+    setUploadingMain(true); setError("");
+    try {
+      const url = await uploadImage(file);
+      setForm(f => ({ ...f, imagen_principal: url }));
+    } catch (err) {
+      setError((err as { message?: string }).message || "Error al subir imagen.");
+    } finally { setUploadingMain(false); }
+  };
+
+  const handleGalleryUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+    setUploadingGallery(true); setError("");
+    try {
+      const urls = await Promise.all(files.map(uploadImage));
+      setForm(f => ({ ...f, galeria: [...f.galeria, ...urls] }));
+    } catch (err) {
+      setError((err as { message?: string }).message || "Error al subir imágenes.");
+    } finally { setUploadingGallery(false); e.target.value = ""; }
+  };
+
+  const removeGalleryImage = (url: string) => setForm(f => ({ ...f, galeria: f.galeria.filter(u => u !== url) }));
 
   const handleSave = async () => {
     if (!form.nombre || !form.direccion || !form.whatsapp) { setError("Nombre, dirección y WhatsApp son obligatorios."); return; }
     setSaving(true); setError("");
     try {
-      const payload = { ...form, slug: slugify(form.nombre), owner_id: user!.id, activo: true, lat: -28.4696, lng: -65.7852 };
+      const payload = { ...form, imagen_principal: form.imagen_principal || null, slug: slugify(form.nombre), owner_id: user!.id, activo: true, lat: -28.4696, lng: -65.7852 };
       if (editing) {
         const { error: e } = await supabaseMut.from("complexes").update(payload).eq("id", editing.id);
         if (e) throw e;
@@ -181,6 +222,51 @@ export default function OwnerComplejoPage() {
                   <div className="space-y-1.5">
                     <label className="text-xs font-bold text-rodeo-cream/40 uppercase tracking-widest">Descripción</label>
                     <textarea rows={3} placeholder="Describí tu complejo..." value={form.descripcion} onChange={e=>setForm(f=>({...f,descripcion:e.target.value}))} style={{...glassInput,resize:"none"}}/>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-rodeo-cream/40 uppercase tracking-widest">Imagen principal</label>
+                    {form.imagen_principal ? (
+                      <div className="relative group" style={{ borderRadius: "12px", overflow: "hidden", border: "1px solid rgba(255,255,255,0.12)" }}>
+                        <img src={form.imagen_principal} alt="Imagen principal" className="w-full h-40 object-cover" />
+                        <button type="button" onClick={()=>setForm(f=>({...f, imagen_principal: ""}))} style={{ background:"rgba(0,0,0,0.7)", borderRadius:"8px" }} className="absolute top-2 right-2 p-1.5 text-white hover:bg-red-500/80 transition-colors">
+                          <X size={14}/>
+                        </button>
+                      </div>
+                    ) : (
+                      <label style={{ background:"rgba(255,255,255,0.04)", border:"1px dashed rgba(255,255,255,0.18)", borderRadius:"12px" }} className="flex flex-col items-center justify-center gap-2 py-6 cursor-pointer hover:bg-white/8 transition-colors">
+                        {uploadingMain ? (
+                          <><Loader size={18} className="animate-spin text-rodeo-lime"/><span className="text-xs text-rodeo-cream/60">Subiendo...</span></>
+                        ) : (
+                          <><Upload size={18} className="text-rodeo-lime"/><span className="text-xs text-rodeo-cream/60">Click para subir (máx 5MB)</span></>
+                        )}
+                        <input type="file" accept="image/*" className="hidden" onChange={handleMainUpload} disabled={uploadingMain}/>
+                      </label>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-rodeo-cream/40 uppercase tracking-widest">Galería ({form.galeria.length})</label>
+                    {form.galeria.length > 0 && (
+                      <div className="grid grid-cols-3 gap-2">
+                        {form.galeria.map(url => (
+                          <div key={url} className="relative group" style={{ borderRadius:"10px", overflow:"hidden", border:"1px solid rgba(255,255,255,0.1)" }}>
+                            <img src={url} alt="" className="w-full h-20 object-cover"/>
+                            <button type="button" onClick={()=>removeGalleryImage(url)} style={{ background:"rgba(0,0,0,0.75)", borderRadius:"6px" }} className="absolute top-1 right-1 p-1 text-white hover:bg-red-500/80 transition-colors opacity-0 group-hover:opacity-100">
+                              <X size={10}/>
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    <label style={{ background:"rgba(255,255,255,0.04)", border:"1px dashed rgba(255,255,255,0.18)", borderRadius:"12px" }} className="flex items-center justify-center gap-2 py-4 cursor-pointer hover:bg-white/8 transition-colors">
+                      {uploadingGallery ? (
+                        <><Loader size={14} className="animate-spin text-rodeo-lime"/><span className="text-xs text-rodeo-cream/60">Subiendo...</span></>
+                      ) : (
+                        <><ImageIcon size={14} className="text-rodeo-lime"/><span className="text-xs text-rodeo-cream/60">Agregar fotos</span></>
+                      )}
+                      <input type="file" accept="image/*" multiple className="hidden" onChange={handleGalleryUpload} disabled={uploadingGallery}/>
+                    </label>
                   </div>
 
                   <div className="grid grid-cols-2 gap-3">

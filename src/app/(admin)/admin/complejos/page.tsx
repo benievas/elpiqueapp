@@ -69,7 +69,7 @@ export default function AdminComplejosPage() {
         </Link>
         <div className="flex-1">
           <p className="text-xs font-bold tracking-widest uppercase text-rodeo-cream/40">Admin</p>
-          <h1 className="text-2xl font-black text-white uppercase tracking-tight">Complejos</h1>
+          <h1 style={{ fontFamily: "'Barlow Condensed', system-ui, sans-serif", fontWeight: 900, fontSize: "28px", letterSpacing: "-0.02em", textTransform: "uppercase", lineHeight: 0.95 }} className="text-white"><span className="section-slash">/</span>Complejos</h1>
         </div>
         <button onClick={load} disabled={loading}
           style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "10px" }}
