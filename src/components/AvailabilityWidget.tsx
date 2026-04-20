@@ -222,6 +222,21 @@ export default function AvailabilityWidget({
       }
       // Refrescar disponibilidad para reflejar el slot recién ocupado
       await cargarDisponibilidad();
+      // Email al dueño (fire-and-forget, no bloquea si falla)
+      fetch("/api/notify/new-reservation", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          complex_id: complexId,
+          jugador_nombre: (user.user_metadata?.nombre_completo as string) || user.email?.split("@")[0] || "Jugador",
+          jugador_email: user.email || "",
+          cancha_nombre: canchaNombre,
+          fecha: fechaSeleccionada,
+          hora_inicio: horaSeleccionada,
+          hora_fin: horaFin,
+          precio_total: precioTotal,
+        }),
+      }).catch(() => { /* silencioso */ });
     }
     setSavingReserva(false);
     setShowConfirmModal(false);
