@@ -1,12 +1,14 @@
 "use client";
 export const dynamic = 'force-dynamic';
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import nextDynamic from "next/dynamic";
 import { ChevronLeft, MapPin, Clock, Phone, Star, X } from "lucide-react";
 import Link from "next/link";
 import CityBanner from "@/components/CityBanner";
+import { supabase } from "@/lib/supabase";
+import { useCityContext } from "@/lib/context/CityContext";
 
 const MapaLeaflet = nextDynamic(() => import("@/components/MapaLeaflet"), {
   ssr: false,
@@ -20,13 +22,43 @@ const MapaLeaflet = nextDynamic(() => import("@/components/MapaLeaflet"), {
   ),
 });
 
-const MOCK_COMPLEJOS = [
-  { id: 1, nombre: "Sportivo Central", deporte: "Fútbol", descripcion: "8 canchas de fútbol sintético de primera calidad", horario: "06:00 - 23:00", telefono: "+54 383 443-1234", abierto: true, distancia: "1.2 km", rating: 4.8, lat: -28.4685, lng: -65.7872, slug: "sportivo-central" },
-  { id: 2, nombre: "Padel Club Elite", deporte: "Padel", descripcion: "6 canchas de padel premium con iluminación LED", horario: "07:00 - 22:00", telefono: "+54 383 443-5678", abierto: true, distancia: "2.3 km", rating: 4.9, lat: -28.4720, lng: -65.7810, slug: "padel-club-elite" },
-  { id: 3, nombre: "Arena Vóley Catamarca", deporte: "Vóley", descripcion: "4 canchas profesionales para vóley y básquetbol", horario: "08:00 - 22:00", telefono: "+54 383 443-9999", abierto: true, distancia: "1.8 km", rating: 4.7, lat: -28.4710, lng: -65.7850, slug: "arena-voley" },
-  { id: 4, nombre: "Tenis Club Catamarca", deporte: "Tenis", descripcion: "5 canchas de tenis con césped y polvo de ladrillo", horario: "07:00 - 20:00", telefono: "+54 383 443-4567", abierto: true, distancia: "3.1 km", rating: 4.6, lat: -28.4668, lng: -65.7825, slug: "tenis-club" },
-  { id: 5, nombre: "Básquet Arena", deporte: "Básquetbol", descripcion: "3 canchas de básquetbol con piso profesional", horario: "08:00 - 21:00", telefono: "+54 383 443-7890", abierto: true, distancia: "2.5 km", rating: 4.5, lat: -28.4700, lng: -65.7890, slug: "basquet-arena" },
-];
+type ComplejoUI = {
+  id: string;
+  nombre: string;
+  deporte: string;
+  descripcion: string;
+  horario: string;
+  telefono: string;
+  abierto: boolean;
+  distancia: string;
+  rating: number;
+  lat: number;
+  lng: number;
+  slug: string;
+};
+
+const DEPORTE_LABEL_UI: Record<string, string> = {
+  futbol: "Fútbol", padel: "Padel", tenis: "Tenis",
+  voley: "Vóley", basquet: "Básquetbol", hockey: "Hockey", squash: "Squash",
+};
+
+function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number) {
+  const R = 6371;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLng = ((lng2 - lng1) * Math.PI) / 180;
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function estaAbierto(horarioAbierto: string, horarioCierre: string): boolean {
+  const now = new Date();
+  const cur = now.getHours() * 60 + now.getMinutes();
+  const [ah, am] = horarioAbierto.split(":").map(Number);
+  const [ch, cm] = horarioCierre.split(":").map(Number);
+  const open = ah * 60 + am;
+  const close = ch * 60 + cm;
+  return close > open ? cur >= open && cur <= close : cur >= open || cur <= close;
+}
 
 const FILTROS = [
   { id: "todos", label: "Todos" },
@@ -51,15 +83,50 @@ const SHEET_HEIGHTS: Record<SheetState, string> = {
 };
 
 export default function MapaPage() {
+  const { ciudadCorta, lat: userLat, lng: userLng, loading: cityLoading } = useCityContext();
   const [filtroActivo, setFiltroActivo] = useState("todos");
-  const [complejoSeleccionado, setComplejoSeleccionado] = useState<typeof MOCK_COMPLEJOS[0] | null>(null);
+  const [complejoSeleccionado, setComplejoSeleccionado] = useState<ComplejoUI | null>(null);
   const [sheetState, setSheetState] = useState<SheetState>("mid");
+  const [complejos, setComplejos] = useState<ComplejoUI[]>([]);
 
-  const complejosFiltrados = filtroActivo === "todos"
-    ? MOCK_COMPLEJOS
-    : MOCK_COMPLEJOS.filter((c) => c.deporte.toLowerCase() === filtroActivo.toLowerCase());
+  useEffect(() => {
+    if (cityLoading) return;
+    (async () => {
+      const { data } = await supabase
+        .from("complexes")
+        .select("id, nombre, slug, deporte_principal, descripcion, whatsapp, telefono, horario_abierto, horario_cierre, rating_promedio, lat, lng")
+        .eq("activo", true)
+        .eq("ciudad", ciudadCorta);
 
-  const handleSelectComplejo = useCallback((complejo: typeof MOCK_COMPLEJOS[0]) => {
+      type Row = { id: string; nombre: string; slug: string; deporte_principal: string; descripcion: string | null; whatsapp: string | null; telefono: string | null; horario_abierto: string; horario_cierre: string; rating_promedio: number | null; lat: number; lng: number };
+      const rows = (data as Row[] | null) ?? [];
+      const mapped = rows.map((c): ComplejoUI => {
+        const dist = userLat && userLng ? haversineKm(userLat, userLng, c.lat, c.lng) : null;
+        return {
+          id: c.id,
+          nombre: c.nombre,
+          deporte: DEPORTE_LABEL_UI[c.deporte_principal] ?? c.deporte_principal,
+          descripcion: c.descripcion ?? "",
+          horario: `${c.horario_abierto.slice(0, 5)} - ${c.horario_cierre.slice(0, 5)}`,
+          telefono: c.telefono ?? c.whatsapp ?? "—",
+          abierto: estaAbierto(c.horario_abierto, c.horario_cierre),
+          distancia: dist !== null ? (dist < 1 ? `${Math.round(dist * 1000)} m` : `${dist.toFixed(1)} km`) : "—",
+          rating: c.rating_promedio ?? 0,
+          lat: c.lat,
+          lng: c.lng,
+          slug: c.slug,
+        };
+      });
+      setComplejos(mapped);
+    })();
+  }, [ciudadCorta, cityLoading, userLat, userLng]);
+
+  const complejosFiltrados = useMemo(
+    () => filtroActivo === "todos" ? complejos : complejos.filter((c) => c.deporte.toLowerCase() === filtroActivo.toLowerCase()),
+    [filtroActivo, complejos]
+  );
+
+  const handleSelectComplejo = useCallback((complejo: ComplejoUI) => {
     setComplejoSeleccionado(complejo);
     setSheetState("mid");
   }, []);
@@ -274,7 +341,7 @@ export default function MapaPage() {
                       Ver canchas y reservar
                     </Link>
                     <a
-                      href={`https://wa.me/5493834431234?text=${encodeURIComponent("Hola! Consulta sobre " + complejoSeleccionado.nombre)}`}
+                      href={`https://wa.me/${complejoSeleccionado.telefono.replace(/\D/g, "")}?text=${encodeURIComponent("Hola! Consulta sobre " + complejoSeleccionado.nombre)}`}
                       target="_blank" rel="noopener noreferrer"
                       className="w-14 py-3.5 rounded-[18px] flex items-center justify-center"
                       style={{ background: "rgba(37,211,102,0.15)", border: "1px solid rgba(37,211,102,0.3)" }}

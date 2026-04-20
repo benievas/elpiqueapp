@@ -27,6 +27,32 @@ import {
 import Link from "next/link";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { useRouter } from "next/navigation";
+import { useCityContext } from "@/lib/context/CityContext";
+import { supabase } from "@/lib/supabase";
+
+const DEPORTE_LABEL: Record<string, string> = {
+  futbol: "FÚTBOL", padel: "PÁDEL", tenis: "TENIS",
+  voley: "VÓLEY", basquet: "BÁSQUET", hockey: "HOCKEY", squash: "SQUASH",
+};
+
+const FALLBACK_IMG_BY_DEPORTE: Record<string, string> = {
+  futbol: "https://images.unsplash.com/photo-1461896836934-ffe607ba8211?q=80&w=2000&auto=format&fit=crop",
+  padel: "https://images.unsplash.com/photo-1554068865-24cecd4e34b8?q=80&w=2000&auto=format&fit=crop",
+  tenis: "https://images.unsplash.com/photo-1595435934249-5df7ed86e1c0?q=80&w=2000&auto=format&fit=crop",
+  voley: "https://images.unsplash.com/photo-1612872087720-bb876e2e67d1?q=80&w=2000&auto=format&fit=crop",
+  basquet: "https://images.unsplash.com/photo-1546519638-68e109498ffc?q=80&w=2000&auto=format&fit=crop",
+};
+
+type ComplejoRow = {
+  id: string;
+  nombre: string;
+  slug: string;
+  deporte_principal: string;
+  descripcion: string | null;
+  imagen_principal: string | null;
+  rating_promedio: number | null;
+  ciudad: string;
+};
 
 // --- SLIDES PROMOCIONALES (sobre ElPiqueApp) ---
 const PROMO_SLIDES = [
@@ -65,79 +91,7 @@ const PROMO_SLIDES = [
   },
 ];
 
-// --- DATOS MOCK DEL SLIDER ---
-const MOCK_DESTINATIONS = [
-  {
-    id: 1,
-    title: "SPORTIVO CENTRAL",
-    subtitle: "FÚTBOL / MULTIDEPORTE",
-    description:
-      "Complejo deportivo profesional con 8 canchas de fútbol sintético, padel y vóley. Infraestructura de primera con vestuarios, estacionamiento y servicios gastronómicos.",
-    bgImage:
-      "https://images.unsplash.com/photo-1461896836934-ffe607ba8211?q=80&w=2000&auto=format&fit=crop",
-    bgVideo: null,
-    cardImage:
-      "https://images.unsplash.com/photo-1461896836934-ffe607ba8211?q=80&w=600&auto=format&fit=crop",
-    slug: "sportivo-central",
-  },
-  {
-    id: 2,
-    title: "PADEL CLUB ELITE",
-    subtitle: "PADEL / TENIS",
-    description:
-      "Cancha de padel con césped sintético de última generación. Iluminación LED profesional para juegos nocturnos y área de espera climatizada.",
-    bgImage:
-      "https://images.unsplash.com/photo-1554068865-24cecd4e34b8?q=80&w=2000&auto=format&fit=crop",
-    bgVideo: null,
-    cardImage:
-      "https://images.unsplash.com/photo-1554068865-24cecd4e34b8?q=80&w=600&auto=format&fit=crop",
-    slug: "padel-club-elite",
-  },
-  {
-    id: 3,
-    title: "ARENA VÓLEY CATAMARCA",
-    subtitle: "VÓLEY / BÁSQUET",
-    description:
-      "Estadio especializado en vóley con 4 canchas profesionales. Capacidad para ligas y torneos internacionales. Zona de entrenamientos y academia.",
-    bgImage:
-      "https://images.unsplash.com/photo-1612872087720-bb876e2e67d1?q=80&w=2000&auto=format&fit=crop",
-    bgVideo: null,
-    cardImage:
-      "https://images.unsplash.com/photo-1612872087720-bb876e2e67d1?q=80&w=600&auto=format&fit=crop",
-    slug: "arena-voley",
-  },
-];
-
-// Interleaved: [promo, complex, promo, complex, promo, complex]
-const ALL_SLIDES = PROMO_SLIDES.flatMap((promo, i) => {
-  const complex = MOCK_DESTINATIONS[i];
-  return complex
-    ? [promo, { ...complex, isPromo: false, ctaLink: `/complejo/${complex.slug}`, ctaLabel: "Reservar Cancha" }]
-    : [promo];
-});
-
-const MOCK_ALERTA_ACTIVA = {
-  activa: false,
-  nivel: "amarillo" as "amarillo" | "rojo",
-  texto: "Mantenimiento en Sportivo Central este sábado. Canchas disponibles a partir del domingo.",
-  tipo: "Mantenimiento",
-};
-
-const MOCK_LUGARES_DESTACADOS = [
-  { slug: "sportivo-central", nombre: "Sportivo Central", categoria: "Fútbol 5/11", rating: 4.8, imagen: "https://images.unsplash.com/photo-1461896836934-ffe607ba8211?q=80&w=600&auto=format&fit=crop" },
-  { slug: "padel-club-elite", nombre: "Padel Club Elite", categoria: "Padel", rating: 4.9, imagen: "https://images.unsplash.com/photo-1554068865-24cecd4e34b8?q=80&w=600&auto=format&fit=crop" },
-  { slug: "arena-voley", nombre: "Arena Vóley Catamarca", categoria: "Vóley", rating: 4.6, imagen: "https://images.unsplash.com/photo-1612872087720-bb876e2e67d1?q=80&w=600&auto=format&fit=crop" },
-  { slug: "tenis-club-norte", nombre: "Tenis Club Catamarca", categoria: "Tenis", rating: 4.7, imagen: "https://images.unsplash.com/photo-1595435934249-5df7ed86e1c0?q=80&w=600&auto=format&fit=crop" },
-];
-
-const MOCK_STATS = [
-  { valor: "12", unidad: "+", descripcion: "Complejos deportivos disponibles" },
-  { valor: "45", unidad: "+", descripcion: "Canchas regulares" },
-  { valor: "8", unidad: "", descripcion: "Deportes diferentes" },
-  { valor: "24/7", unidad: "", descripcion: "Reservas disponibles" },
-  { valor: "500+", unidad: "", descripcion: "Jugadores activos" },
-  { valor: "10K", unidad: "ARS", descripcion: "Tarifa promedio por cancha" },
-];
+const ALERTA_ACTIVA = { activa: false, nivel: "amarillo" as "amarillo" | "rojo", texto: "", tipo: "Mantenimiento" };
 
 const ACCESO_RAPIDO = [
   { href: "/explorar", icono: Compass, titulo: "Explorar Complejos", descripcion: "Descubrí todos los complejos deportivos", colorIcono: "text-rodeo-lime" },
@@ -214,30 +168,103 @@ function HeroUserButton() {
 }
 
 export default function Home() {
+  const { ciudadCorta, loading: cityLoading } = useCityContext();
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [complejos, setComplejos] = useState<ComplejoRow[]>([]);
+  const [stats, setStats] = useState({ complejos: 0, canchas: 0, deportes: 0 });
+
+  // Fetch complejos reales de la ciudad activa
+  useEffect(() => {
+    if (cityLoading) return;
+    (async () => {
+      const { data } = await supabase
+        .from("complexes")
+        .select("id, nombre, slug, deporte_principal, descripcion, imagen_principal, rating_promedio, ciudad")
+        .eq("activo", true)
+        .eq("ciudad", ciudadCorta)
+        .order("rating_promedio", { ascending: false, nullsFirst: false })
+        .limit(12);
+      setComplejos((data as ComplejoRow[] | null) ?? []);
+    })();
+  }, [ciudadCorta, cityLoading]);
+
+  // Fetch stats globales para la ciudad
+  useEffect(() => {
+    if (cityLoading) return;
+    (async () => {
+      const { data: comps } = await supabase
+        .from("complexes")
+        .select("id, deportes")
+        .eq("activo", true)
+        .eq("ciudad", ciudadCorta);
+
+      const ids = (comps ?? []).map((c: { id: string }) => c.id);
+      const { count: canchasCount } = ids.length
+        ? await supabase.from("courts").select("id", { count: "exact", head: true }).in("complex_id", ids).eq("activa", true)
+        : { count: 0 };
+
+      const deportesSet = new Set<string>();
+      (comps ?? []).forEach((c: { deportes?: string[] }) => (c.deportes ?? []).forEach(d => deportesSet.add(d)));
+
+      setStats({ complejos: comps?.length ?? 0, canchas: canchasCount ?? 0, deportes: deportesSet.size });
+    })();
+  }, [ciudadCorta, cityLoading]);
+
+  // Slider: intercala promos con complejos reales
+  const ALL_SLIDES = useMemo(() => {
+    const realSlides = complejos.slice(0, PROMO_SLIDES.length).map((c) => ({
+      id: c.id,
+      isPromo: false,
+      title: c.nombre.toUpperCase(),
+      subtitle: DEPORTE_LABEL[c.deporte_principal] ?? c.deporte_principal.toUpperCase(),
+      description: c.descripcion ?? `Reservá canchas en ${c.nombre} en ${c.ciudad}.`,
+      bgImage: c.imagen_principal ?? FALLBACK_IMG_BY_DEPORTE[c.deporte_principal] ?? FALLBACK_IMG_BY_DEPORTE.futbol,
+      cardImage: c.imagen_principal ?? FALLBACK_IMG_BY_DEPORTE[c.deporte_principal] ?? FALLBACK_IMG_BY_DEPORTE.futbol,
+      ctaLink: `/complejo/${c.slug}`,
+      ctaLabel: "Reservar Cancha",
+    }));
+    return PROMO_SLIDES.flatMap((promo, i) => {
+      const complex = realSlides[i];
+      return complex ? [promo, complex] : [promo];
+    });
+  }, [complejos]);
 
   const handleNext = useCallback(() => {
-    setCurrentIndex((prev) => (prev + 1) % ALL_SLIDES.length);
-  }, []);
+    setCurrentIndex((prev) => (ALL_SLIDES.length ? (prev + 1) % ALL_SLIDES.length : 0));
+  }, [ALL_SLIDES.length]);
 
   const handlePrev = useCallback(() => {
-    setCurrentIndex((prev) => (prev - 1 + ALL_SLIDES.length) % ALL_SLIDES.length);
-  }, []);
+    setCurrentIndex((prev) => (ALL_SLIDES.length ? (prev - 1 + ALL_SLIDES.length) % ALL_SLIDES.length : 0));
+  }, [ALL_SLIDES.length]);
 
   useEffect(() => {
-    setCurrentIndex(Math.floor(Math.random() * ALL_SLIDES.length));
+    if (!ALL_SLIDES.length) return;
     const timer = setInterval(handleNext, 7000);
     return () => clearInterval(timer);
-  }, [handleNext]);
+  }, [handleNext, ALL_SLIDES.length]);
 
-  const activeItem = ALL_SLIDES[currentIndex];
+  const activeItem = ALL_SLIDES[currentIndex] ?? PROMO_SLIDES[0];
 
-  const destacadosAleatorios = useMemo(
-    () => [...MOCK_LUGARES_DESTACADOS].sort(() => Math.random() - 0.5),
-    []
+  // Destacados: ordenados por rating (top 8)
+  const destacados = useMemo(
+    () => complejos.slice(0, 8).map(c => ({
+      slug: c.slug,
+      nombre: c.nombre,
+      categoria: DEPORTE_LABEL[c.deporte_principal] ?? c.deporte_principal,
+      rating: c.rating_promedio ?? 0,
+      imagen: c.imagen_principal ?? FALLBACK_IMG_BY_DEPORTE[c.deporte_principal] ?? FALLBACK_IMG_BY_DEPORTE.futbol,
+    })),
+    [complejos]
   );
 
-  const alertaColor = MOCK_ALERTA_ACTIVA.nivel === "rojo"
+  const STATS_DISPLAY = [
+    { valor: String(stats.complejos || 0), unidad: "+", descripcion: "Complejos deportivos disponibles" },
+    { valor: String(stats.canchas || 0), unidad: "+", descripcion: "Canchas regulares" },
+    { valor: String(stats.deportes || 0), unidad: "", descripcion: "Deportes diferentes" },
+    { valor: "24/7", unidad: "", descripcion: "Reservas disponibles" },
+  ];
+
+  const alertaColor = ALERTA_ACTIVA.nivel === "rojo"
     ? { bg: "bg-red-500/20 border-y border-red-400/30", icono: "text-red-400", badge: "bg-red-500/20 text-red-400 border border-red-400/30" }
     : { bg: "bg-yellow-500/20 border-y border-yellow-400/30", icono: "text-yellow-400", badge: "bg-yellow-500/20 text-yellow-400 border border-yellow-400/30" };
 
@@ -405,12 +432,12 @@ export default function Home() {
       </section>
 
       {/* ALERTA */}
-      {MOCK_ALERTA_ACTIVA.activa && (
+      {ALERTA_ACTIVA.activa && (
         <section className={`${alertaColor.bg} px-6 py-4`}>
           <div className="max-w-4xl mx-auto flex items-start gap-4">
             <AlertTriangle size={20} className={`${alertaColor.icono} shrink-0 mt-0.5`} />
-            <p className="text-sm text-rodeo-cream/90 leading-relaxed flex-1">{MOCK_ALERTA_ACTIVA.texto}</p>
-            <span className={`${alertaColor.badge} text-[10px] font-bold tracking-widest uppercase px-2.5 py-1 rounded-full shrink-0`}>{MOCK_ALERTA_ACTIVA.tipo}</span>
+            <p className="text-sm text-rodeo-cream/90 leading-relaxed flex-1">{ALERTA_ACTIVA.texto}</p>
+            <span className={`${alertaColor.badge} text-[10px] font-bold tracking-widest uppercase px-2.5 py-1 rounded-full shrink-0`}>{ALERTA_ACTIVA.tipo}</span>
           </div>
         </section>
       )}
@@ -447,7 +474,7 @@ export default function Home() {
             <span className="section-slash">/</span>ElPiqueApp en Números
           </h2>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
-            {MOCK_STATS.map((stat, i) => (
+            {STATS_DISPLAY.map((stat, i) => (
               <motion.div key={i} initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.5, delay: i * 0.1 }} className="flex flex-col gap-1">
                 <div className="font-display" style={{ fontSize: 44, color: "#fff", lineHeight: "0.95", letterSpacing: "-0.02em" }}>
                   {stat.valor}
@@ -466,23 +493,34 @@ export default function Home() {
           <h2 className="font-display px-6 mb-6" style={{ fontSize: "clamp(28px, 4vw, 40px)", color: "#fff" }}>
             <span className="section-slash">/</span>Complejos Destacados
           </h2>
-          <div className="flex gap-4 overflow-x-auto px-6 pb-4 snap-x snap-mandatory scroll-smooth scrollbar-thin">
-            {destacadosAleatorios.map((lugar, i) => (
-              <Link key={i} href={`/complejo/${lugar.slug}`} className="w-64 shrink-0 liquid-panel overflow-hidden hover:bg-white/10 transition-colors snap-start">
-                <div className="h-40 overflow-hidden">
-                  <img src={lugar.imagen} alt={lugar.nombre} className="w-full h-full object-cover hover:scale-105 transition-transform duration-500" />
-                </div>
-                <div className="p-4">
-                  <p className="text-[10px] font-semibold tracking-widest uppercase text-rodeo-cream/40 mb-1">{lugar.categoria}</p>
-                  <h3 className="text-sm font-bold text-white leading-tight">{lugar.nombre}</h3>
-                  <div className="flex items-center gap-1.5 mt-1.5">
-                    <Star size={11} className="text-yellow-400 fill-yellow-400" />
-                    <span className="text-xs text-rodeo-cream/60">{lugar.rating}</span>
+          {destacados.length > 0 ? (
+            <div className="flex gap-4 overflow-x-auto px-6 pb-4 snap-x snap-mandatory scroll-smooth scrollbar-thin">
+              {destacados.map((lugar) => (
+                <Link key={lugar.slug} href={`/complejo/${lugar.slug}`} className="w-64 shrink-0 liquid-panel overflow-hidden hover:bg-white/10 transition-colors snap-start">
+                  <div className="h-40 overflow-hidden">
+                    <img src={lugar.imagen} alt={lugar.nombre} className="w-full h-full object-cover hover:scale-105 transition-transform duration-500" />
                   </div>
-                </div>
-              </Link>
-            ))}
-          </div>
+                  <div className="p-4">
+                    <p className="text-[10px] font-semibold tracking-widest uppercase text-rodeo-cream/40 mb-1">{lugar.categoria}</p>
+                    <h3 className="text-sm font-bold text-white leading-tight">{lugar.nombre}</h3>
+                    <div className="flex items-center gap-1.5 mt-1.5">
+                      <Star size={11} className="text-yellow-400 fill-yellow-400" />
+                      <span className="text-xs text-rodeo-cream/60">{lugar.rating ? lugar.rating.toFixed(1) : "—"}</span>
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          ) : (
+            <div className="px-6">
+              <div className="liquid-panel p-8 text-center">
+                <p className="text-rodeo-cream/60 text-sm">Todavía no hay complejos en {ciudadCorta}.</p>
+                <Link href="/registro/dueno" className="inline-block mt-3 text-xs text-rodeo-lime font-bold hover:underline">
+                  ¿Sos dueño? Registrá tu complejo →
+                </Link>
+              </div>
+            </div>
+          )}
         </div>
       </section>
 

@@ -5,7 +5,7 @@ import "leaflet/dist/leaflet.css";
 
 // Tipos
 type Complejo = {
-  id: number;
+  id: string;
   nombre: string;
   deporte: string;
   descripcion: string;
@@ -25,7 +25,7 @@ interface MapaLeafletProps {
   complejos: Complejo[];
   onSelectComplejo?: (complejo: Complejo) => void;
   filtroDeporte?: string;
-  selectedId?: number | null;
+  selectedId?: string | null;
 }
 
 // Colores por deporte
