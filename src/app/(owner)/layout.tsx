@@ -7,6 +7,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Menu, X, Building2, BarChart3, Calendar, ClipboardList,
   Settings, LogOut, Crown, Wallet, QrCode, AlertTriangle, Zap, ChevronDown,
+  Newspaper, Trophy,
 } from "lucide-react";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { useTrialStatus } from "@/lib/hooks/useTrialStatus";
@@ -17,6 +18,8 @@ const OWNER_MENU = [
   { icon: Building2,     label: "Mi Complejo",   href: "/owner/complejo" },
   { icon: Calendar,      label: "Canchas",        href: "/owner/canchas" },
   { icon: ClipboardList, label: "Reservas",       href: "/owner/reservas" },
+  { icon: Trophy,        label: "Torneos",        href: "/owner/torneos" },
+  { icon: Newspaper,     label: "Feed",           href: "/owner/feed" },
   { icon: Wallet,        label: "Caja y Cierre",  href: "/owner/caja" },
   { icon: QrCode,        label: "Mi Link / QR",   href: "/owner/mi-link" },
   { icon: Settings,      label: "Configuración",  href: "/owner/settings" },
