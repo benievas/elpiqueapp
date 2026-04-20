@@ -1,0 +1,342 @@
+"use client";
+export const dynamic = 'force-dynamic';
+
+import { useState, useEffect } from "react";
+import Link from "next/link";
+import { useParams } from "next/navigation";
+import { motion } from "framer-motion";
+import { supabase } from "@/lib/supabase";
+import { ChevronLeft, Trophy, Users, Calendar, Loader, Share2, MapPin, Radio } from "lucide-react";
+
+interface Torneo {
+  id: string;
+  nombre: string;
+  slug: string;
+  deporte: string;
+  tipo: string;
+  descripcion: string | null;
+  imagen_url: string | null;
+  fecha_inicio: string;
+  fecha_fin: string | null;
+  cupos_totales: number;
+  cupos_ocupados: number;
+  precio_inscripcion: number;
+  estado: string;
+  complex_id: string;
+}
+
+interface Team {
+  id: string;
+  nombre: string;
+  miembros: string[];
+  puntos: number;
+  posicion: number | null;
+}
+
+interface Match {
+  id: string;
+  ronda: number;
+  team_a_id: string | null;
+  team_b_id: string | null;
+  puntaje_a: number | null;
+  puntaje_b: number | null;
+  estado: string;
+  fecha: string | null;
+}
+
+interface ComplexInfo {
+  nombre: string;
+  slug: string;
+  ciudad: string | null;
+}
+
+const ESTADO_META: Record<string, { color: string; bg: string; label: string }> = {
+  registracion: { color: "#4ADE80", bg: "rgba(74,222,128,0.15)",  label: "Inscripción abierta" },
+  en_curso:     { color: "#60A5FA", bg: "rgba(96,165,250,0.15)",  label: "En curso" },
+  finalizado:   { color: "#94A3B8", bg: "rgba(148,163,184,0.15)", label: "Finalizado" },
+};
+
+export default function TorneoPublicoPage() {
+  const params = useParams();
+  const slug = params?.slug as string;
+
+  const [torneo, setTorneo] = useState<Torneo | null>(null);
+  const [teams, setTeams] = useState<Team[]>([]);
+  const [matches, setMatches] = useState<Match[]>([]);
+  const [complejo, setComplejo] = useState<ComplexInfo | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [liveFlash, setLiveFlash] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (slug) load();
+  }, [slug]);
+
+  useEffect(() => {
+    if (!torneo) return;
+
+    const channel = supabase
+      .channel(`torneo-public-${torneo.id}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "tournament_matches", filter: `tournament_id=eq.${torneo.id}` },
+        (payload) => {
+          setMatches(prev => {
+            if (payload.eventType === "INSERT") {
+              return [...prev, payload.new as Match].sort((a,b) => a.ronda - b.ronda);
+            }
+            if (payload.eventType === "UPDATE") {
+              const m = payload.new as Match;
+              setLiveFlash(m.id);
+              setTimeout(() => setLiveFlash(null), 1800);
+              return prev.map(x => x.id === m.id ? m : x);
+            }
+            if (payload.eventType === "DELETE") {
+              return prev.filter(x => x.id !== (payload.old as { id: string }).id);
+            }
+            return prev;
+          });
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "tournaments", filter: `id=eq.${torneo.id}` },
+        (payload) => setTorneo(prev => prev ? { ...prev, ...(payload.new as Torneo) } : prev)
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "tournament_teams", filter: `tournament_id=eq.${torneo.id}` },
+        () => reloadTeams()
+      )
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [torneo?.id]);
+
+  async function load() {
+    setLoading(true);
+    const { data: t } = await supabase.from("tournaments").select("*").eq("slug", slug).single() as { data: Torneo | null };
+    if (!t) { setLoading(false); return; }
+    setTorneo(t);
+
+    const [teamsRes, matchesRes, complejoRes] = await Promise.all([
+      supabase.from("tournament_teams").select("id, nombre, miembros, puntos, posicion").eq("tournament_id", t.id),
+      supabase.from("tournament_matches").select("id, ronda, team_a_id, team_b_id, puntaje_a, puntaje_b, estado, fecha").eq("tournament_id", t.id).order("ronda"),
+      supabase.from("complexes").select("nombre, slug, ciudad").eq("id", t.complex_id).single(),
+    ]);
+    setTeams((teamsRes.data || []) as Team[]);
+    setMatches((matchesRes.data || []) as Match[]);
+    setComplejo(complejoRes.data as ComplexInfo | null);
+    setLoading(false);
+  }
+
+  async function reloadTeams() {
+    if (!torneo) return;
+    const { data } = await supabase.from("tournament_teams").select("id, nombre, miembros, puntos, posicion").eq("tournament_id", torneo.id);
+    setTeams((data || []) as Team[]);
+  }
+
+  function getTeamName(id: string | null) {
+    return teams.find(t => t.id === id)?.nombre ?? "TBD";
+  }
+
+  async function compartir() {
+    if (!torneo) return;
+    const url = typeof window !== "undefined" ? window.location.href : "";
+    const shareData = {
+      title: torneo.nombre,
+      text: `Mirá el torneo "${torneo.nombre}" en MatchPro`,
+      url,
+    };
+    if (typeof navigator !== "undefined" && (navigator as Navigator & { share?: (d: ShareData) => Promise<void> }).share) {
+      try { await (navigator as Navigator & { share: (d: ShareData) => Promise<void> }).share(shareData); return; } catch { /* ignored */ }
+    }
+    try {
+      await navigator.clipboard.writeText(url);
+      alert("Enlace copiado al portapapeles");
+    } catch {
+      alert(url);
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-rodeo-dark">
+        <Loader className="animate-spin text-rodeo-lime" size={32} />
+      </div>
+    );
+  }
+  if (!torneo) {
+    return (
+      <div className="min-h-screen bg-rodeo-dark flex items-center justify-center p-6">
+        <div className="text-center space-y-4">
+          <p className="text-rodeo-cream/70">Torneo no encontrado</p>
+          <Link href="/torneos" className="text-rodeo-lime underline text-sm">Volver a torneos</Link>
+        </div>
+      </div>
+    );
+  }
+
+  const rondas = Array.from(new Set(matches.map(m => m.ronda))).sort((a,b) => a-b);
+  const est = ESTADO_META[torneo.estado] ?? ESTADO_META.registracion;
+  const standings = [...teams].sort((a,b) => (b.puntos || 0) - (a.puntos || 0));
+
+  return (
+    <div className="min-h-screen bg-gradient-to-b from-rodeo-dark via-rodeo-brown to-rodeo-dark pb-24 md:pb-12">
+      {/* Hero */}
+      <div className="relative">
+        {torneo.imagen_url && (
+          <div className="absolute inset-0 h-72 overflow-hidden">
+            <img src={torneo.imagen_url} alt={torneo.nombre} className="w-full h-full object-cover opacity-30"/>
+            <div className="absolute inset-0 bg-gradient-to-b from-transparent via-rodeo-dark/60 to-rodeo-dark"/>
+          </div>
+        )}
+        <div className="relative max-w-5xl mx-auto px-6 pt-8 pb-10">
+          <div className="flex items-center justify-between">
+            <Link href="/torneos"
+              style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: "12px" }}
+              className="w-10 h-10 flex items-center justify-center hover:bg-white/15 transition-all">
+              <ChevronLeft size={20} className="text-white" />
+            </Link>
+            <button onClick={compartir}
+              style={{ background: "rgba(200,255,0,0.12)", border: "1px solid rgba(200,255,0,0.25)", borderRadius: "12px" }}
+              className="flex items-center gap-2 px-4 py-2 hover:bg-rodeo-lime/20 transition-all text-rodeo-lime text-xs font-bold">
+              <Share2 size={14} /> Compartir
+            </button>
+          </div>
+
+          <div className="mt-8 space-y-3">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-[11px] font-black px-2.5 py-1 rounded-full" style={{ background: est.bg, color: est.color }}>
+                {torneo.estado === "en_curso" && <Radio size={10} className="inline animate-pulse mr-1"/>}
+                {est.label}
+              </span>
+              <span className="text-xs font-bold text-rodeo-cream/60">{torneo.deporte.toUpperCase()}</span>
+              <span className="text-xs text-rodeo-cream/40">·</span>
+              <span className="text-xs text-rodeo-cream/40 uppercase">{torneo.tipo}</span>
+            </div>
+            <h1 style={{ fontFamily: "'Barlow Condensed', system-ui, sans-serif", fontWeight: 900, letterSpacing: "-0.02em", textTransform: "uppercase", lineHeight: 0.95, fontSize: "clamp(40px, 7vw, 72px)" }} className="text-white">
+              <span className="section-slash">/</span>{torneo.nombre}
+            </h1>
+            {complejo && (
+              <Link href={`/complejo/${complejo.slug}`} className="inline-flex items-center gap-2 text-sm text-rodeo-cream/70 hover:text-rodeo-lime transition-colors">
+                <MapPin size={14}/> {complejo.nombre}{complejo.ciudad ? ` · ${complejo.ciudad}` : ""}
+              </Link>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <div className="max-w-5xl mx-auto px-6 space-y-8">
+        {/* Info principal */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <InfoCard label="Inicio" value={new Date(torneo.fecha_inicio).toLocaleDateString("es-AR", { day:"numeric", month:"short", year:"numeric" })} icon={<Calendar size={14}/>}/>
+          <InfoCard label="Equipos" value={`${teams.length}/${torneo.cupos_totales}`} icon={<Users size={14}/>}/>
+          <InfoCard label="Partidos" value={String(matches.length)} icon={<Trophy size={14}/>}/>
+          <InfoCard label="Inscripción" value={torneo.precio_inscripcion > 0 ? `$${torneo.precio_inscripcion.toLocaleString("es-AR")}` : "Gratis"}/>
+        </div>
+
+        {torneo.descripcion && (
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+            style={{ background:"rgba(255,255,255,0.03)", border:"1px solid rgba(255,255,255,0.07)", borderRadius:"16px" }}
+            className="p-6">
+            <p className="text-rodeo-cream/80 text-sm leading-relaxed whitespace-pre-wrap">{torneo.descripcion}</p>
+          </motion.div>
+        )}
+
+        {/* BRACKET / PARTIDOS */}
+        {matches.length > 0 && (
+          <div className="space-y-4">
+            <h2 style={{ fontFamily: "'Barlow Condensed', system-ui, sans-serif", fontWeight: 900, fontSize: "28px", textTransform: "uppercase", letterSpacing: "-0.02em" }} className="text-white">
+              <span className="section-slash">/</span>Resultados
+            </h2>
+
+            <div className="overflow-x-auto">
+              <div className="flex gap-4 min-w-max pb-4">
+                {rondas.map(ronda => (
+                  <div key={ronda} className="min-w-[280px] space-y-3">
+                    <p className="text-[11px] font-black text-rodeo-lime uppercase tracking-widest">Ronda {ronda}</p>
+                    <div className="space-y-2">
+                      {matches.filter(m => m.ronda === ronda).map(m => {
+                        const finalizado = m.estado === "finalizado";
+                        const enJuego = m.estado === "en_juego";
+                        const flash = liveFlash === m.id;
+                        const ganadorA = finalizado && m.puntaje_a != null && m.puntaje_b != null && m.puntaje_a > m.puntaje_b;
+                        const ganadorB = finalizado && m.puntaje_a != null && m.puntaje_b != null && m.puntaje_b > m.puntaje_a;
+                        return (
+                          <motion.div key={m.id}
+                            animate={flash ? { scale: [1, 1.03, 1], boxShadow: ["0 0 0 rgba(200,255,0,0)", "0 0 20px rgba(200,255,0,0.5)", "0 0 0 rgba(200,255,0,0)"] } : {}}
+                            transition={{ duration: 1.2 }}
+                            style={{ background:"rgba(255,255,255,0.04)", border:`1px solid ${enJuego ? "rgba(96,165,250,0.4)" : "rgba(255,255,255,0.08)"}`, borderRadius:"12px" }}
+                            className="p-3 space-y-1.5">
+                            {enJuego && (
+                              <div className="flex items-center gap-1 text-[10px] font-black text-blue-400">
+                                <span className="relative flex h-1.5 w-1.5"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"/><span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-blue-400"/></span>
+                                EN VIVO
+                              </div>
+                            )}
+                            <TeamRow name={getTeamName(m.team_a_id)} score={m.puntaje_a} winner={ganadorA}/>
+                            <TeamRow name={getTeamName(m.team_b_id)} score={m.puntaje_b} winner={ganadorB}/>
+                          </motion.div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* EQUIPOS / STANDINGS */}
+        {teams.length > 0 && (
+          <div className="space-y-4">
+            <h2 style={{ fontFamily: "'Barlow Condensed', system-ui, sans-serif", fontWeight: 900, fontSize: "28px", textTransform: "uppercase", letterSpacing: "-0.02em" }} className="text-white">
+              <span className="section-slash">/</span>Equipos
+            </h2>
+            <div style={{ background:"rgba(255,255,255,0.03)", border:"1px solid rgba(255,255,255,0.07)", borderRadius:"16px" }} className="p-4">
+              <div className="space-y-1">
+                {standings.map((t, i) => (
+                  <div key={t.id} className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-white/5 transition-colors">
+                    <span className="text-[11px] font-black text-rodeo-cream/40 w-6">{i+1}</span>
+                    <p className="text-sm text-white flex-1 truncate">{t.nombre}</p>
+                    {t.puntos > 0 && <span className="text-xs font-black text-rodeo-lime">{t.puntos} pts</span>}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {matches.length === 0 && teams.length === 0 && (
+          <div style={{ background:"rgba(255,255,255,0.03)", border:"1px solid rgba(255,255,255,0.07)", borderRadius:"16px" }} className="p-12 text-center">
+            <Trophy size={32} className="mx-auto text-rodeo-cream/30 mb-3"/>
+            <p className="text-rodeo-cream/60 text-sm">Aún no hay equipos inscritos</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function InfoCard({ label, value, icon }: { label: string; value: string; icon?: React.ReactNode }) {
+  return (
+    <div style={{ background:"rgba(255,255,255,0.03)", border:"1px solid rgba(255,255,255,0.06)", borderRadius:"12px" }} className="p-4">
+      <div className="flex items-center gap-1.5 text-rodeo-cream/40 mb-1.5">
+        {icon}
+        <p className="text-[10px] uppercase tracking-wide font-bold">{label}</p>
+      </div>
+      <p className="text-base font-black text-white">{value}</p>
+    </div>
+  );
+}
+
+function TeamRow({ name, score, winner }: { name: string; score: number | null; winner: boolean }) {
+  return (
+    <div className="flex items-center justify-between gap-2">
+      <p className={`text-sm truncate flex-1 ${winner ? "text-rodeo-lime font-black" : "text-white"}`}>{name}</p>
+      <p className={`text-sm font-black tabular-nums ${winner ? "text-rodeo-lime" : "text-rodeo-cream/70"}`}>
+        {score != null ? score : "—"}
+      </p>
+    </div>
+  );
+}
