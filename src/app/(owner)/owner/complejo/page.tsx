@@ -77,10 +77,10 @@ export default function OwnerComplejoPage() {
   const uploadImage = async (file: File): Promise<string> => {
     if (!user) throw new Error("No autenticado");
     const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
-    const path = `${user.id}/${Date.now()}-${Math.random().toString(36).slice(2,8)}.${ext}`;
-    const { error: upErr } = await supabaseMut.storage.from("complex-images").upload(path, file, { cacheControl: "3600", upsert: false });
+    const path = `complex-images/${user.id}/${Date.now()}-${Math.random().toString(36).slice(2,8)}.${ext}`;
+    const { error: upErr } = await supabaseMut.storage.from("app-media").upload(path, file, { cacheControl: "3600", upsert: false });
     if (upErr) throw upErr;
-    const { data } = supabaseMut.storage.from("complex-images").getPublicUrl(path);
+    const { data } = supabaseMut.storage.from("app-media").getPublicUrl(path);
     return data.publicUrl;
   };
 
