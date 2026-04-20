@@ -109,12 +109,14 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // Asegurar que el usuario tiene rol 'propietario'
+    // Asegurar que el usuario tiene rol 'propietario' (sin pisar admin/superadmin)
+    // NOTE: schema check — sql/sprint7_suscripciones.sql usa `role`/'owner',
+    // pero UI usa `rol`/'propietario'. Aquí seguimos la convención de UI.
     await supabaseAdmin
       .from("profiles")
-      .update({ role: "propietario" })
+      .update({ rol: "propietario" })
       .eq("id", userId)
-      .not("role", "in", '("admin","superadmin")');
+      .not("rol", "in", '("admin","superadmin")');
 
     return NextResponse.json({ ok: true });
   } catch (error) {
