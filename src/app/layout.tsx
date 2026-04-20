@@ -86,6 +86,15 @@ export default function RootLayout({
           }}
         />
 
+        {/* SW + cache cleanup: desregistra Service Workers viejos y limpia Cache API.
+            Previene que usuarios con PWA instalada en dev o deploys viejos vean versiones stale. */}
+        <script
+          suppressHydrationWarning
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{if('serviceWorker' in navigator){navigator.serviceWorker.getRegistrations().then(function(rs){rs.forEach(function(r){r.unregister()})})}if(window.caches&&caches.keys){caches.keys().then(function(ks){ks.forEach(function(k){caches.delete(k)})})}}catch(e){}})();`,
+          }}
+        />
+
         {/* Leaflet CSS */}
         <link
           rel="stylesheet"

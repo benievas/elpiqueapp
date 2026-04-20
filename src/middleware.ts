@@ -34,6 +34,11 @@ export async function middleware(request: NextRequest) {
     }
   }
 
+  // HTML no-store para evitar que navegadores/PWAs sirvan bundles viejos.
+  // Los assets hasheados (_next/static/*) siguen excluidos por el matcher.
+  supabaseResponse.headers.set('Cache-Control', 'no-store, must-revalidate');
+  supabaseResponse.headers.set('Pragma', 'no-cache');
+
   // Siempre devolver supabaseResponse para que los cookies se propaguen
   return supabaseResponse;
 }
