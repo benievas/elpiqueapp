@@ -20,6 +20,7 @@ import {
   Users,
   Calendar,
   Zap,
+  Trophy,
 } from "lucide-react";
 import AvailabilityWidget from "@/components/AvailabilityWidget";
 import { supabase, supabaseMut } from "@/lib/supabase";
@@ -104,6 +105,7 @@ export default function ComplejoPage({
   const [reviewSaving, setReviewSaving] = useState(false);
   const [reviewSaved, setReviewSaved] = useState(false);
   const [reviews, setReviews] = useState<{ id: string; estrellas: number; texto: string | null; created_at: string; autor?: string }[]>([]);
+  const [torneos, setTorneos] = useState<{ id: string; nombre: string; slug: string; deporte: string; estado: string; fecha_inicio: string; imagen_url: string | null }[]>([]);
   // abierto se computa client-side para evitar hydration mismatch (#418)
   const [abierto, setAbierto] = useState<boolean | null>(null);
   useEffect(() => {
@@ -155,6 +157,15 @@ export default function ComplejoPage({
             autor: Array.isArray(r.profiles) ? r.profiles[0]?.nombre_completo : r.profiles?.nombre_completo ?? "Jugador",
           })));
         }
+
+        // Fetch tournaments (palmarés)
+        const { data: torneosData } = await supabase
+          .from("tournaments")
+          .select("id, nombre, slug, deporte, estado, fecha_inicio, imagen_url")
+          .eq("complex_id", complexData.id)
+          .order("fecha_inicio", { ascending: false })
+          .limit(12);
+        if (torneosData) setTorneos(torneosData as typeof torneos);
       } catch {
         setNotFound(true);
       } finally {
@@ -428,6 +439,54 @@ export default function ComplejoPage({
                 ))}
               </div>
             </div>
+
+            {/* PALMARÉS / TORNEOS */}
+            {torneos.length > 0 && (
+              <div
+                style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "16px" }}
+                className="p-5 mb-6"
+              >
+                <div className="flex items-center justify-between mb-4">
+                  <h3 style={{ fontFamily: "'Barlow Condensed', system-ui, sans-serif", fontWeight: 900, fontSize: "20px", letterSpacing: "-0.01em", textTransform: "uppercase", lineHeight: 1 }} className="text-white">
+                    <span className="section-slash">/</span>Palmarés
+                  </h3>
+                  <Link href="/torneos" className="text-[11px] font-black text-rodeo-lime hover:underline">Ver todos →</Link>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {torneos.map((t) => {
+                    const estMeta = t.estado === "en_curso"
+                      ? { label: "EN CURSO", color: "#60A5FA", bg: "rgba(96,165,250,0.15)" }
+                      : t.estado === "finalizado"
+                        ? { label: "FINALIZADO", color: "#94A3B8", bg: "rgba(148,163,184,0.15)" }
+                        : { label: "ABIERTO", color: "#4ADE80", bg: "rgba(74,222,128,0.15)" };
+                    return (
+                      <Link key={t.id} href={`/torneos/${t.slug}`}
+                        style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: "14px" }}
+                        className="flex items-center gap-3 p-3 hover:border-rodeo-lime/40 hover:bg-white/5 transition-all group">
+                        <div className="w-12 h-12 rounded-xl overflow-hidden bg-white/5 shrink-0 flex items-center justify-center">
+                          {t.imagen_url ? (
+                            <img src={t.imagen_url} alt={t.nombre} className="w-full h-full object-cover"/>
+                          ) : (
+                            <Trophy size={18} className="text-rodeo-lime"/>
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-bold text-white truncate group-hover:text-rodeo-lime transition-colors">{t.nombre}</p>
+                          <div className="flex items-center gap-2 mt-0.5">
+                            <span className="text-[9px] font-black px-1.5 py-0.5 rounded" style={{ background: estMeta.bg, color: estMeta.color }}>
+                              {estMeta.label}
+                            </span>
+                            <span className="text-[10px] text-rodeo-cream/40 truncate">
+                              {t.deporte} · {new Date(t.fecha_inicio).toLocaleDateString("es-AR", { month: "short", year: "numeric" })}
+                            </span>
+                          </div>
+                        </div>
+                      </Link>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
             {/* RESEÑAS */}
             <div
