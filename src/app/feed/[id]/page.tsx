@@ -7,7 +7,7 @@ import { useParams, useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { supabase, supabaseMut } from "@/lib/supabase";
 import { useAuth } from "@/lib/hooks/useAuth";
-import { ChevronLeft, Share2, MapPin, Calendar, Loader, Heart, MessageCircle } from "lucide-react";
+import { ChevronLeft, Share2, MapPin, Loader, Heart, MessageCircle, Send, Trash2 } from "lucide-react";
 
 interface Post {
   id: string;
@@ -30,6 +30,15 @@ interface ComplexInfo {
   imagen_principal: string | null;
 }
 
+interface Comment {
+  id: string;
+  user_id: string;
+  contenido: string;
+  created_at: string;
+  autor_nombre: string | null;
+  autor_avatar: string | null;
+}
+
 const TIPO_META: Record<string, { bg: string; text: string; label: string; emoji: string }> = {
   promo:   { bg: "bg-purple-500/20 border-purple-500/30", text: "text-purple-400", label: "PROMO",   emoji: "🎉" },
   noticia: { bg: "bg-blue-500/20 border-blue-500/30",     text: "text-blue-400",   label: "NOTICIA", emoji: "📢" },
@@ -50,6 +59,11 @@ export default function FeedPostPage() {
   const [likeCount, setLikeCount] = useState(0);
   const [likeSaving, setLikeSaving] = useState(false);
 
+  const [comments, setComments] = useState<Comment[]>([]);
+  const [commentText, setCommentText] = useState("");
+  const [sendingComment, setSendingComment] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
   useEffect(() => { if (id) load(); }, [id, user?.id]);
 
   async function load() {
@@ -69,7 +83,62 @@ export default function FeedPostPage() {
     const likes = likesData || [];
     setLikeCount(likes.length);
     setLiked(!!user && likes.some((l: { user_id: string }) => l.user_id === user.id));
+
+    // Comentarios
+    await loadComments(p.id);
+
     setLoading(false);
+  }
+
+  async function loadComments(postId: string) {
+    const { data } = await supabase
+      .from("feed_comments")
+      .select("id, user_id, contenido, created_at, profiles(nombre_completo, avatar_url)")
+      .eq("post_id", postId)
+      .order("created_at", { ascending: true });
+    const mapped: Comment[] = (data || []).map((c: any) => {
+      const prof = Array.isArray(c.profiles) ? c.profiles[0] : c.profiles;
+      return {
+        id: c.id,
+        user_id: c.user_id,
+        contenido: c.contenido,
+        created_at: c.created_at,
+        autor_nombre: prof?.nombre_completo ?? null,
+        autor_avatar: prof?.avatar_url ?? null,
+      };
+    });
+    setComments(mapped);
+  }
+
+  async function enviarComentario() {
+    if (!post) return;
+    if (!user) {
+      router.push(`/login?returnTo=/feed/${post.id}`);
+      return;
+    }
+    const texto = commentText.trim();
+    if (!texto || sendingComment) return;
+    setSendingComment(true);
+    const { error } = await supabaseMut.from("feed_comments").insert({
+      post_id: post.id,
+      user_id: user.id,
+      contenido: texto,
+    });
+    if (!error) {
+      setCommentText("");
+      await loadComments(post.id);
+    }
+    setSendingComment(false);
+  }
+
+  async function borrarComentario(cid: string) {
+    if (!user || deletingId) return;
+    setDeletingId(cid);
+    const { error } = await supabaseMut.from("feed_comments").delete().eq("id", cid).eq("user_id", user.id);
+    if (!error) {
+      setComments((prev) => prev.filter((c) => c.id !== cid));
+    }
+    setDeletingId(null);
   }
 
   async function toggleLike() {
@@ -218,15 +287,93 @@ export default function FeedPostPage() {
               <Heart size={18} className={liked ? "fill-current" : ""}/>
               {likeCount > 0 ? likeCount : "Me encanta"}
             </button>
-            <button className="flex items-center gap-2 text-sm font-bold text-rodeo-cream/60">
+            <a href="#comentarios" className="flex items-center gap-2 text-sm font-bold text-rodeo-cream/60 hover:text-rodeo-lime transition-colors">
               <MessageCircle size={18}/>
-              Comentar
-            </button>
+              {comments.length > 0 ? comments.length : "Comentar"}
+            </a>
           </div>
           <button onClick={compartir} className="p-2 hover:bg-white/5 rounded-lg transition-colors">
             <Share2 size={18} className="text-rodeo-cream/60"/>
           </button>
         </div>
+
+        {/* COMENTARIOS */}
+        <section id="comentarios" className="space-y-4 pt-4">
+          <h2 style={{ fontFamily: "'Barlow Condensed', system-ui, sans-serif", fontWeight: 900, fontSize: "24px", textTransform: "uppercase", letterSpacing: "-0.01em" }} className="text-white">
+            <span className="section-slash">/</span>Comentarios {comments.length > 0 && <span className="text-rodeo-cream/40">· {comments.length}</span>}
+          </h2>
+
+          {user ? (
+            <div className="flex gap-2 items-start">
+              <textarea
+                value={commentText}
+                onChange={(e) => setCommentText(e.target.value)}
+                placeholder="Escribí un comentario..."
+                maxLength={500}
+                rows={2}
+                style={{ background:"rgba(255,255,255,0.05)", border:"1px solid rgba(255,255,255,0.12)", borderRadius:"12px", color:"#E1D4C2" }}
+                className="flex-1 px-3 py-2.5 text-sm placeholder:text-rodeo-cream/25 outline-none focus:border-rodeo-lime/40 resize-none"
+              />
+              <button
+                onClick={enviarComentario}
+                disabled={sendingComment || !commentText.trim()}
+                style={{ background: "rgba(200,255,0,0.9)", borderRadius:"12px" }}
+                className="p-3 text-rodeo-dark disabled:opacity-40 hover:brightness-110 transition-all"
+                title="Enviar comentario">
+                {sendingComment ? <Loader size={16} className="animate-spin"/> : <Send size={16}/>}
+              </button>
+            </div>
+          ) : (
+            <Link href={`/login?returnTo=/feed/${post.id}`}
+              style={{ background:"rgba(255,255,255,0.05)", border:"1px solid rgba(255,255,255,0.12)", borderRadius:"12px" }}
+              className="block px-4 py-3 text-sm text-center text-rodeo-cream/70 hover:text-rodeo-lime transition-colors">
+              Iniciá sesión para comentar
+            </Link>
+          )}
+
+          {comments.length === 0 ? (
+            <p className="text-sm text-rodeo-cream/40 text-center py-6">Sé el primero en comentar</p>
+          ) : (
+            <div className="space-y-3">
+              {comments.map((c) => {
+                const esMio = user?.id === c.user_id;
+                const nombre = c.autor_nombre || "Usuario";
+                const inicial = nombre.charAt(0).toUpperCase();
+                return (
+                  <motion.div key={c.id} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
+                    style={{ background:"rgba(255,255,255,0.03)", border:"1px solid rgba(255,255,255,0.06)", borderRadius:"12px" }}
+                    className="p-3 flex gap-3 items-start">
+                    {c.autor_avatar ? (
+                      <img src={c.autor_avatar} alt={nombre} className="w-8 h-8 rounded-full object-cover shrink-0"/>
+                    ) : (
+                      <div className="w-8 h-8 rounded-full bg-rodeo-lime/20 text-rodeo-lime font-black text-xs flex items-center justify-center shrink-0">
+                        {inicial}
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <p className="text-xs font-bold text-white truncate">{nombre}</p>
+                        <p className="text-[10px] text-rodeo-cream/40">
+                          {new Date(c.created_at).toLocaleDateString("es-AR", { day:"numeric", month:"short" })}
+                        </p>
+                      </div>
+                      <p className="text-sm text-rodeo-cream/85 mt-0.5 whitespace-pre-wrap break-words">{c.contenido}</p>
+                    </div>
+                    {esMio && (
+                      <button
+                        onClick={() => borrarComentario(c.id)}
+                        disabled={deletingId === c.id}
+                        className="p-1.5 text-rodeo-cream/30 hover:text-red-400 transition-colors shrink-0 disabled:opacity-40"
+                        title="Borrar">
+                        {deletingId === c.id ? <Loader size={14} className="animate-spin"/> : <Trash2 size={14}/>}
+                      </button>
+                    )}
+                  </motion.div>
+                );
+              })}
+            </div>
+          )}
+        </section>
       </article>
     </div>
   );

@@ -31,6 +31,7 @@ export default function FeedPage() {
   const [loading, setLoading] = useState(true);
   const [likedPosts, setLikedPosts] = useState<Set<string>>(new Set());
   const [likeCounts, setLikeCounts] = useState<Record<string, number>>({});
+  const [commentCounts, setCommentCounts] = useState<Record<string, number>>({});
   const { ciudadCorta: city } = useCityContext();
   const { user } = useAuth();
 
@@ -79,24 +80,30 @@ export default function FeedPage() {
 
       setPosts(postsMapeados as Post[]);
 
-      // Fetch likes for these posts
+      // Fetch likes + comentarios para estos posts
       const postIds = postsMapeados.map((p: any) => p.id);
       if (postIds.length > 0) {
-        const { data: likesData } = await supabase
-          .from("feed_likes")
-          .select("post_id, user_id")
-          .in("post_id", postIds);
+        const [likesRes, commentsRes] = await Promise.all([
+          supabase.from("feed_likes").select("post_id, user_id").in("post_id", postIds),
+          supabase.from("feed_comments").select("post_id").in("post_id", postIds),
+        ]);
         const counts: Record<string, number> = {};
         const mine = new Set<string>();
-        (likesData || []).forEach((l: { post_id: string; user_id: string }) => {
+        (likesRes.data || []).forEach((l: { post_id: string; user_id: string }) => {
           counts[l.post_id] = (counts[l.post_id] || 0) + 1;
           if (user && l.user_id === user.id) mine.add(l.post_id);
         });
         setLikeCounts(counts);
         setLikedPosts(mine);
+        const cCounts: Record<string, number> = {};
+        (commentsRes.data || []).forEach((c: { post_id: string }) => {
+          cCounts[c.post_id] = (cCounts[c.post_id] || 0) + 1;
+        });
+        setCommentCounts(cCounts);
       } else {
         setLikeCounts({});
         setLikedPosts(new Set());
+        setCommentCounts({});
       }
     } catch (err) {
       console.error("Error fetching posts:", err);
@@ -337,7 +344,7 @@ export default function FeedPage() {
                         </button>
                         <span className="flex items-center gap-2 text-sm font-bold text-rodeo-cream/60">
                           <MessageCircle size={18} />
-                          Comentar
+                          {commentCounts[post.id] > 0 ? commentCounts[post.id] : "Comentar"}
                         </span>
                       </div>
                       <button onClick={compartir} className="p-2 hover:bg-white/10 rounded-lg transition-colors" title="Compartir">
