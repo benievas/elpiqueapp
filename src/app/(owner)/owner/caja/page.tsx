@@ -11,9 +11,20 @@ import {
   AlertCircle, TrendingUp, TrendingDown, Calendar as CalendarIcon, History,
   ChevronDown, ChevronRight,
 } from "lucide-react";
-import type { CashMovement } from "@/types/database";
 
 type TipoMovimiento = "ingreso" | "egreso";
+
+type CashMovement = {
+  id: string;
+  complex_id: string;
+  user_id: string;
+  tipo: TipoMovimiento;
+  categoria: string;
+  monto: number;
+  metodo_pago: string;
+  fecha: string;
+  notas?: string | null;
+};
 
 const CONCEPTOS_INGRESO = [
   "Fondo inicial / Apertura",
