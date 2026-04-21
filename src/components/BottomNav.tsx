@@ -2,17 +2,17 @@
 
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
-import { Home, Search, MapPin, Rss, Trophy, User, Building2, Plus } from "lucide-react";
+import { Home, Search, MapPin, Rss, Trophy, User, Building2, Plus, Users } from "lucide-react";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { useState, useEffect, useRef } from "react";
 
 const NAV_ITEMS = [
-  { href: "/",        label: "Inicio",   Icon: Home },
+  { href: "/",         label: "Inicio",   Icon: Home },
   { href: "/explorar", label: "Explorar", Icon: Search },
-  { href: "/mapa",    label: "Mapa",     Icon: MapPin },
-  { href: "/feed",    label: "Feed",     Icon: Rss },
-  { href: "/torneos", label: "Torneos",  Icon: Trophy },
-  { href: "/perfil",  label: "Perfil",   Icon: User },
+  { href: "/torneos",  label: "Torneos",  Icon: Trophy },
+  { href: "/partidos", label: "Partidos", Icon: Users },
+  { href: "/feed",     label: "Feed",     Icon: Rss },
+  { href: "/perfil",   label: "Perfil",   Icon: User },
 ];
 
 export default function BottomNav() {
@@ -115,10 +115,10 @@ export default function BottomNav() {
         })}
       </div>
 
-      {/* FAB — nueva reserva */}
+      {/* FAB — armá partido */}
       <button
-        onClick={() => router.push("/explorar")}
-        aria-label="Reservar cancha"
+        onClick={() => router.push("/partidos")}
+        aria-label="Armá partido"
         style={{
           width: 48,
           height: 48,

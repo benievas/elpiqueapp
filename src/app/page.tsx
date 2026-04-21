@@ -23,6 +23,7 @@ import {
   MessageCircle,
   LogOut,
   LayoutDashboard,
+  Users,
 } from "lucide-react";
 import Link from "next/link";
 import { useAuth } from "@/lib/hooks/useAuth";
@@ -107,7 +108,7 @@ const ALERTA_ACTIVA = { activa: false, nivel: "amarillo" as "amarillo" | "rojo",
 const ACCESO_RAPIDO = [
   { href: "/explorar",  icono: Compass,       titulo: "Explorar Complejos", descripcion: "Todos los complejos deportivos de tu ciudad",      colorIcono: "text-rodeo-lime" },
   { href: "/torneos",   icono: Star,           titulo: "Torneos",            descripcion: "Inscribite con tu equipo. Bracket en vivo.",        colorIcono: "text-yellow-400" },
-  { href: "/mapa",      icono: Map,            titulo: "Mapa de Canchas",    descripcion: "Encontrá el complejo más cercano a vos",            colorIcono: "text-blue-400" },
+  { href: "/partidos",  icono: Users,          titulo: "Armá Partido",       descripcion: "Publicá que te falta gente y jugá hoy mismo",       colorIcono: "text-orange-400" },
   { href: "/feed",      icono: MessageCircle,  titulo: "Feed Deportivo",     descripcion: "Novedades y promos de los complejos de tu ciudad",  colorIcono: "text-purple-400" },
 ];
 
