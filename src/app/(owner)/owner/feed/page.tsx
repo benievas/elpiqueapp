@@ -249,9 +249,15 @@ export default function OwnerFeedPage() {
             return (
               <motion.div key={p.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.03 }}
                 style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: "14px", opacity: (p.visible && !vencido) ? 1 : 0.55 }}
-                className="flex items-center gap-4 px-5 py-4 hover:bg-white/5 transition-colors">
-                <div className="w-2 h-10 rounded-full shrink-0" style={{ background: TIPO_COLOR[p.tipo] ?? "#888" }} />
-                <div className="flex-1 min-w-0">
+                className="flex items-center gap-3 pr-4 hover:bg-white/5 transition-colors overflow-hidden">
+                {p.imagen_principal ? (
+                  <div className="w-16 h-16 shrink-0 overflow-hidden rounded-l-[13px]">
+                    <img src={p.imagen_principal} alt="" className="w-full h-full object-cover" />
+                  </div>
+                ) : (
+                  <div className="w-2 h-16 shrink-0" style={{ background: TIPO_COLOR[p.tipo] ?? "#888", borderRadius: "13px 0 0 13px" }} />
+                )}
+                <div className="flex-1 min-w-0 py-3">
                   <p className="text-sm font-bold text-white truncate">{p.titulo}</p>
                   <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                     <span className="text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ background: `${TIPO_COLOR[p.tipo] ?? "#888"}20`, color: TIPO_COLOR[p.tipo] ?? "#888" }}>{p.tipo}</span>

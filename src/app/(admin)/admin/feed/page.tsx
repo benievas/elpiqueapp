@@ -4,12 +4,13 @@ export const dynamic = 'force-dynamic';
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
+import { useAuth } from "@/lib/hooks/useAuth";
 import { supabase, supabaseMut } from "@/lib/supabase";
-import { Newspaper, ChevronLeft, RefreshCw, Plus, Eye, EyeOff, Trash2, Edit2, Check, X } from "lucide-react";
+import { Newspaper, ChevronLeft, RefreshCw, Plus, Eye, EyeOff, Trash2, Edit2, Check, X, Loader } from "lucide-react";
 
 interface Post {
   id: string; titulo: string; contenido: string | null; tipo: string;
-  imagen_url: string | null; visible: boolean; created_at: string;
+  imagen_principal: string | null; visible: boolean; created_at: string;
   complejo_nombre?: string;
 }
 
@@ -18,9 +19,10 @@ const TIPO_COLOR: Record<string, string> = {
   promo: "#C8FF00", noticia: "#60A5FA", evento: "#A78BFA", torneo: "#F87171", consejo: "#34D399",
 };
 
-const EMPTY_FORM = { titulo: "", contenido: "", tipo: "noticia", imagen_url: "" };
+const EMPTY_FORM = { titulo: "", contenido: "", tipo: "noticia", imagen_principal: "" };
 
 export default function AdminFeedPage() {
+  const { user } = useAuth();
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -29,16 +31,19 @@ export default function AdminFeedPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [toggling, setToggling] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [uploadingImg, setUploadingImg] = useState(false);
+  const [errorText, setErrorText] = useState("");
 
   useEffect(() => { load(); }, []);
 
   async function load() {
     setLoading(true);
     try {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("feed_posts")
-        .select("id, titulo, contenido, tipo, imagen_url, visible, created_at, complexes!complex_id(nombre)")
-        .order("created_at", { ascending: false }) as { data: any[] | null };
+        .select("id, titulo, contenido, tipo, imagen_principal, visible, created_at, complexes(nombre)")
+        .order("created_at", { ascending: false });
+      if (error) console.error("Error loading feed:", error);
       setPosts((data || []).map((p: any) => ({
         ...p,
         complejo_nombre: Array.isArray(p.complexes) ? p.complexes[0]?.nombre : p.complexes?.nombre,
@@ -47,15 +52,33 @@ export default function AdminFeedPage() {
     finally { setLoading(false); }
   }
 
+  async function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+    if (file.size > 5 * 1024 * 1024) { setErrorText("La imagen no puede superar 5MB."); return; }
+    setUploadingImg(true); setErrorText("");
+    try {
+      const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
+      const path = `feed-posts/${user.id}/${Date.now()}-${Math.random().toString(36).slice(2,8)}.${ext}`;
+      const { error: upErr } = await supabaseMut.storage.from("app-media").upload(path, file, { cacheControl: "3600", upsert: false });
+      if (upErr) throw upErr;
+      const { data } = supabaseMut.storage.from("app-media").getPublicUrl(path);
+      setForm(f => ({ ...f, imagen_principal: data.publicUrl }));
+    } catch (err) {
+      setErrorText((err as { message?: string }).message || "Error al subir.");
+    } finally { setUploadingImg(false); }
+  }
+
   async function handleSave() {
     if (!form.titulo.trim()) return;
     setSaving(true);
-    const payload = { titulo: form.titulo.trim(), contenido: form.contenido.trim() || null, tipo: form.tipo, imagen_url: form.imagen_url.trim() || null, visible: true };
+    const payload = { titulo: form.titulo.trim(), contenido: form.contenido.trim() || null, tipo: form.tipo, imagen_principal: form.imagen_principal.trim() || null, visible: true, autor_id: user?.id };
     if (editingId) {
       await supabaseMut.from("feed_posts").update(payload).eq("id", editingId);
       setPosts(prev => prev.map(p => p.id === editingId ? { ...p, ...payload } : p));
     } else {
-      const { data } = await supabaseMut.from("feed_posts").insert(payload).select("id, titulo, contenido, tipo, imagen_url, visible, created_at").single();
+      const { data, error } = await supabaseMut.from("feed_posts").insert(payload).select("id, titulo, contenido, tipo, imagen_principal, visible, created_at").single();
+      if (error) alert("Error: " + error.message);
       if (data) setPosts(prev => [{ ...data, complejo_nombre: undefined }, ...prev]);
     }
     setSaving(false); setShowForm(false); setEditingId(null); setForm(EMPTY_FORM);
@@ -78,7 +101,7 @@ export default function AdminFeedPage() {
 
   function startEdit(post: Post) {
     setEditingId(post.id);
-    setForm({ titulo: post.titulo, contenido: post.contenido ?? "", tipo: post.tipo, imagen_url: post.imagen_url ?? "" });
+    setForm({ titulo: post.titulo, contenido: post.contenido ?? "", tipo: post.tipo, imagen_principal: post.imagen_principal ?? "" });
     setShowForm(true);
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
@@ -129,12 +152,24 @@ export default function AdminFeedPage() {
                     {TIPOS.map(t => <option key={t} value={t} style={{ background: "#1A120B" }}>{t.charAt(0).toUpperCase() + t.slice(1)}</option>)}
                   </select>
                 </div>
-                <div className="space-y-1.5">
-                  <label className="text-[11px] font-bold text-rodeo-cream/40 uppercase tracking-widest">URL imagen (opcional)</label>
-                  <input value={form.imagen_url} onChange={e => setForm(f => ({ ...f, imagen_url: e.target.value }))}
-                    placeholder="https://..." style={inputStyle} className="w-full px-3 py-2.5 text-sm placeholder:text-rodeo-cream/25" />
-                </div>
               </div>
+              <div className="space-y-2">
+                <label className="text-[11px] font-bold text-rodeo-cream/40 uppercase tracking-widest">Imagen (opcional)</label>
+                {form.imagen_principal ? (
+                  <div className="relative" style={{ borderRadius: "12px", overflow: "hidden", border: "1px solid rgba(255,255,255,0.12)" }}>
+                    <img src={form.imagen_principal} alt="" className="w-full h-40 object-cover" />
+                    <button type="button" onClick={()=>setForm(f=>({...f, imagen_principal: ""}))} style={{ background:"rgba(0,0,0,0.7)", borderRadius:"8px" }} className="absolute top-2 right-2 p-1.5 text-white hover:bg-red-500/80">
+                      <X size={14}/>
+                    </button>
+                  </div>
+                ) : (
+                  <label style={{ background:"rgba(255,255,255,0.04)", border:"1px dashed rgba(255,255,255,0.18)", borderRadius:"12px" }} className="flex items-center justify-center gap-2 py-5 cursor-pointer hover:bg-white/8">
+                    {uploadingImg ? <><Loader size={14} className="animate-spin text-rodeo-lime"/><span className="text-xs text-rodeo-cream/60">Subiendo...</span></> : <span className="text-xs text-rodeo-cream/60">Click para subir (máx 5MB)</span>}
+                    <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} disabled={uploadingImg}/>
+                  </label>
+                )}
+              </div>
+              {errorText && <p className="text-red-400 text-xs bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{errorText}</p>}
               <div className="flex gap-2">
                 <button onClick={handleSave} disabled={saving || !form.titulo.trim()}
                   style={{ background: "rgba(200,255,0,0.9)", borderRadius: "10px" }}
@@ -166,9 +201,15 @@ export default function AdminFeedPage() {
           {posts.map((p, i) => (
             <motion.div key={p.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.03 }}
               style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: "14px", opacity: p.visible ? 1 : 0.55 }}
-              className="flex items-center gap-4 px-5 py-4 hover:bg-white/5 transition-colors">
-              <div className="w-2 h-8 rounded-full shrink-0" style={{ background: TIPO_COLOR[p.tipo] ?? "#888" }} />
-              <div className="flex-1 min-w-0">
+              className="flex items-center gap-3 pr-4 hover:bg-white/5 transition-colors overflow-hidden">
+              {p.imagen_principal ? (
+                <div className="w-16 h-16 shrink-0 overflow-hidden rounded-l-[13px]">
+                  <img src={p.imagen_principal} alt="" className="w-full h-full object-cover" />
+                </div>
+              ) : (
+                <div className="w-2 h-16 shrink-0" style={{ background: TIPO_COLOR[p.tipo] ?? "#888", borderRadius: "13px 0 0 13px" }} />
+              )}
+              <div className="flex-1 min-w-0 py-3">
                 <p className="text-sm font-bold text-white truncate">{p.titulo}</p>
                 <div className="flex items-center gap-2 mt-0.5">
                   <span className="text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ background: `${TIPO_COLOR[p.tipo] ?? "#888"}20`, color: TIPO_COLOR[p.tipo] ?? "#888" }}>{p.tipo}</span>
