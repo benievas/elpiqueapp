@@ -35,6 +35,8 @@ interface Team {
   posicion: number | null;
 }
 
+interface Set { a: number; b: number }
+
 interface Match {
   id: string;
   ronda: number;
@@ -42,6 +44,7 @@ interface Match {
   team_b_id: string | null;
   puntaje_a: number | null;
   puntaje_b: number | null;
+  sets: Set[] | null;
   estado: string;
   fecha: string | null;
 }
@@ -132,7 +135,7 @@ export default function TorneoPublicoPage() {
 
     const [teamsRes, matchesRes, complejoRes] = await Promise.all([
       supabase.from("tournament_teams").select("id, nombre, miembros, puntos, posicion").eq("tournament_id", t.id),
-      supabase.from("tournament_matches").select("id, ronda, team_a_id, team_b_id, puntaje_a, puntaje_b, estado, fecha").eq("tournament_id", t.id).order("ronda"),
+      supabase.from("tournament_matches").select("id, ronda, team_a_id, team_b_id, puntaje_a, puntaje_b, sets, estado, fecha").eq("tournament_id", t.id).order("ronda"),
       supabase.from("complexes").select("nombre, slug, ciudad").eq("id", t.complex_id).single(),
     ]);
     setTeams((teamsRes.data || []) as Team[]);
@@ -363,6 +366,11 @@ export default function TorneoPublicoPage() {
                             )}
                             <TeamRow name={getTeamName(m.team_a_id)} score={m.puntaje_a} winner={ganadorA}/>
                             <TeamRow name={getTeamName(m.team_b_id)} score={m.puntaje_b} winner={ganadorB}/>
+                            {m.sets && m.sets.length > 0 && (
+                              <p className="text-[10px] font-bold tabular-nums text-rodeo-cream/50 pt-1 border-t border-white/5">
+                                {m.sets.map((s) => `${s.a}-${s.b}`).join(" · ")}
+                              </p>
+                            )}
                           </motion.div>
                         );
                       })}

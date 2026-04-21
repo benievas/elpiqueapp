@@ -33,6 +33,7 @@ interface Team {
   posicion: number | null;
 }
 
+interface Set { a: number; b: number }
 interface Match {
   id: string;
   ronda: number;
@@ -40,9 +41,12 @@ interface Match {
   team_b_id: string | null;
   puntaje_a: number | null;
   puntaje_b: number | null;
+  sets: Set[] | null;
   estado: string;
   fecha: string | null;
 }
+
+const DEPORTES_SETS = new Set(["tenis", "padel", "voley"]);
 
 const ESTADO_TORNEO: Record<string, { color: string; bg: string; label: string }> = {
   registracion: { color: "#4ADE80", bg: "rgba(74,222,128,0.12)",  label: "Inscripción abierta" },
@@ -73,7 +77,7 @@ export default function OwnerTorneoDetailPage() {
     setTorneo(t);
     const [teamsRes, matchesRes] = await Promise.all([
       supabase.from("tournament_teams").select("id, nombre, miembros, puntos, posicion").eq("tournament_id", t.id).order("created_at"),
-      supabase.from("tournament_matches").select("id, ronda, team_a_id, team_b_id, puntaje_a, puntaje_b, estado, fecha").eq("tournament_id", t.id).order("ronda").order("created_at"),
+      supabase.from("tournament_matches").select("id, ronda, team_a_id, team_b_id, puntaje_a, puntaje_b, sets, estado, fecha").eq("tournament_id", t.id).order("ronda").order("created_at"),
     ]);
     setTeams((teamsRes.data || []) as Team[]);
     setMatches((matchesRes.data || []) as Match[]);
@@ -165,13 +169,13 @@ export default function OwnerTorneoDetailPage() {
     await load();
   }
 
-  async function guardarMatch(m: Match, puntaje_a: number, puntaje_b: number, finalizar: boolean) {
+  async function guardarMatch(m: Match, puntaje_a: number, puntaje_b: number, finalizar: boolean, sets?: Set[] | null) {
     setSavingMatch(m.id);
+    const estado = finalizar ? "finalizado" : "en_juego";
     await supabaseMut.from("tournament_matches").update({
-      puntaje_a, puntaje_b,
-      estado: finalizar ? "finalizado" : "en_juego",
+      puntaje_a, puntaje_b, sets: sets ?? null, estado,
     }).eq("id", m.id);
-    setMatches(prev => prev.map(x => x.id === m.id ? { ...x, puntaje_a, puntaje_b, estado: finalizar ? "finalizado" : "en_juego" } : x));
+    setMatches(prev => prev.map(x => x.id === m.id ? { ...x, puntaje_a, puntaje_b, sets: sets ?? null, estado } : x));
     setSavingMatch(null);
   }
 
@@ -297,7 +301,8 @@ export default function OwnerTorneoDetailPage() {
                   {matches.filter(m => m.ronda === ronda).map(m => (
                     <MatchRow key={m.id} m={m} teamA={getTeamName(m.team_a_id)} teamB={getTeamName(m.team_b_id)}
                       saving={savingMatch === m.id} onSave={guardarMatch}
-                      editable={torneo.estado === "en_curso"} />
+                      editable={torneo.estado === "en_curso"}
+                      useSets={DEPORTES_SETS.has(torneo.deporte)} />
                   ))}
                 </div>
               </div>
@@ -309,23 +314,42 @@ export default function OwnerTorneoDetailPage() {
   );
 }
 
-function MatchRow({ m, teamA, teamB, saving, onSave, editable }: {
+function MatchRow({ m, teamA, teamB, saving, onSave, editable, useSets }: {
   m: Match; teamA: string; teamB: string; saving: boolean;
-  onSave: (m: Match, a: number, b: number, finalizar: boolean) => void;
+  onSave: (m: Match, a: number, b: number, finalizar: boolean, sets?: Set[] | null) => void;
   editable: boolean;
+  useSets: boolean;
 }) {
   const [a, setA] = useState<string>(m.puntaje_a?.toString() ?? "");
   const [b, setB] = useState<string>(m.puntaje_b?.toString() ?? "");
+  const [sets, setSets] = useState<{ a: string; b: string }[]>(
+    (m.sets && m.sets.length > 0) ? m.sets.map(s => ({ a: String(s.a), b: String(s.b) })) : [{ a: "", b: "" }]
+  );
   const finalizado = m.estado === "finalizado";
   const ganadorA = finalizado && m.puntaje_a != null && m.puntaje_b != null && m.puntaje_a > m.puntaje_b;
   const ganadorB = finalizado && m.puntaje_a != null && m.puntaje_b != null && m.puntaje_b > m.puntaje_a;
+
+  function computarYGuardar(finalizar: boolean) {
+    if (useSets) {
+      const parsed = sets.map(s => ({ a: parseInt(s.a) || 0, b: parseInt(s.b) || 0 })).filter(s => s.a !== 0 || s.b !== 0);
+      const ganadosA = parsed.reduce((acc, s) => acc + (s.a > s.b ? 1 : 0), 0);
+      const ganadosB = parsed.reduce((acc, s) => acc + (s.b > s.a ? 1 : 0), 0);
+      onSave(m, ganadosA, ganadosB, finalizar, parsed.length ? parsed : null);
+    } else {
+      onSave(m, parseInt(a) || 0, parseInt(b) || 0, finalizar, null);
+    }
+  }
+
+  const setsResumen = useSets && m.sets && m.sets.length > 0
+    ? m.sets.map(s => `${s.a}-${s.b}`).join(" · ")
+    : null;
 
   return (
     <div style={{ background:"rgba(255,255,255,0.02)", border:"1px solid rgba(255,255,255,0.05)", borderRadius:"10px" }} className="px-4 py-3">
       <div className="flex items-center gap-3">
         <div className="flex-1 grid grid-cols-[1fr_auto_1fr] items-center gap-3">
           <p className={`text-sm truncate ${ganadorA ? "text-rodeo-lime font-bold" : "text-white"}`}>{teamA}</p>
-          {editable && !finalizado ? (
+          {editable && !finalizado && !useSets ? (
             <div className="flex items-center gap-1">
               <input type="number" value={a} onChange={e => setA(e.target.value)} placeholder="0"
                 className="w-10 text-center text-sm bg-white/5 border border-white/10 rounded px-1 py-1 outline-none text-white"/>
@@ -334,25 +358,69 @@ function MatchRow({ m, teamA, teamB, saving, onSave, editable }: {
                 className="w-10 text-center text-sm bg-white/5 border border-white/10 rounded px-1 py-1 outline-none text-white"/>
             </div>
           ) : (
-            <p className="text-sm font-black text-center min-w-[60px]" style={{ color: finalizado ? "#C8FF00" : "#94A3B8" }}>
-              {m.puntaje_a != null ? `${m.puntaje_a} - ${m.puntaje_b}` : "—"}
-            </p>
+            <div className="text-center min-w-[80px]">
+              <p className="text-sm font-black" style={{ color: finalizado ? "#C8FF00" : "#94A3B8" }}>
+                {m.puntaje_a != null ? `${m.puntaje_a} - ${m.puntaje_b}` : "—"}
+              </p>
+              {setsResumen && <p className="text-[10px] text-rodeo-cream/50 tabular-nums">{setsResumen}</p>}
+            </div>
           )}
           <p className={`text-sm truncate text-right ${ganadorB ? "text-rodeo-lime font-bold" : "text-white"}`}>{teamB}</p>
         </div>
-        {editable && !finalizado && (
+        {editable && !finalizado && !useSets && (
           <div className="flex gap-1">
-            <button onClick={() => onSave(m, parseInt(a) || 0, parseInt(b) || 0, false)} disabled={saving}
+            <button onClick={() => computarYGuardar(false)} disabled={saving}
               className="p-1.5 rounded bg-blue-400/10 hover:bg-blue-400/20 text-blue-400" title="Guardar parcial">
               {saving ? <Loader size={11} className="animate-spin"/> : <Play size={11}/>}
             </button>
-            <button onClick={() => onSave(m, parseInt(a) || 0, parseInt(b) || 0, true)} disabled={saving || !a || !b}
+            <button onClick={() => computarYGuardar(true)} disabled={saving || !a || !b}
               className="p-1.5 rounded bg-green-400/10 hover:bg-green-400/20 text-green-400 disabled:opacity-40" title="Finalizar">
               <Check size={11}/>
             </button>
           </div>
         )}
       </div>
+
+      {/* Editor de sets */}
+      {editable && !finalizado && useSets && (
+        <div className="mt-3 pt-3 border-t border-white/5 space-y-2">
+          <p className="text-[10px] font-black text-rodeo-cream/50 uppercase tracking-widest">Sets / parciales</p>
+          {sets.map((s, i) => (
+            <div key={i} className="flex items-center gap-2">
+              <span className="text-[10px] text-rodeo-cream/40 w-10">Set {i+1}</span>
+              <input type="number" value={s.a} onChange={e => { const next = [...sets]; next[i] = { ...next[i], a: e.target.value }; setSets(next); }}
+                placeholder="0" className="w-12 text-center text-sm bg-white/5 border border-white/10 rounded px-1 py-1 outline-none text-white"/>
+              <span className="text-rodeo-cream/40">-</span>
+              <input type="number" value={s.b} onChange={e => { const next = [...sets]; next[i] = { ...next[i], b: e.target.value }; setSets(next); }}
+                placeholder="0" className="w-12 text-center text-sm bg-white/5 border border-white/10 rounded px-1 py-1 outline-none text-white"/>
+              {sets.length > 1 && (
+                <button onClick={() => setSets(sets.filter((_, idx) => idx !== i))}
+                  className="p-1 rounded text-rodeo-cream/40 hover:text-red-400">
+                  <X size={12}/>
+                </button>
+              )}
+            </div>
+          ))}
+          <div className="flex items-center gap-2 pt-1">
+            {sets.length < 5 && (
+              <button onClick={() => setSets([...sets, { a: "", b: "" }])}
+                className="text-[11px] font-bold text-rodeo-lime hover:underline flex items-center gap-1">
+                <Plus size={11}/> Set
+              </button>
+            )}
+            <div className="flex-1"/>
+            <button onClick={() => computarYGuardar(false)} disabled={saving}
+              className="px-2.5 py-1 rounded bg-blue-400/15 hover:bg-blue-400/25 text-blue-400 text-[11px] font-bold flex items-center gap-1">
+              {saving ? <Loader size={10} className="animate-spin"/> : <Play size={10}/>}
+              Parcial
+            </button>
+            <button onClick={() => computarYGuardar(true)} disabled={saving}
+              className="px-2.5 py-1 rounded bg-green-400/15 hover:bg-green-400/25 text-green-400 text-[11px] font-bold flex items-center gap-1">
+              <Check size={10}/> Finalizar
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
