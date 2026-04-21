@@ -62,23 +62,10 @@ export function useTrialStatus(complexId?: string | null): TrialStatus {
     if (complexId === null) return;
 
     const fetchStatus = async () => {
-      // Las suscripciones son por usuario (owner), no por complejo.
-      // Así se evita el loop infinito de trial cuando el owner crea un complejo
-      // y la suscripción había sido guardada con complex_id = null.
-      let query: any = supabase
-        .from('subscriptions' as never)
-        .select('status, is_trial, starts_at, ends_at')
-        .eq('plan', 'owner')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
-        .limit(1);
-
-      const { data } = await query.maybeSingle() as { data: {
-        status: string;
-        is_trial: boolean;
-        starts_at: string | null;
-        ends_at: string | null;
-      } | null };
+      try {
+        const res = await fetch('/api/auth/me', { cache: 'no-store' });
+        if (!res.ok) throw new Error('Error en API');
+        const { subscription: data } = await res.json();
 
       if (!data) {
         setStatus({ state: 'sin_plan', diasRestantes: 0, diasGracia: 0, endsAt: null, isBlocked: false });
@@ -112,6 +99,10 @@ export function useTrialStatus(complexId?: string | null): TrialStatus {
       }
 
       setStatus({ state: 'expirado', diasRestantes: 0, diasGracia: 0, endsAt: null, isBlocked: true });
+      } catch (err) {
+        console.error('Error fetching trial status:', err);
+        setStatus({ state: 'sin_plan', diasRestantes: 0, diasGracia: 0, endsAt: null, isBlocked: false });
+      }
     };
 
     fetchStatus();

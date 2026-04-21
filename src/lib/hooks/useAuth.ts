@@ -15,12 +15,21 @@ export interface UserProfile {
 }
 
 async function fetchProfile(userId: string): Promise<UserProfile | null> {
-  const { data } = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('id', userId)
-    .maybeSingle();
-  return data ?? null;
+  try {
+    const res = await fetch('/api/auth/me', { cache: 'no-store' });
+    if (!res.ok) return null;
+    const body = await res.json();
+    return body.profile || null;
+  } catch (e) {
+    console.error('Error fetching profile:', e);
+    // Fallback: intentar por cliente supabase si falla de red
+    const { data } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', userId)
+      .maybeSingle();
+    return data ?? null;
+  }
 }
 
 export function useAuth() {
