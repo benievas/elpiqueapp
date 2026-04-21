@@ -21,7 +21,9 @@ import {
   Calendar,
   Zap,
   Trophy,
+  QrCode,
 } from "lucide-react";
+import QRShareModal from "@/components/QRShareModal";
 import AvailabilityWidget from "@/components/AvailabilityWidget";
 import { supabase, supabaseMut } from "@/lib/supabase";
 import { useAuth } from "@/lib/hooks/useAuth";
@@ -100,6 +102,7 @@ export default function ComplejoPage({
   const [favorito, setFavorito] = useState(false);
   const [imagenActiva, setImagenActiva] = useState(0);
   const [linkCopiado, setLinkCopiado] = useState(false);
+  const [showQR, setShowQR] = useState(false);
   const [reviewEstrellas, setReviewEstrellas] = useState(0);
   const [reviewTexto, setReviewTexto] = useState("");
   const [reviewSaving, setReviewSaving] = useState(false);
@@ -289,6 +292,13 @@ export default function ComplejoPage({
                 className="w-10 h-10 rounded-full bg-black/40 backdrop-blur-md border border-white/20 flex items-center justify-center hover:bg-black/60 transition-colors"
               >
                 <Heart size={18} className={favorito ? "fill-red-400 text-red-400" : "text-white"} />
+              </button>
+              <button
+                onClick={() => setShowQR(true)}
+                title="Código QR"
+                className="w-10 h-10 rounded-full bg-black/40 backdrop-blur-md border border-white/20 flex items-center justify-center hover:bg-black/60 transition-colors"
+              >
+                <QrCode size={18} className="text-white" />
               </button>
               <button
                 onClick={handleShare}
@@ -622,6 +632,14 @@ export default function ComplejoPage({
           Contactar por WhatsApp
         </a>
       </div>
+
+      <QRShareModal
+        open={showQR}
+        onClose={() => setShowQR(false)}
+        url={typeof window !== "undefined" ? window.location.href : ""}
+        title={complejo.nombre}
+        subtitle={`${complejo.direccion}, ${complejo.ciudad}`}
+      />
     </div>
   );
 }

@@ -7,7 +7,8 @@ import { useParams, useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import { supabase, supabaseMut } from "@/lib/supabase";
 import { useAuth } from "@/lib/hooks/useAuth";
-import { ChevronLeft, Trophy, Users, Calendar, Loader, Share2, MapPin, Radio, UserPlus, X, Plus, Check } from "lucide-react";
+import { ChevronLeft, Trophy, Users, Calendar, Loader, Share2, MapPin, Radio, UserPlus, X, Plus, Check, QrCode } from "lucide-react";
+import QRShareModal from "@/components/QRShareModal";
 
 interface Torneo {
   id: string;
@@ -70,6 +71,7 @@ export default function TorneoPublicoPage() {
   const [loading, setLoading] = useState(true);
   const [liveFlash, setLiveFlash] = useState<string | null>(null);
 
+  const [showQR, setShowQR] = useState(false);
   const [showInscripcion, setShowInscripcion] = useState(false);
   const [equipoNombre, setEquipoNombre] = useState("");
   const [miembros, setMiembros] = useState<string[]>([""]);
@@ -275,6 +277,12 @@ export default function TorneoPublicoPage() {
                   <UserPlus size={14} /> Inscribirme
                 </button>
               )}
+              <button onClick={() => setShowQR(true)}
+                style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: "12px" }}
+                className="w-10 h-10 flex items-center justify-center hover:bg-white/15 transition-all text-rodeo-cream/80 hover:text-rodeo-lime"
+                title="Código QR">
+                <QrCode size={16} />
+              </button>
               <button onClick={compartir}
                 style={{ background: "rgba(200,255,0,0.12)", border: "1px solid rgba(200,255,0,0.25)", borderRadius: "12px" }}
                 className="flex items-center gap-2 px-4 py-2 hover:bg-rodeo-lime/20 transition-all text-rodeo-lime text-xs font-bold">
@@ -516,6 +524,14 @@ export default function TorneoPublicoPage() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      <QRShareModal
+        open={showQR}
+        onClose={() => setShowQR(false)}
+        url={typeof window !== "undefined" ? window.location.href : ""}
+        title={torneo.nombre}
+        subtitle={complejo?.nombre || undefined}
+      />
     </div>
   );
 }
