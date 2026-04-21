@@ -61,7 +61,7 @@ const PROMO_SLIDES = [
     isPromo: true,
     title: "RESERVÁ EN SEGUNDOS",
     subtitle: "CONFIRMACIÓN VÍA WHATSAPP",
-    description: "Elegí la cancha, seleccioná el horario disponible y confirmá con el dueño directo por WhatsApp. Sin apps extra, sin esperas ni complicaciones.",
+    description: "Elegí tu cancha, seleccioná el horario disponible y confirmá con el dueño directo por WhatsApp. Sin llamadas, sin esperas.",
     bgImage: "https://images.unsplash.com/photo-1508098682722-e99c43a406b2?q=80&w=2000&auto=format&fit=crop",
     cardImage: "https://images.unsplash.com/photo-1508098682722-e99c43a406b2?q=80&w=600&auto=format&fit=crop",
     ctaLink: "/explorar",
@@ -70,9 +70,9 @@ const PROMO_SLIDES = [
   {
     id: "p2",
     isPromo: true,
-    title: "TORNEOS Y LIGAS",
-    subtitle: "COMPETÍ CON TU EQUIPO",
-    description: "Anotate en torneos activos en tu ciudad. Seguí el bracket, resultados y clasificaciones. Organización completa, gratis para jugadores.",
+    title: "TORNEOS EN VIVO",
+    subtitle: "INSCRIPCIÓN Y BRACKET ONLINE",
+    description: "Anotate en torneos activos con tu equipo. Bracket, resultados y clasificaciones actualizados en tiempo real. Gratis para jugadores.",
     bgImage: "https://images.unsplash.com/photo-1542144582-1ba00456b5e3?q=80&w=2000&auto=format&fit=crop",
     cardImage: "https://images.unsplash.com/photo-1542144582-1ba00456b5e3?q=80&w=600&auto=format&fit=crop",
     ctaLink: "/torneos",
@@ -81,9 +81,20 @@ const PROMO_SLIDES = [
   {
     id: "p3",
     isPromo: true,
+    title: "CANCHA LIBRE AHORA",
+    subtitle: "DESCUENTOS DE ÚLTIMO MOMENTO",
+    description: "Algunos complejos ofrecen descuentos express para horas libres. Aprovechá los mejores precios y jugá más por menos.",
+    bgImage: "https://images.unsplash.com/photo-1575361204480-aadea25e6e68?q=80&w=2000&auto=format&fit=crop",
+    cardImage: "https://images.unsplash.com/photo-1575361204480-aadea25e6e68?q=80&w=600&auto=format&fit=crop",
+    ctaLink: "/explorar",
+    ctaLabel: "Ver ofertas",
+  },
+  {
+    id: "p4",
+    isPromo: true,
     title: "MAPA INTERACTIVO",
     subtitle: "ENCONTRÁ CANCHAS CERCA",
-    description: "Explorá todos los complejos deportivos en el mapa. Filtrá por deporte y disponibilidad. El GPS muestra los más cercanos a vos.",
+    description: "Todos los complejos de tu ciudad en el mapa. Filtrá por deporte, horario y distancia. El GPS te muestra los más cercanos.",
     bgImage: "https://images.unsplash.com/photo-1579952363873-27f3bade9f55?q=80&w=2000&auto=format&fit=crop",
     cardImage: "https://images.unsplash.com/photo-1579952363873-27f3bade9f55?q=80&w=600&auto=format&fit=crop",
     ctaLink: "/mapa",
@@ -94,15 +105,19 @@ const PROMO_SLIDES = [
 const ALERTA_ACTIVA = { activa: false, nivel: "amarillo" as "amarillo" | "rojo", texto: "", tipo: "Mantenimiento" };
 
 const ACCESO_RAPIDO = [
-  { href: "/explorar", icono: Compass, titulo: "Explorar Complejos", descripcion: "Descubrí todos los complejos deportivos", colorIcono: "text-rodeo-lime" },
-  { href: "/mapa", icono: Map, titulo: "Mapa de Canchas", descripcion: "Ubicación de complejos en Catamarca", colorIcono: "text-blue-400" },
-  { href: "/torneos", icono: Star, titulo: "Torneos", descripcion: "Participá en torneos activos", colorIcono: "text-yellow-400" },
+  { href: "/explorar",  icono: Compass,       titulo: "Explorar Complejos", descripcion: "Todos los complejos deportivos de tu ciudad",      colorIcono: "text-rodeo-lime" },
+  { href: "/torneos",   icono: Star,           titulo: "Torneos",            descripcion: "Inscribite con tu equipo. Bracket en vivo.",        colorIcono: "text-yellow-400" },
+  { href: "/mapa",      icono: Map,            titulo: "Mapa de Canchas",    descripcion: "Encontrá el complejo más cercano a vos",            colorIcono: "text-blue-400" },
+  { href: "/feed",      icono: MessageCircle,  titulo: "Feed Deportivo",     descripcion: "Novedades y promos de los complejos de tu ciudad",  colorIcono: "text-purple-400" },
 ];
 
 const VENTAJAS = [
-  { icono: Compass, titulo: "Fácil Reserva", descripcion: "Busca, selecciona tu horario y confirma en WhatsApp en menos de 2 minutos." },
-  { icono: MapPin, titulo: "Ubicación Inteligente", descripcion: "Filtra por deporte, horario y disponibilidad. Mapa interactivo de todos los complejos." },
-  { icono: Star, titulo: "Reseñas Verificadas", descripcion: "Lee opiniones de otros jugadores y califica cada cancha después de jugar." },
+  { icono: Compass,      titulo: "Reserva en segundos",        descripcion: "Buscá tu cancha, elegí horario y confirmá directo por WhatsApp. Sin llamadas ni apps extra." },
+  { icono: Trophy,       titulo: "Torneos con bracket online", descripcion: "Inscribite con tu equipo, seguí el fixture y resultados en tiempo real desde la app." },
+  { icono: Zap,          titulo: "Descuentos express",         descripcion: "Canchas con descuento de último momento aparecen en el home. Jugás más por menos." },
+  { icono: MapPin,       titulo: "Mapa inteligente",           descripcion: "Todos los complejos en el mapa. Filtrá por deporte y encontrá el más cercano." },
+  { icono: BarChart3,    titulo: "Panel para dueños",          descripcion: "Gestioná tu complejo, canchas, torneos y reservas desde un panel completo." },
+  { icono: CalendarDays, titulo: "Disponibilidad en vivo",     descripcion: "La disponibilidad de cada cancha se actualiza en tiempo real para que nunca pierdas un turno." },
 ];
 
 function HeroUserButton() {
@@ -531,7 +546,7 @@ export default function Home() {
           <h2 className="font-display mb-6" style={{ fontSize: "clamp(28px, 4vw, 40px)", color: "#fff" }}>
             <span className="section-slash">/</span>Acceso Rápido
           </h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             {ACCESO_RAPIDO.map((item) => {
               const Icono = item.icono;
               return (
@@ -733,17 +748,19 @@ export default function Home() {
                 La app deportiva<br/>de Catamarca
               </h2>
               <p className="text-rodeo-cream/70 leading-relaxed">
-                ElPiqueApp conecta jugadores con complejos deportivos de forma simple y rápida. Buscás la cancha, elegís el horario disponible y reservás directo por WhatsApp — sin apps extra, sin complicaciones.
+                ElPiqueApp conecta jugadores con complejos deportivos de Catamarca. Encontrás la cancha, reservás por WhatsApp y te anotás en torneos — todo desde la app, sin llamadas ni complicaciones.
               </p>
               <p className="text-rodeo-cream/70 leading-relaxed">
-                Para los dueños de complejos, es la herramienta completa: gestionás tus canchas, horarios, reservas y torneos desde un panel dedicado. Tu complejo visible para cientos de jugadores en la región.
+                Para dueños de complejos es la herramienta completa: canchas, reservas, torneos con bracket online, descuentos express y feed para llegar a la comunidad — en un panel dedicado.
               </p>
               <div className="flex flex-col gap-3 pt-2">
                 {[
                   "Reservas vía WhatsApp sin intermediarios",
+                  "Torneos con inscripción y bracket online",
+                  "Descuentos express para llenar horas vacías",
+                  "Feed deportivo de tu ciudad",
                   "Mapa interactivo con todos los complejos",
-                  "Torneos y ligas organizadas",
-                  "Panel de gestión para dueños",
+                  "Panel completo para dueños",
                 ].map((item, i) => (
                   <div key={i} className="flex items-center gap-3">
                     <CheckCircle2 size={16} className="text-rodeo-lime shrink-0" />
@@ -754,10 +771,12 @@ export default function Home() {
             </div>
             <div className="grid grid-cols-2 gap-3">
               {[
-                { icon: MessageCircle, label: "Reservas por WhatsApp", desc: "Confirmación instantánea con el dueño" },
-                { icon: CalendarDays, label: "Disponibilidad en tiempo real", desc: "Ves qué horarios están libres" },
-                { icon: Trophy, label: "Torneos y ligas", desc: "Anotate y competí con tu equipo" },
-                { icon: MapPin, label: "Mapa interactivo", desc: "Encontrá complejos cerca tuyo" },
+                { icon: MessageCircle, label: "Reservas por WhatsApp",     desc: "Confirmación instantánea sin intermediarios" },
+                { icon: Trophy,        label: "Torneos con bracket",        desc: "Inscripción y resultados en tiempo real" },
+                { icon: Zap,           label: "Descuentos express",         desc: "Horas libres con precio rebajado" },
+                { icon: MapPin,        label: "Mapa interactivo",           desc: "Encontrá complejos cerca tuyo" },
+                { icon: CalendarDays,  label: "Disponibilidad en vivo",     desc: "Ves qué horarios están libres ahora" },
+                { icon: BarChart3,     label: "Panel para dueños",          desc: "Canchas, reservas y torneos en un lugar" },
               ].map((item, i) => {
                 const Icono = item.icon;
                 return (

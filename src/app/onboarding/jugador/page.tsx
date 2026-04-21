@@ -4,7 +4,7 @@ export const dynamic = 'force-dynamic';
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowRight, Search, Calendar, MessageCircle, CheckCircle2 } from "lucide-react";
+import { ArrowRight, Search, Calendar, MessageCircle, CheckCircle2, Trophy, Zap, Rss } from "lucide-react";
 
 const DEPORTES = [
   { id: "futbol",  label: "Fútbol",   emoji: "⚽" },
@@ -18,6 +18,14 @@ const slideVariants = {
   enter: (dir: number) => ({ opacity: 0, x: dir > 0 ? 60 : -60 }),
   center:               { opacity: 1, x: 0 },
   exit:  (dir: number) => ({ opacity: 0, x: dir > 0 ? -60 : 60 }),
+};
+
+const HEADING = {
+  fontFamily: "'Barlow Condensed', system-ui, sans-serif",
+  fontWeight: 900,
+  letterSpacing: "-0.02em",
+  textTransform: "uppercase" as const,
+  lineHeight: 0.95,
 };
 
 export default function OnboardingJugadorPage() {
@@ -47,31 +55,31 @@ export default function OnboardingJugadorPage() {
     setSelected(prev => prev.includes(id) ? prev.filter(s => s !== id) : [...prev, id]);
 
   const slides = [
-    // Slide 0 — Bienvenida
+    // 0 — Bienvenida
     <div key="s0" className="space-y-6 text-center">
       <motion.img src="/assets/elpique.png" alt="ElPiqueApp" className="h-20 w-auto mx-auto"
         initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ delay: 0.1 }} />
       <div className="space-y-3">
-        <h1 style={{ fontFamily: "'Barlow Condensed', system-ui, sans-serif", fontWeight: 900, fontSize: "44px", letterSpacing: "-0.02em", textTransform: "uppercase", lineHeight: 0.95 }} className="text-white">
+        <h1 style={{ ...HEADING, fontSize: "44px" }} className="text-white">
           Bienvenido a<br /><span className="text-rodeo-lime">ElPiqueApp</span>
         </h1>
         <p className="text-rodeo-cream/60 text-sm leading-relaxed max-w-xs mx-auto">
-          La forma más fácil de encontrar y reservar canchas deportivas en Catamarca. Rápido, fácil y sin llamadas.
+          Reservá canchas, anotate en torneos y seguí el feed deportivo de Catamarca — todo en un solo lugar.
         </p>
       </div>
     </div>,
 
-    // Slide 1 — Cómo funciona
+    // 1 — Cómo reservar
     <div key="s1" className="space-y-5">
       <div className="text-center space-y-1">
-        <h2 style={{ fontFamily: "'Barlow Condensed', system-ui, sans-serif", fontWeight: 900, fontSize: "32px", letterSpacing: "-0.02em", textTransform: "uppercase", lineHeight: 0.95 }} className="text-white"><span className="section-slash">/</span>¿Cómo funciona?</h2>
-        <p className="text-rodeo-cream/50 text-sm">Reservar es muy simple</p>
+        <h2 style={{ ...HEADING, fontSize: "32px" }} className="text-white"><span className="section-slash">/</span>Reservar es simple</h2>
+        <p className="text-rodeo-cream/50 text-sm">3 pasos, sin complicaciones</p>
       </div>
       <div className="space-y-3">
         {[
-          { icon: Search,        title: "Buscá tu cancha",       desc: "Explorá complejos por deporte, precio u horario disponible." },
+          { icon: Search,        title: "Buscá tu cancha",       desc: "Explorá complejos por deporte, precio u horario. Mapa interactivo con toda la ciudad." },
           { icon: Calendar,      title: "Elegí el horario",      desc: "Ves disponibilidad en tiempo real y reservás con un toque." },
-          { icon: MessageCircle, title: "Confirmá por WhatsApp", desc: "Te conectamos directo con el complejo para confirmar la reserva." },
+          { icon: MessageCircle, title: "Confirmá por WhatsApp", desc: "Te conectamos directo con el complejo para confirmar en segundos." },
         ].map(({ icon: Icon, title, desc }, i) => (
           <div key={i} className="flex items-start gap-4 p-4 rounded-[18px] bg-white/5 border border-white/8">
             <div className="w-10 h-10 rounded-full bg-rodeo-lime/15 border border-rodeo-lime/30 flex items-center justify-center shrink-0">
@@ -86,10 +94,67 @@ export default function OnboardingJugadorPage() {
       </div>
     </div>,
 
-    // Slide 2 — Deportes favoritos
+    // 2 — Torneos
     <div key="s2" className="space-y-5">
       <div className="text-center space-y-1">
-        <h2 style={{ fontFamily: "'Barlow Condensed', system-ui, sans-serif", fontWeight: 900, fontSize: "32px", letterSpacing: "-0.02em", textTransform: "uppercase", lineHeight: 0.95 }} className="text-white"><span className="section-slash">/</span>¿Qué deportes jugás?</h2>
+        <h2 style={{ ...HEADING, fontSize: "32px" }} className="text-white"><span className="section-slash">/</span>Competí en torneos</h2>
+        <p className="text-rodeo-cream/50 text-sm">Gratis para jugadores</p>
+      </div>
+      <div className="space-y-3">
+        {[
+          { icon: Trophy, color: "text-yellow-400", bg: "bg-yellow-400/15 border-yellow-400/30", t: "Inscribite con tu equipo", d: "Buscá torneos activos en tu ciudad, creá tu equipo y anotate directamente desde la app." },
+          { icon: Zap,    color: "text-rodeo-lime",  bg: "bg-rodeo-lime/15 border-rodeo-lime/30",  t: "Seguí el bracket en vivo", d: "Resultados, posiciones y partidos actualizados en tiempo real. Sabés todo lo que pasa sin llamar a nadie." },
+        ].map(({ icon: Icon, color, bg, t, d }) => (
+          <div key={t} className="flex items-start gap-4 p-4 rounded-[18px] bg-white/5 border border-white/8">
+            <div className={`w-10 h-10 rounded-full ${bg} border flex items-center justify-center shrink-0`}>
+              <Icon size={18} className={color} />
+            </div>
+            <div>
+              <p className="text-sm font-black text-white">{t}</p>
+              <p className="text-xs text-rodeo-cream/50 mt-0.5 leading-relaxed">{d}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>,
+
+    // 3 — Express + Feed
+    <div key="s3" className="space-y-5">
+      <div className="text-center space-y-1">
+        <h2 style={{ ...HEADING, fontSize: "28px" }} className="text-white"><span className="section-slash">/</span>Más para aprovechar</h2>
+        <p className="text-rodeo-cream/50 text-sm">Ahorrá y seguí la comunidad</p>
+      </div>
+      <div className="space-y-3">
+        <div className="p-4 rounded-[18px] space-y-2"
+          style={{ background: "rgba(251,191,36,0.07)", border: "1px solid rgba(251,191,36,0.25)" }}>
+          <div className="flex items-center gap-2">
+            <Zap size={16} className="text-yellow-400" />
+            <p className="text-sm font-black text-white">Cancha Libre Ahora</p>
+            <span className="text-[10px] font-black px-2 py-0.5 rounded-full"
+              style={{ background: "rgba(251,191,36,0.2)", color: "#FBbf24" }}>DESCUENTO</span>
+          </div>
+          <p className="text-xs text-rodeo-cream/50 leading-relaxed">
+            Cuando un complejo activa un descuento de último momento, aparece en el home con precio rebajado. ¡Entrá seguido para agarrar los mejores precios!
+          </p>
+        </div>
+        <div className="flex items-start gap-4 p-4 rounded-[18px] bg-white/5 border border-white/8">
+          <div className="w-10 h-10 rounded-full bg-blue-500/15 border border-blue-400/30 flex items-center justify-center shrink-0">
+            <Rss size={18} className="text-blue-400" />
+          </div>
+          <div>
+            <p className="text-sm font-black text-white">Feed deportivo</p>
+            <p className="text-xs text-rodeo-cream/50 mt-0.5 leading-relaxed">
+              Noticias, resultados y promos de los complejos de tu ciudad. Todo en el feed, filtrado por tu ciudad.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>,
+
+    // 4 — Deportes favoritos
+    <div key="s4" className="space-y-5">
+      <div className="text-center space-y-1">
+        <h2 style={{ ...HEADING, fontSize: "32px" }} className="text-white"><span className="section-slash">/</span>¿Qué deportes jugás?</h2>
         <p className="text-rodeo-cream/50 text-sm">Seleccioná tus favoritos (opcional)</p>
       </div>
       <div className="grid grid-cols-2 gap-3">
@@ -106,6 +171,7 @@ export default function OnboardingJugadorPage() {
           );
         })}
       </div>
+      <p className="text-xs text-rodeo-cream/30 text-center">Usamos esto para mostrarte torneos relevantes</p>
     </div>,
   ];
 
@@ -118,14 +184,12 @@ export default function OnboardingJugadorPage() {
           className="absolute -bottom-40 -left-40 w-96 h-96 bg-rodeo-terracotta/8 rounded-full blur-3xl" />
       </div>
 
-      {/* Puntos de progreso */}
       <div className="relative z-10 flex justify-center gap-2 pt-12 pb-2">
         {slides.map((_, i) => (
           <div key={i} className={`h-1.5 rounded-full transition-all duration-300 ${i === slide ? "w-8 bg-rodeo-lime" : "w-2 bg-white/20"}`} />
         ))}
       </div>
 
-      {/* Slide */}
       <div className="relative z-10 flex-1 flex items-center justify-center px-6 py-6 overflow-hidden">
         <div className="w-full max-w-sm">
           <AnimatePresence mode="wait" custom={dir}>
@@ -139,7 +203,6 @@ export default function OnboardingJugadorPage() {
         </div>
       </div>
 
-      {/* Botones */}
       <div className="relative z-10 px-6 pb-10 space-y-3 max-w-sm mx-auto w-full">
         <motion.button
           onClick={() => slide < slides.length - 1 ? goTo(slide + 1) : finish()}
@@ -150,7 +213,7 @@ export default function OnboardingJugadorPage() {
           <ArrowRight size={18} />
         </motion.button>
         <button onClick={finish} className="w-full py-2 text-sm text-rodeo-cream/40 hover:text-rodeo-cream/60 transition-colors">
-          Omitir
+          Omitir tour
         </button>
       </div>
     </div>
