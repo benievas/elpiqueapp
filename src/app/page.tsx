@@ -172,6 +172,7 @@ export default function Home() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [complejos, setComplejos] = useState<ComplejoRow[]>([]);
   const [stats, setStats] = useState({ complejos: 0, canchas: 0, deportes: 0 });
+  const [torneosActivos, setTorneosActivos] = useState<{ id: string; nombre: string; slug: string; deporte: string; estado: string; fecha_inicio: string; imagen_url: string | null; complejo_nombre: string | null }[]>([]);
 
   // Fetch complejos reales de la ciudad activa
   useEffect(() => {
@@ -208,6 +209,52 @@ export default function Home() {
 
       setStats({ complejos: comps?.length ?? 0, canchas: canchasCount ?? 0, deportes: deportesSet.size });
     })();
+  }, [ciudadCorta, cityLoading]);
+
+  // Fetch torneos activos (registracion | en_curso) para la ciudad + realtime
+  useEffect(() => {
+    if (cityLoading) return;
+    let mounted = true;
+
+    const load = async () => {
+      const { data: comps } = await supabase
+        .from("complexes")
+        .select("id, nombre")
+        .eq("activo", true)
+        .eq("ciudad", ciudadCorta);
+
+      const complexMap: Record<string, string> = {};
+      (comps ?? []).forEach((c: { id: string; nombre: string }) => { complexMap[c.id] = c.nombre; });
+      const ids = Object.keys(complexMap);
+      if (!ids.length) { if (mounted) setTorneosActivos([]); return; }
+
+      const { data: tors } = await supabase
+        .from("tournaments")
+        .select("id, nombre, slug, deporte, estado, fecha_inicio, imagen_url, complex_id")
+        .in("complex_id", ids)
+        .in("estado", ["registracion", "en_curso"])
+        .order("estado", { ascending: true }) // en_curso antes que registracion alfabeticamente
+        .order("fecha_inicio", { ascending: true })
+        .limit(8);
+
+      if (mounted) {
+        setTorneosActivos((tors ?? []).map((t: any) => ({
+          ...t,
+          complejo_nombre: complexMap[t.complex_id] ?? null,
+        })));
+      }
+    };
+    load();
+
+    const channel = supabase
+      .channel(`home-torneos-${ciudadCorta}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "tournaments" }, () => load())
+      .subscribe();
+
+    return () => {
+      mounted = false;
+      supabase.removeChannel(channel);
+    };
   }, [ciudadCorta, cityLoading]);
 
   // Slider: intercala promos con complejos reales
@@ -466,6 +513,57 @@ export default function Home() {
           </div>
         </div>
       </section>
+
+      {/* TORNEOS EN VIVO / ABIERTOS */}
+      {torneosActivos.length > 0 && (
+        <section className="px-6 py-12 border-t border-white/5">
+          <div className="max-w-4xl mx-auto">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="font-display" style={{ fontSize: "clamp(28px, 4vw, 40px)", color: "#fff" }}>
+                <span className="section-slash">/</span>Torneos Activos
+              </h2>
+              <Link href="/torneos" className="text-xs font-black text-rodeo-lime hover:underline">Ver todos →</Link>
+            </div>
+            <div className="flex gap-4 overflow-x-auto pb-4 snap-x snap-mandatory scroll-smooth scrollbar-thin">
+              {torneosActivos.map((t) => {
+                const esVivo = t.estado === "en_curso";
+                return (
+                  <Link key={t.id} href={`/torneos/${t.slug}`}
+                    className="w-72 shrink-0 liquid-panel overflow-hidden hover:bg-white/10 transition-colors snap-start group">
+                    <div className="h-32 overflow-hidden relative bg-white/5">
+                      {t.imagen_url ? (
+                        <img src={t.imagen_url} alt={t.nombre} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"/>
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <Trophy size={32} className="text-rodeo-lime/40"/>
+                        </div>
+                      )}
+                      <div className="absolute inset-0 bg-gradient-to-t from-rodeo-dark/80 via-transparent to-transparent"/>
+                      <div className="absolute top-2 left-2">
+                        {esVivo ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-blue-500/90 text-white">
+                            <span className="relative flex h-1.5 w-1.5"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"/><span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-white"/></span>
+                            EN VIVO
+                          </span>
+                        ) : (
+                          <span className="inline-block px-2 py-0.5 rounded-full text-[10px] font-black bg-green-500/90 text-rodeo-dark">INSCRIPCIÓN ABIERTA</span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="p-4">
+                      <p className="text-[10px] font-black tracking-widest uppercase text-rodeo-lime mb-1">{t.deporte}</p>
+                      <h3 className="text-sm font-bold text-white leading-tight line-clamp-2">{t.nombre}</h3>
+                      {t.complejo_nombre && (
+                        <p className="text-[11px] text-rodeo-cream/50 mt-1.5 truncate">{t.complejo_nombre}</p>
+                      )}
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* STATS */}
       <section className="px-6 py-12 border-t border-white/5">
