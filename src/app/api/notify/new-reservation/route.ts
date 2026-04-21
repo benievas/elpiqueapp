@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { rateLimit, getClientIp } from "@/lib/rateLimit";
 
 interface Payload {
   complex_id: string;
@@ -13,6 +14,10 @@ interface Payload {
 }
 
 export async function POST(req: NextRequest) {
+  const rl = rateLimit(`notify-res:${getClientIp(req)}`, { limit: 10, windowSecs: 60 });
+  if (!rl.allowed) {
+    return NextResponse.json({ ok: false, reason: "rate_limited" }, { status: 429 });
+  }
   try {
     const body = (await req.json()) as Payload;
 

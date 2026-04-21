@@ -1,8 +1,13 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
+import { rateLimit, getClientIp } from "@/lib/rateLimit";
 
 // Endpoint interno: crea o actualiza el perfil usando service role (bypasea RLS)
 export async function POST(request: NextRequest) {
+  const rl = rateLimit(`create-profile:${getClientIp(request)}`, { limit: 5, windowSecs: 60 });
+  if (!rl.allowed) {
+    return NextResponse.json({ error: "Demasiadas solicitudes" }, { status: 429 });
+  }
   try {
     const body = await request.json();
     const { userId, nombre_completo, telefono, ciudad, rol } = body;

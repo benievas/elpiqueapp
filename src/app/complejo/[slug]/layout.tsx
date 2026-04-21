@@ -1,26 +1,29 @@
 import type { Metadata } from "next";
+import { createClient } from "@supabase/supabase-js";
 
-// Mock data matches what's in page.tsx — in production this would be a DB fetch
-const MOCK_COMPLEXES: Record<string, { nombre: string; descripcion: string; imagenPrincipal: string; deporte: string }> = {
-  "sportivo-central": {
-    nombre: "Sportivo Central",
-    deporte: "Fútbol / Multideporte",
-    descripcion: "Complejo deportivo profesional con 8 canchas de fútbol sintético, padel y vóley. Reservá tu cancha directo por WhatsApp.",
-    imagenPrincipal: "https://images.unsplash.com/photo-1461896836934-ffe607ba8211?q=80&w=1200&auto=format&fit=crop",
-  },
-  "padel-club-elite": {
-    nombre: "Padel Club Elite",
-    deporte: "Padel / Tenis",
-    descripcion: "6 canchas de padel con césped sintético de última generación e iluminación LED. Reservá tu horario en ElPiqueApp.",
-    imagenPrincipal: "https://images.unsplash.com/photo-1554068865-24cecd4e34b8?q=80&w=1200&auto=format&fit=crop",
-  },
-  "arena-voley": {
-    nombre: "Arena Vóley Catamarca",
-    deporte: "Vóley / Básquet",
-    descripcion: "Estadio especializado en vóley con 4 canchas profesionales. Torneos y ligas regulares en Catamarca.",
-    imagenPrincipal: "https://images.unsplash.com/photo-1612872087720-bb876e2e67d1?q=80&w=1200&auto=format&fit=crop",
-  },
-};
+interface ComplejoRow {
+  nombre: string;
+  descripcion: string | null;
+  deporte_principal: string;
+  ciudad: string;
+  direccion: string | null;
+  telefono: string | null;
+  foto_principal: string | null;
+  slug: string;
+}
+
+async function getComplejo(slug: string): Promise<ComplejoRow | null> {
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  );
+  const { data } = await supabase
+    .from("complexes")
+    .select("nombre, descripcion, deporte_principal, ciudad, direccion, telefono, foto_principal, slug")
+    .eq("slug", slug)
+    .single();
+  return data;
+}
 
 export async function generateMetadata({
   params,
@@ -28,7 +31,7 @@ export async function generateMetadata({
   params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
   const { slug } = await params;
-  const complejo = MOCK_COMPLEXES[slug];
+  const complejo = await getComplejo(slug);
 
   if (!complejo) {
     return {
@@ -38,8 +41,11 @@ export async function generateMetadata({
   }
 
   const title = `${complejo.nombre} — Reservar canchas | ElPiqueApp`;
-  const description = complejo.descripcion;
-  const url = `https://elpique.app/complejo/${slug}`;
+  const description =
+    complejo.descripcion ||
+    `${complejo.nombre} en ${complejo.ciudad}. Reservá tu cancha de ${complejo.deporte_principal} online con ElPiqueApp.`;
+  const url = `https://elpiqueapp.com/complejo/${slug}`;
+  const image = complejo.foto_principal || "https://elpiqueapp.com/og-image.jpg";
 
   return {
     title,
@@ -49,29 +55,55 @@ export async function generateMetadata({
       description,
       url,
       siteName: "ElPiqueApp",
-      images: [
-        {
-          url: complejo.imagenPrincipal,
-          width: 1200,
-          height: 630,
-          alt: complejo.nombre,
-        },
-      ],
+      images: [{ url: image, width: 1200, height: 630, alt: complejo.nombre }],
       type: "website",
       locale: "es_AR",
     },
-    twitter: {
-      card: "summary_large_image",
-      title,
-      description,
-      images: [complejo.imagenPrincipal],
-    },
-    alternates: {
-      canonical: url,
-    },
+    twitter: { card: "summary_large_image", title, description, images: [image] },
+    alternates: { canonical: url },
   };
 }
 
-export default function ComplejoLayout({ children }: { children: React.ReactNode }) {
-  return <>{children}</>;
+export default async function ComplejoLayout({
+  children,
+  params,
+}: {
+  children: React.ReactNode;
+  params: Promise<{ slug: string }>;
+}) {
+  const { slug } = await params;
+  const complejo = await getComplejo(slug);
+
+  const jsonLd = complejo
+    ? {
+        "@context": "https://schema.org",
+        "@type": "SportsActivityLocation",
+        name: complejo.nombre,
+        description: complejo.descripcion || undefined,
+        url: `https://elpiqueapp.com/complejo/${slug}`,
+        image: complejo.foto_principal || undefined,
+        address: complejo.direccion
+          ? {
+              "@type": "PostalAddress",
+              streetAddress: complejo.direccion,
+              addressLocality: complejo.ciudad,
+              addressCountry: "AR",
+            }
+          : undefined,
+        telephone: complejo.telefono || undefined,
+        sport: complejo.deporte_principal,
+      }
+    : null;
+
+  return (
+    <>
+      {jsonLd && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        />
+      )}
+      {children}
+    </>
+  );
 }

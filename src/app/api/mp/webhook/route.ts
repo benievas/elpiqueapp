@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { MercadoPagoConfig, Payment } from "mercadopago";
 import { createClient } from "@supabase/supabase-js";
+import { createHmac } from "crypto";
 
 // Clientes lazy — se inicializan en runtime, no en build time
 function getMPClient() {
@@ -21,11 +22,37 @@ const PLAN_DURATIONS: Record<string, number> = {
   annual: 365,
 };
 
+function verifyMPSignature(req: NextRequest, rawBody: string): boolean {
+  const secret = process.env.MP_WEBHOOK_SECRET;
+  if (!secret) return true; // skip if not configured
+
+  const xSignature = req.headers.get("x-signature") || "";
+  const xRequestId = req.headers.get("x-request-id") || "";
+  const dataId = new URL(req.url).searchParams.get("data.id") || "";
+
+  const tsMatch = xSignature.match(/ts=(\d+)/);
+  const v1Match = xSignature.match(/v1=([a-f0-9]+)/);
+  if (!tsMatch || !v1Match) return false;
+
+  const ts = tsMatch[1];
+  const v1 = v1Match[1];
+  const signedContent = `id:${dataId};request-id:${xRequestId};ts:${ts};`;
+  const expected = createHmac("sha256", secret).update(signedContent).digest("hex");
+
+  return expected === v1;
+}
+
 export async function POST(req: NextRequest) {
   const mp = getMPClient();
   const supabaseAdmin = getSupabaseAdmin();
   try {
-    const body = await req.json();
+    const rawBody = await req.text();
+
+    if (!verifyMPSignature(req, rawBody)) {
+      return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
+    }
+
+    const body = JSON.parse(rawBody);
     const { type, data } = body as { type: string; data: { id: string } };
 
     if (type !== "payment") {
