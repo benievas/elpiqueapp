@@ -381,20 +381,22 @@ function LoginForm() {
             </p>
           </motion.div>
 
-          {/* CTA dueños */}
-          <div className="liquid-panel px-5 py-4 flex items-center gap-4">
-            <div className="p-2 rounded-[10px] bg-rodeo-lime/15 border border-rodeo-lime/25 shrink-0">
-              <Building2 size={18} className="text-rodeo-lime" />
+          {/* CTA dueños — solo cuando NO viene del flujo owner (evita duplicado) */}
+          {!fromOwner && (
+            <div className="liquid-panel px-5 py-4 flex items-center gap-4">
+              <div className="p-2 rounded-[10px] bg-rodeo-lime/15 border border-rodeo-lime/25 shrink-0">
+                <Building2 size={18} className="text-rodeo-lime" />
+              </div>
+              <div className="flex-1">
+                <p style={{ fontFamily: "'Barlow Condensed', system-ui, sans-serif", fontWeight: 900, fontSize: "18px", letterSpacing: "-0.01em", textTransform: "uppercase", lineHeight: 1 }} className="text-white">¿Sos dueño de un complejo?</p>
+                <p className="text-xs text-rodeo-cream/50 mt-0.5">Registrá tu complejo y empezá con 30 días gratis.</p>
+              </div>
+              <Link href="/registro/dueno"
+                className="shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-[10px] bg-rodeo-lime/15 border border-rodeo-lime/30 text-rodeo-lime text-xs font-black hover:bg-rodeo-lime/25 transition-all">
+                Registrarme <ArrowRight size={12} />
+              </Link>
             </div>
-            <div className="flex-1">
-              <p style={{ fontFamily: "'Barlow Condensed', system-ui, sans-serif", fontWeight: 900, fontSize: "18px", letterSpacing: "-0.01em", textTransform: "uppercase", lineHeight: 1 }} className="text-white">¿Sos dueño de un complejo?</p>
-              <p className="text-xs text-rodeo-cream/50 mt-0.5">Registrá tu complejo y empezá con 30 días gratis.</p>
-            </div>
-            <Link href="/registro/dueno"
-              className="shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-[10px] bg-rodeo-lime/15 border border-rodeo-lime/30 text-rodeo-lime text-xs font-black hover:bg-rodeo-lime/25 transition-all">
-              Registrarme <ArrowRight size={12} />
-            </Link>
-          </div>
+          )}
 
           <div className="text-center">
             <p className="text-sm text-rodeo-cream/50 mb-2">¿Preferís explorar primero?</p>

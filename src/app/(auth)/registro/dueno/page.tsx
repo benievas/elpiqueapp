@@ -105,7 +105,13 @@ function RegistroDuenoForm() {
         return;
       }
 
-      // 4. Tiene sesión → panel de gestión
+      // 4. Tiene sesión → activar trial automáticamente y entrar al panel
+      const trialRes = await fetch("/api/owner/activar-trial", { method: "POST" });
+      if (!trialRes.ok) {
+        const body = await trialRes.json();
+        throw new Error(body.error || "Error al activar el trial");
+      }
+      localStorage.setItem("owner_onboarded", "true");
       window.location.href = "/owner";
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error al crear la cuenta");

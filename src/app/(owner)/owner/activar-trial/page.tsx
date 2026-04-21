@@ -6,7 +6,6 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import { Rocket, CheckCircle2, Loader, Crown, Calendar, Shield, Zap } from "lucide-react";
 import { useAuth } from "@/lib/hooks/useAuth";
-import { supabaseMut } from "@/lib/supabase";
 
 const INCLUIDO = [
   "Panel de gestión completo",
@@ -20,41 +19,26 @@ const INCLUIDO = [
 export default function ActivarTrialPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Si viene desde el guard con un complex_id conocido (segundo complejo+)
   const complexId = searchParams.get("complex_id");
 
   const handleActivar = async () => {
-    if (!user) return;
     setLoading(true);
     setError(null);
 
     try {
-      const now = new Date().toISOString();
-      const trialEnd = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+      const res = await fetch("/api/owner/activar-trial", { method: "POST" });
+      const body = await res.json();
+      if (!res.ok) throw new Error(body.error || "Error al activar");
 
-      const payload: Record<string, unknown> = {
-        user_id: user.id,
-        plan: "owner",
-        status: "trial",
-        is_trial: true,
-        starts_at: now,
-        ends_at: trialEnd,
-        created_at: now,
-      };
+      // Marcar onboarding como visto para no volver a mostrarlo
+      localStorage.setItem("owner_onboarded", "true");
 
-      // Si viene con complex_id ya resuelto (segundo+ complejo)
-      if (complexId) payload.complex_id = complexId;
-
-      const { error: insertError } = await supabaseMut.from("subscriptions").insert(payload);
-      if (insertError) throw insertError;
-
-      // Primer complejo → onboarding para crearlo
-      // Segundo+ complejo → ya existe, volver al panel
-      router.push(complexId ? "/owner" : "/onboarding/dueno");
+      // Forzar recarga completa para que el layout lea el trial recién creado
+      window.location.href = complexId ? `/owner?complex_id=${complexId}` : "/owner";
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error al activar el trial");
     } finally {
@@ -143,9 +127,9 @@ export default function ActivarTrialPage() {
           {/* CTA */}
           <motion.button
             onClick={handleActivar}
-            disabled={loading}
-            whileHover={!loading ? { scale: 1.02, y: -2 } : {}}
-            whileTap={!loading ? { scale: 0.98 } : {}}
+            disabled={loading || authLoading}
+            whileHover={!loading && !authLoading ? { scale: 1.02, y: -2 } : {}}
+            whileTap={!loading && !authLoading ? { scale: 0.98 } : {}}
             className="w-full py-4 rounded-[16px] bg-rodeo-lime text-rodeo-dark font-black text-base
               flex items-center justify-center gap-3 transition-all
               hover:shadow-[0_8px_32px_rgba(200,255,0,0.35)]
