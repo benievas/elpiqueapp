@@ -1,34 +1,22 @@
 "use client";
 export const dynamic = 'force-dynamic';
 
-import { useState, useMemo, useEffect, useRef } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { useActiveComplex } from "@/lib/context/ActiveComplexContext";
+import { useAuth } from "@/lib/hooks/useAuth";
+import { supabase, supabaseMut } from "@/lib/supabase";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  DollarSign,
-  Plus,
-  Minus,
-  Lock,
-  Unlock,
-  ChevronDown,
-  Trash2,
-  CheckCircle2,
-  AlertCircle,
-  TrendingUp,
-  TrendingDown,
+  DollarSign, Plus, Trash2, CheckCircle2,
+  AlertCircle, TrendingUp, TrendingDown, Calendar as CalendarIcon, History,
+  ChevronDown, ChevronRight,
 } from "lucide-react";
+import type { CashMovement } from "@/types/database";
 
 type TipoMovimiento = "ingreso" | "egreso";
 
-interface Movimiento {
-  id: string;
-  tipo: TipoMovimiento;
-  concepto: string;
-  monto: number;
-  hora: string;
-}
-
 const CONCEPTOS_INGRESO = [
+  "Fondo inicial / Apertura",
   "Reserva cancha fútbol",
   "Reserva cancha padel",
   "Reserva cancha tenis",
@@ -47,456 +35,427 @@ const CONCEPTOS_EGRESO = [
   "Insumos",
   "Personal",
   "Publicidad",
+  "Retiro de caja / Cierre",
   "Otro egreso",
 ];
 
 function formatMoney(n: number) {
   return n.toLocaleString("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 0 });
 }
-
-function nowTime() {
-  return new Date().toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" });
+function formatTime(iso: string) {
+  return new Date(iso).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" });
+}
+function formatDate(dateStr: string) {
+  const [y, m, d] = dateStr.split("-");
+  return new Date(+y, +m - 1, +d).toLocaleDateString("es-AR", { weekday: "long", day: "numeric", month: "long" });
 }
 
 const HOY = typeof window !== "undefined" ? new Date().toISOString().split("T")[0] : "";
 
-export default function CajaPage() {
-  const { activeComplexId } = useActiveComplex();
-  const lsKey = activeComplexId ? `caja_${activeComplexId}_${HOY}` : null;
+// ─── Historial agrupado por día ────────────────────────────────────────────────
+type DaySummary = {
+  fecha: string;
+  ingresos: number;
+  egresos: number;
+  balance: number;
+  movimientos: CashMovement[];
+};
 
-  const [cajaAbierta, setCajaAbierta] = useState(false);
-  const [fondoInicial, setFondoInicial] = useState("");
-  const [movimientos, setMovimientos] = useState<Movimiento[]>([]);
-  const [cajaCerrada, setCajaCerrada] = useState(false);
-  const loadedRef = useRef<string | null>(null);
+function HistorialTab({ complexId }: { complexId: string }) {
+  const [historial, setHistorial] = useState<DaySummary[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [expandedDay, setExpandedDay] = useState<string | null>(null);
 
-  // Cargar desde localStorage cuando cambia el complejo activo
   useEffect(() => {
-    if (!lsKey || loadedRef.current === lsKey) return;
-    loadedRef.current = lsKey;
-    try {
-      const raw = localStorage.getItem(lsKey);
-      if (raw) {
-        const saved = JSON.parse(raw) as { cajaAbierta: boolean; fondoInicial: string; movimientos: Movimiento[]; cajaCerrada: boolean };
-        setCajaAbierta(saved.cajaAbierta ?? false);
-        setFondoInicial(saved.fondoInicial ?? "");
-        setMovimientos(saved.movimientos ?? []);
-        setCajaCerrada(saved.cajaCerrada ?? false);
-      } else {
-        setCajaAbierta(false); setFondoInicial(""); setMovimientos([]); setCajaCerrada(false);
+    const load = async () => {
+      setLoading(true);
+      // Últimos 60 días
+      const desde = new Date();
+      desde.setDate(desde.getDate() - 60);
+      const { data } = await supabase
+        .from("cash_movements")
+        .select("*")
+        .eq("complex_id", complexId)
+        .gte("fecha", desde.toISOString())
+        .order("fecha", { ascending: false });
+
+      if (!data) { setLoading(false); return; }
+
+      // Agrupar por fecha (YYYY-MM-DD)
+      const porDia: Record<string, CashMovement[]> = {};
+      for (const m of data as CashMovement[]) {
+        const dia = m.fecha.split("T")[0];
+        if (!porDia[dia]) porDia[dia] = [];
+        porDia[dia].push(m);
       }
-    } catch { /* ignore */ }
-  }, [lsKey]);
 
-  // Persistir en localStorage cada vez que cambia el estado
-  useEffect(() => {
-    if (typeof window === "undefined" || !lsKey) return;
-    try {
-      localStorage.setItem(lsKey, JSON.stringify({ cajaAbierta, fondoInicial, movimientos, cajaCerrada }));
-    } catch { /* cuota llena, ignorar */ }
-  }, [lsKey, cajaAbierta, fondoInicial, movimientos, cajaCerrada]);
+      const resumen: DaySummary[] = Object.entries(porDia)
+        .map(([fecha, movs]) => ({
+          fecha,
+          ingresos: movs.filter(m => m.tipo === "ingreso").reduce((s, m) => s + m.monto, 0),
+          egresos: movs.filter(m => m.tipo === "egreso").reduce((s, m) => s + m.monto, 0),
+          balance: movs.filter(m => m.tipo === "ingreso").reduce((s, m) => s + m.monto, 0)
+                 - movs.filter(m => m.tipo === "egreso").reduce((s, m) => s + m.monto, 0),
+          movimientos: movs,
+        }))
+        .sort((a, b) => b.fecha.localeCompare(a.fecha));
 
-  // Form nuevo movimiento
-  const [tipo, setTipo] = useState<TipoMovimiento>("ingreso");
-  const [concepto, setConcepto] = useState("");
-  const [monto, setMonto] = useState("");
-  const [showForm, setShowForm] = useState(false);
+      setHistorial(resumen);
+      setLoading(false);
+    };
+    load();
+  }, [complexId]);
 
-  const fondo = parseFloat(fondoInicial) || 0;
-  const totalIngresos = useMemo(() => movimientos.filter((m) => m.tipo === "ingreso").reduce((s, m) => s + m.monto, 0), [movimientos]);
-  const totalEgresos = useMemo(() => movimientos.filter((m) => m.tipo === "egreso").reduce((s, m) => s + m.monto, 0), [movimientos]);
-  const saldoFinal = fondo + totalIngresos - totalEgresos;
+  if (loading) return (
+    <div className="flex justify-center py-16">
+      <div className="w-7 h-7 border-2 border-rodeo-lime/30 border-t-rodeo-lime rounded-full animate-spin" />
+    </div>
+  );
 
-  const handleAbrirCaja = () => {
-    if (!fondoInicial || parseFloat(fondoInicial) < 0) return;
-    setCajaAbierta(true);
-  };
+  if (!historial.length) return (
+    <div className="p-10 text-center" style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: "16px" }}>
+      <History size={28} className="text-rodeo-cream/20 mx-auto mb-2" />
+      <p className="text-sm text-rodeo-cream/40">No hay movimientos registrados aún.</p>
+    </div>
+  );
 
-  const handleAgregarMovimiento = () => {
-    const montoNum = parseFloat(monto);
-    if (!concepto || !monto || isNaN(montoNum) || montoNum <= 0) return;
-    setMovimientos((prev) => [
-      {
-        id: Date.now().toString(),
-        tipo,
-        concepto,
-        monto: montoNum,
-        hora: nowTime(),
-      },
-      ...prev,
-    ]);
-    setMonto("");
-    setConcepto("");
-    setShowForm(false);
-  };
+  // Totales del período
+  const totalIngresos = historial.reduce((s, d) => s + d.ingresos, 0);
+  const totalEgresos = historial.reduce((s, d) => s + d.egresos, 0);
 
-  const handleEliminar = (id: string) => {
-    setMovimientos((prev) => prev.filter((m) => m.id !== id));
-  };
-
-  const handleCerrarCaja = () => {
-    setCajaCerrada(true);
-  };
-
-  const handleNuevaCaja = () => {
-    if (typeof window !== "undefined" && lsKey) localStorage.removeItem(lsKey);
-    setCajaAbierta(false);
-    setCajaCerrada(false);
-    setFondoInicial("");
-    setMovimientos([]);
-    setShowForm(false);
-  };
-
-  // ── ESTADO: Caja cerrada (resumen) ──────────────────────────────────────
-  if (cajaCerrada) {
-    return (
-      <div className="space-y-8 max-w-xl">
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-2">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-rodeo-lime/10 border border-rodeo-lime/20 text-rodeo-lime text-xs font-bold tracking-widest uppercase">
-            <CheckCircle2 size={12} /> Caja Cerrada
-          </div>
-          <h1 style={{ fontFamily: "'Barlow Condensed', system-ui, sans-serif", fontWeight: 900, fontSize: "44px", letterSpacing: "-0.02em", textTransform: "uppercase", lineHeight: 0.95 }} className="text-white">Resumen del día</h1>
-          <p className="text-sm text-rodeo-cream/50">{new Date().toLocaleDateString("es-AR", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}</p>
-        </motion.div>
-
-        <div
-          style={{ background: "rgba(200,255,0,0.06)", border: "1px solid rgba(200,255,0,0.2)", borderRadius: "20px" }}
-          className="p-6 space-y-5"
-        >
-          {[
-            { label: "Fondo inicial", valor: fondo, color: "text-rodeo-cream/70" },
-            { label: "Total ingresos", valor: totalIngresos, color: "text-green-400" },
-            { label: "Total egresos", valor: totalEgresos, color: "text-red-400" },
-          ].map((row) => (
-            <div key={row.label} className="flex justify-between items-center border-b border-white/5 pb-4 last:border-0 last:pb-0">
-              <span className="text-sm text-rodeo-cream/60">{row.label}</span>
-              <span className={`text-lg font-black ${row.color}`}>{formatMoney(row.valor)}</span>
-            </div>
-          ))}
-          <div className="flex justify-between items-center pt-2">
-            <span className="text-base font-black text-white uppercase tracking-wide">Saldo final en caja</span>
-            <span className="text-2xl font-black text-rodeo-lime">{formatMoney(saldoFinal)}</span>
-          </div>
-        </div>
-
-        {/* Detalle de movimientos */}
-        {movimientos.length > 0 && (
-          <div>
-            <p className="text-xs font-bold tracking-widest uppercase text-rodeo-cream/40 mb-3">Movimientos registrados</p>
-            <div className="space-y-2">
-              {movimientos.map((m) => (
-                <div
-                  key={m.id}
-                  style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: "12px" }}
-                  className="flex justify-between items-center px-4 py-3"
-                >
-                  <div className="flex items-center gap-3">
-                    {m.tipo === "ingreso" ? <TrendingUp size={14} className="text-green-400" /> : <TrendingDown size={14} className="text-red-400" />}
-                    <div>
-                      <p className="text-sm font-bold text-white">{m.concepto}</p>
-                      <p className="text-xs text-rodeo-cream/40">{m.hora}</p>
-                    </div>
-                  </div>
-                  <span className={`text-sm font-black ${m.tipo === "ingreso" ? "text-green-400" : "text-red-400"}`}>
-                    {m.tipo === "egreso" ? "−" : "+"}{formatMoney(m.monto)}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        <button
-          onClick={handleNuevaCaja}
-          style={{ background: "rgba(200,255,0,0.15)", border: "1px solid rgba(200,255,0,0.3)", borderRadius: "14px" }}
-          className="w-full py-3 text-rodeo-lime font-bold text-sm hover:bg-rodeo-lime/25 transition-all"
-        >
-          Abrir nueva caja
-        </button>
-      </div>
-    );
-  }
-
-  // ── ESTADO: Caja no abierta ─────────────────────────────────────────────
-  if (!cajaAbierta) {
-    return (
-      <div className="space-y-8 max-w-xl">
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-2">
-          <p className="text-xs text-rodeo-cream/50 font-bold tracking-widest uppercase">Panel de Control</p>
-          <h1 style={{ fontFamily: "'Barlow Condensed', system-ui, sans-serif", fontWeight: 900, fontSize: "44px", letterSpacing: "-0.02em", textTransform: "uppercase", lineHeight: 0.95 }} className="text-white">Caja y Cierre</h1>
-          <p className="text-sm text-rodeo-cream/60">Registrá ingresos y egresos del día. Cerrá la caja al final con el resumen completo.</p>
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, scale: 0.97 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: 0.1 }}
-          style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "20px" }}
-          className="p-8 space-y-6"
-        >
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-[14px] bg-rodeo-lime/15 border border-rodeo-lime/30 flex items-center justify-center">
-              <Unlock size={22} className="text-rodeo-lime" />
-            </div>
-            <div>
-              <p className="text-white font-black">Apertura de Caja</p>
-              <p className="text-xs text-rodeo-cream/50">Ingresá el fondo inicial para comenzar</p>
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-xs font-bold text-rodeo-cream/50 uppercase tracking-widest">Fondo inicial (ARS)</label>
-            <div className="relative">
-              <DollarSign size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-rodeo-cream/40" />
-              <input
-                type="number"
-                placeholder="0"
-                value={fondoInicial}
-                onChange={(e) => setFondoInicial(e.target.value)}
-                style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: "12px" }}
-                className="w-full pl-9 pr-4 py-3.5 text-white font-bold text-lg focus:outline-none focus:border-rodeo-lime/50 transition-all placeholder-white/20"
-              />
-            </div>
-            <p className="text-xs text-rodeo-cream/30">El monto que tenés en efectivo al comenzar el día</p>
-          </div>
-
-          <button
-            onClick={handleAbrirCaja}
-            disabled={!fondoInicial || parseFloat(fondoInicial) < 0}
-            style={{ background: "rgba(200,255,0,0.9)", borderRadius: "14px" }}
-            className="w-full py-4 text-rodeo-dark font-black text-base flex items-center justify-center gap-2 hover:bg-rodeo-lime transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-          >
-            <Unlock size={18} /> Abrir Caja
-          </button>
-        </motion.div>
-
-        {/* Info */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          {[
-            { icon: TrendingUp, text: "Registrá cada ingreso: reservas, walk-ins, buffet" },
-            { icon: TrendingDown, text: "Anotá egresos: mantenimiento, servicios, personal" },
-            { icon: CheckCircle2, text: "Cerrá la caja con el resumen completo del día" },
-          ].map((item, i) => (
-            <div key={i} style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: "14px" }} className="p-4 flex items-start gap-3">
-              <item.icon size={16} className="text-rodeo-lime/60 mt-0.5 shrink-0" />
-              <p className="text-xs text-rodeo-cream/50 leading-relaxed">{item.text}</p>
-            </div>
-          ))}
-        </div>
-      </div>
-    );
-  }
-
-  // ── ESTADO: Caja abierta ────────────────────────────────────────────────
   return (
-    <div className="space-y-6 max-w-2xl">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-green-500/15 border border-green-500/25 text-green-400 text-[10px] font-bold tracking-widest uppercase mb-2">
-            <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" /> Caja abierta
-          </div>
-          <h1 style={{ fontFamily: "'Barlow Condensed', system-ui, sans-serif", fontWeight: 900, fontSize: "32px", letterSpacing: "-0.02em", textTransform: "uppercase", lineHeight: 0.95 }} className="text-white">Caja del día</h1>
-          <p className="text-xs text-rodeo-cream/50 mt-0.5">{new Date().toLocaleDateString("es-AR", { weekday: "long", day: "numeric", month: "long" })}</p>
-        </div>
-        <button
-          onClick={handleCerrarCaja}
-          style={{ background: "rgba(255,64,64,0.12)", border: "1px solid rgba(255,64,64,0.25)", borderRadius: "12px" }}
-          className="flex items-center gap-2 px-4 py-2.5 text-red-400 text-sm font-bold hover:bg-red-500/20 transition-all"
-        >
-          <Lock size={15} /> Cerrar caja
-        </button>
-      </div>
-
-      {/* Resumen en tiempo real */}
+    <div className="space-y-4">
+      {/* Resumen período */}
       <div className="grid grid-cols-3 gap-3">
         {[
-          { label: "Fondo inicial", valor: fondo, color: "text-rodeo-cream/80", bg: "rgba(255,255,255,0.04)" },
-          { label: "Ingresos", valor: totalIngresos, color: "text-green-400", bg: "rgba(74,222,128,0.06)" },
-          { label: "Egresos", valor: totalEgresos, color: "text-red-400", bg: "rgba(255,64,64,0.06)" },
-        ].map((card) => (
-          <div
-            key={card.label}
-            style={{ background: card.bg, border: "1px solid rgba(255,255,255,0.08)", borderRadius: "14px" }}
-            className="p-4 text-center"
-          >
-            <p className="text-[10px] font-bold text-rodeo-cream/40 uppercase tracking-widest mb-1">{card.label}</p>
-            <p className={`text-lg font-black ${card.color}`}>{formatMoney(card.valor)}</p>
+          { label: "Ingresos (60d)", valor: totalIngresos, color: "text-green-400", bg: "rgba(74,222,128,0.07)" },
+          { label: "Egresos (60d)", valor: totalEgresos, color: "text-red-400", bg: "rgba(255,64,64,0.07)" },
+          { label: "Balance neto", valor: totalIngresos - totalEgresos, color: totalIngresos - totalEgresos >= 0 ? "text-rodeo-lime" : "text-red-400", bg: "rgba(200,255,0,0.06)" },
+        ].map(c => (
+          <div key={c.label} style={{ background: c.bg, border: "1px solid rgba(255,255,255,0.06)", borderRadius: "14px" }} className="p-4 text-center">
+            <p className="text-[10px] font-bold text-rodeo-cream/40 uppercase tracking-widest mb-1">{c.label}</p>
+            <p className={`text-lg font-black ${c.color}`}>{formatMoney(c.valor)}</p>
           </div>
         ))}
       </div>
 
-      {/* Saldo actual */}
-      <div
-        style={{ background: "rgba(200,255,0,0.07)", border: "1px solid rgba(200,255,0,0.2)", borderRadius: "16px" }}
-        className="px-5 py-4 flex justify-between items-center"
-      >
-        <span className="text-sm font-bold text-rodeo-cream/70">Saldo actual en caja</span>
-        <span className="text-2xl font-black text-rodeo-lime">{formatMoney(saldoFinal)}</span>
-      </div>
-
-      {/* Botón agregar + Form */}
-      <div>
-        <button
-          onClick={() => setShowForm((v) => !v)}
-          style={{ background: "rgba(200,255,0,0.9)", borderRadius: "12px" }}
-          className="flex items-center gap-2 px-5 py-3 text-rodeo-dark font-black text-sm hover:bg-rodeo-lime transition-all"
-        >
-          <Plus size={17} /> Registrar movimiento
-          <ChevronDown size={15} className={`transition-transform ${showForm ? "rotate-180" : ""}`} />
-        </button>
-
-        <AnimatePresence>
-          {showForm && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: "auto" }}
-              exit={{ opacity: 0, height: 0 }}
-              className="overflow-hidden mt-3"
-            >
-              <div
-                style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "16px" }}
-                className="p-5 space-y-4"
+      {/* Lista por día */}
+      <div className="space-y-2">
+        {historial.map((dia) => {
+          const isHoy = dia.fecha === HOY;
+          const isExpanded = expandedDay === dia.fecha;
+          return (
+            <div key={dia.fecha} style={{ background: "rgba(255,255,255,0.02)", border: `1px solid ${isHoy ? "rgba(200,255,0,0.2)" : "rgba(255,255,255,0.06)"}`, borderRadius: "14px" }}>
+              <button
+                className="w-full flex items-center justify-between px-4 py-3.5 text-left"
+                onClick={() => setExpandedDay(isExpanded ? null : dia.fecha)}
               >
-                {/* Tipo */}
-                <div className="flex gap-2">
-                  {(["ingreso", "egreso"] as TipoMovimiento[]).map((t) => (
-                    <button
-                      key={t}
-                      onClick={() => { setTipo(t); setConcepto(""); }}
-                      style={tipo === t
-                        ? t === "ingreso"
-                          ? { background: "rgba(74,222,128,0.2)", border: "1px solid rgba(74,222,128,0.4)", borderRadius: "10px" }
-                          : { background: "rgba(255,64,64,0.2)", border: "1px solid rgba(255,64,64,0.4)", borderRadius: "10px" }
-                        : { background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "10px" }
-                      }
-                      className={`flex-1 py-2.5 text-sm font-bold flex items-center justify-center gap-2 transition-all ${
-                        tipo === t
-                          ? t === "ingreso" ? "text-green-400" : "text-red-400"
-                          : "text-rodeo-cream/50"
-                      }`}
-                    >
-                      {t === "ingreso" ? <Plus size={15} /> : <Minus size={15} />}
-                      {t === "ingreso" ? "Ingreso" : "Egreso"}
-                    </button>
-                  ))}
-                </div>
-
-                {/* Concepto */}
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-rodeo-cream/40 uppercase tracking-widest">Concepto</label>
-                  <select
-                    value={concepto}
-                    onChange={(e) => setConcepto(e.target.value)}
-                    style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: "10px" }}
-                    className="w-full px-3.5 py-3 text-sm text-white focus:outline-none focus:border-rodeo-lime/40 transition-all"
-                  >
-                    <option value="" style={{ background: "#1A120B" }}>Seleccionar concepto...</option>
-                    {(tipo === "ingreso" ? CONCEPTOS_INGRESO : CONCEPTOS_EGRESO).map((c) => (
-                      <option key={c} value={c} style={{ background: "#1A120B" }}>{c}</option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Monto */}
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-rodeo-cream/40 uppercase tracking-widest">Monto (ARS)</label>
-                  <div className="relative">
-                    <DollarSign size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-rodeo-cream/40" />
-                    <input
-                      type="number"
-                      placeholder="0"
-                      value={monto}
-                      onChange={(e) => setMonto(e.target.value)}
-                      style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: "10px" }}
-                      className="w-full pl-9 pr-4 py-3 text-white font-bold focus:outline-none focus:border-rodeo-lime/40 transition-all placeholder-white/20"
-                    />
+                <div className="flex items-center gap-3">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-bold text-white capitalize">{formatDate(dia.fecha)}</p>
+                      {isHoy && <span className="text-[9px] font-black px-1.5 py-0.5 rounded-full bg-rodeo-lime/20 text-rodeo-lime">HOY</span>}
+                    </div>
+                    <p className="text-[10px] text-rodeo-cream/40 mt-0.5">{dia.movimientos.length} movimiento{dia.movimientos.length !== 1 ? "s" : ""}</p>
                   </div>
                 </div>
-
-                {/* Guardar */}
-                <div className="flex gap-2 pt-1">
-                  <button
-                    onClick={handleAgregarMovimiento}
-                    disabled={!concepto || !monto || parseFloat(monto) <= 0}
-                    style={{ background: "rgba(200,255,0,0.85)", borderRadius: "10px" }}
-                    className="flex-1 py-3 text-rodeo-dark font-black text-sm flex items-center justify-center gap-2 hover:bg-rodeo-lime transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-                  >
-                    <CheckCircle2 size={15} /> Guardar
-                  </button>
-                  <button
-                    onClick={() => setShowForm(false)}
-                    style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "10px" }}
-                    className="px-4 py-3 text-rodeo-cream/60 text-sm font-bold hover:bg-white/10 transition-all"
-                  >
-                    Cancelar
-                  </button>
+                <div className="flex items-center gap-4 shrink-0">
+                  <div className="text-right hidden sm:block">
+                    <p className="text-xs text-green-400 font-bold">+{formatMoney(dia.ingresos)}</p>
+                    <p className="text-xs text-red-400">−{formatMoney(dia.egresos)}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className={`text-base font-black ${dia.balance >= 0 ? "text-rodeo-lime" : "text-red-400"}`}>
+                      {dia.balance >= 0 ? "+" : ""}{formatMoney(dia.balance)}
+                    </p>
+                  </div>
+                  {isExpanded ? <ChevronDown size={14} className="text-rodeo-cream/40" /> : <ChevronRight size={14} className="text-rodeo-cream/40" />}
                 </div>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+              </button>
+
+              <AnimatePresence>
+                {isExpanded && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: "auto", opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    className="overflow-hidden"
+                  >
+                    <div className="px-4 pb-4 space-y-1.5 border-t border-white/5 pt-3">
+                      {dia.movimientos.map(m => (
+                        <div key={m.id} className="flex items-center justify-between py-1.5 px-3 rounded-[10px]" style={{ background: "rgba(255,255,255,0.03)" }}>
+                          <div className="flex items-center gap-2.5">
+                            <div className={`p-1 rounded-[6px] ${m.tipo === "ingreso" ? "bg-green-400/10" : "bg-red-400/10"}`}>
+                              {m.tipo === "ingreso"
+                                ? <TrendingUp size={12} className="text-green-400" />
+                                : <TrendingDown size={12} className="text-red-400" />}
+                            </div>
+                            <div>
+                              <p className="text-xs font-bold text-white">{m.categoria}</p>
+                              <p className="text-[10px] text-rodeo-cream/30 font-mono">{formatTime(m.fecha)}</p>
+                            </div>
+                          </div>
+                          <span className={`text-xs font-black ${m.tipo === "ingreso" ? "text-green-400" : "text-red-400"}`}>
+                            {m.tipo === "egreso" ? "−" : "+"}{formatMoney(m.monto)}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          );
+        })}
       </div>
+    </div>
+  );
+}
 
-      {/* Movimientos */}
-      <div>
-        <p className="text-xs font-bold tracking-widest uppercase text-rodeo-cream/40 mb-3">
-          Movimientos del día ({movimientos.length})
-        </p>
+// ─── Main Page ─────────────────────────────────────────────────────────────────
+export default function CajaPage() {
+  const { user } = useAuth();
+  const { activeComplexId } = useActiveComplex();
 
-        {movimientos.length === 0 ? (
-          <div
-            style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: "14px" }}
-            className="p-8 text-center"
-          >
-            <AlertCircle size={28} className="text-rodeo-cream/20 mx-auto mb-2" />
-            <p className="text-sm text-rodeo-cream/40">Sin movimientos registrados todavía</p>
-          </div>
-        ) : (
-          <div className="space-y-2">
-            <AnimatePresence initial={false}>
-              {movimientos.map((m) => (
-                <motion.div
-                  key={m.id}
-                  initial={{ opacity: 0, x: -10 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: 10, height: 0 }}
-                  style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: "12px" }}
-                  className="flex items-center justify-between px-4 py-3 gap-3"
-                >
-                  <div className="flex items-center gap-3 flex-1 min-w-0">
-                    <div
-                      style={{
-                        background: m.tipo === "ingreso" ? "rgba(74,222,128,0.15)" : "rgba(255,64,64,0.15)",
-                        borderRadius: "8px",
-                      }}
-                      className="p-1.5 shrink-0"
-                    >
-                      {m.tipo === "ingreso"
-                        ? <TrendingUp size={14} className="text-green-400" />
-                        : <TrendingDown size={14} className="text-red-400" />
-                      }
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-sm font-bold text-white truncate">{m.concepto}</p>
-                      <p className="text-xs text-rodeo-cream/40">{m.hora}</p>
-                    </div>
-                  </div>
-                  <span className={`text-sm font-black shrink-0 ${m.tipo === "ingreso" ? "text-green-400" : "text-red-400"}`}>
-                    {m.tipo === "egreso" ? "−" : "+"}{formatMoney(m.monto)}
-                  </span>
-                  <button
-                    onClick={() => handleEliminar(m.id)}
-                    className="p-1.5 hover:bg-white/10 rounded-lg transition-colors shrink-0"
-                  >
-                    <Trash2 size={13} className="text-rodeo-cream/30 hover:text-red-400 transition-colors" />
-                  </button>
-                </motion.div>
-              ))}
-            </AnimatePresence>
+  const [activeTab, setActiveTab] = useState<"hoy" | "historial">("hoy");
+  const [dateFilter, setDateFilter] = useState(HOY);
+  const [movimientos, setMovimientos] = useState<CashMovement[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const [showForm, setShowForm] = useState(false);
+  const [tipo, setTipo] = useState<TipoMovimiento>("ingreso");
+  const [concepto, setConcepto] = useState("");
+  const [monto, setMonto] = useState("");
+  const [actionLoading, setActionLoading] = useState(false);
+  const [actionError, setActionError] = useState("");
+
+  const fetchMovimientos = useCallback(async () => {
+    if (!activeComplexId) return;
+    setLoading(true);
+    const { data, error } = await supabase
+      .from("cash_movements")
+      .select("*")
+      .eq("complex_id", activeComplexId)
+      .gte("fecha", `${dateFilter}T00:00:00.000Z`)
+      .lte("fecha", `${dateFilter}T23:59:59.999Z`)
+      .order("fecha", { ascending: false });
+    if (!error && data) setMovimientos(data);
+    setLoading(false);
+  }, [activeComplexId, dateFilter]);
+
+  useEffect(() => {
+    if (!activeComplexId) return;
+    fetchMovimientos();
+    const channel = supabase
+      .channel(`caja-${activeComplexId}-${dateFilter}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "cash_movements", filter: `complex_id=eq.${activeComplexId}` }, fetchMovimientos)
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [activeComplexId, dateFilter, fetchMovimientos]);
+
+  const handleAgregarMovimiento = async () => {
+    const montoNum = parseFloat(monto);
+    if (!concepto || !monto || isNaN(montoNum) || montoNum <= 0 || !user || !activeComplexId) return;
+    setActionLoading(true);
+    setActionError("");
+    const { error } = await supabaseMut.from("cash_movements").insert({
+      complex_id: activeComplexId,
+      user_id: user.id,
+      tipo,
+      categoria: concepto,
+      monto: montoNum,
+      metodo_pago: "efectivo",
+      fecha: new Date().toISOString(),
+    });
+    if (error) setActionError(error.message);
+    else { setMonto(""); setConcepto(""); setShowForm(false); }
+    setActionLoading(false);
+  };
+
+  const handleEliminar = async (id: string) => {
+    if (!confirm("¿Eliminar este movimiento?")) return;
+    await supabaseMut.from("cash_movements").delete().eq("id", id);
+  };
+
+  const fondo = useMemo(() => movimientos.filter(m => m.categoria === "Fondo inicial / Apertura").reduce((s, m) => s + m.monto, 0), [movimientos]);
+  const totalIngresos = useMemo(() => movimientos.filter(m => m.tipo === "ingreso" && m.categoria !== "Fondo inicial / Apertura").reduce((s, m) => s + m.monto, 0), [movimientos]);
+  const totalEgresos = useMemo(() => movimientos.filter(m => m.tipo === "egreso").reduce((s, m) => s + m.monto, 0), [movimientos]);
+  const saldoFinal = fondo + totalIngresos - totalEgresos;
+
+  return (
+    <div className="space-y-6 max-w-3xl">
+      {/* Header */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h1 style={{ fontFamily: "'Barlow Condensed', system-ui, sans-serif", fontWeight: 900, fontSize: "32px", letterSpacing: "-0.02em", textTransform: "uppercase", lineHeight: 0.95 }} className="text-white">Caja y Cierre</h1>
+          <p className="text-xs text-rodeo-cream/50 mt-1">Control diario · Historial de 60 días</p>
+        </div>
+        {activeTab === "hoy" && (
+          <div className="flex items-center gap-2 p-1.5 bg-white/5 border border-white/10 rounded-[12px]">
+            <CalendarIcon size={14} className="text-rodeo-cream/50 ml-2" />
+            <input
+              type="date"
+              value={dateFilter}
+              onChange={(e) => setDateFilter(e.target.value)}
+              className="bg-transparent text-sm font-bold text-white border-0 outline-none pr-3"
+              style={{ colorScheme: "dark" }}
+            />
           </div>
         )}
       </div>
+
+      {/* Tabs */}
+      <div className="flex gap-1 p-1 rounded-[14px]" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
+        {([
+          { key: "hoy", label: "📋 Hoy" },
+          { key: "historial", label: "📊 Historial" },
+        ] as const).map(tab => (
+          <button
+            key={tab.key}
+            onClick={() => setActiveTab(tab.key)}
+            className="flex-1 py-2.5 text-sm font-black rounded-[10px] transition-all"
+            style={activeTab === tab.key
+              ? { background: "rgba(200,255,0,0.9)", color: "#1A120B" }
+              : { color: "rgba(225,212,194,0.5)" }}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Tab: Historial */}
+      {activeTab === "historial" && activeComplexId && (
+        <HistorialTab complexId={activeComplexId} />
+      )}
+
+      {/* Tab: Hoy */}
+      {activeTab === "hoy" && (
+        loading ? (
+          <div className="flex justify-center py-12">
+            <div className="w-8 h-8 border-2 border-rodeo-lime/30 border-t-rodeo-lime rounded-full animate-spin" />
+          </div>
+        ) : (
+          <>
+            {/* Resumen */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              {[
+                { label: "Fondo inicial", valor: fondo, color: "text-white", bg: "rgba(255,255,255,0.05)" },
+                { label: "Ingresos", valor: totalIngresos, color: "text-green-400", bg: "rgba(74,222,128,0.08)" },
+                { label: "Egresos", valor: totalEgresos, color: "text-red-400", bg: "rgba(255,64,64,0.08)" },
+                { label: "Saldo en Caja", valor: saldoFinal, color: "text-rodeo-lime", bg: "rgba(200,255,0,0.1)", border: "border-rodeo-lime/30" },
+              ].map((card) => (
+                <div key={card.label} style={{ background: card.bg }} className={`p-4 rounded-[16px] text-center border ${card.border || "border-white/5"}`}>
+                  <p className="text-[10px] font-bold text-rodeo-cream/50 uppercase tracking-widest mb-1">{card.label}</p>
+                  <p className={`text-xl font-black ${card.color}`}>{formatMoney(card.valor)}</p>
+                </div>
+              ))}
+            </div>
+
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm font-black text-white uppercase tracking-wider">Movimientos del día</h2>
+              <button
+                onClick={() => setShowForm(v => !v)}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-rodeo-lime text-rodeo-dark rounded-[10px] text-xs font-black hover:opacity-90 transition-all"
+              >
+                <Plus size={14} /> Registrar
+                <ChevronDown size={14} className={`transition-transform ${showForm ? "rotate-180" : ""}`} />
+              </button>
+            </div>
+
+            <AnimatePresence>
+              {showForm && (
+                <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
+                  <div style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "16px" }} className="p-5 space-y-4 mb-4">
+                    <div className="flex gap-2">
+                      {(["ingreso", "egreso"] as TipoMovimiento[]).map(t => (
+                        <button key={t} onClick={() => { setTipo(t); setConcepto(""); }}
+                          className={`flex-1 py-2.5 text-sm font-bold flex items-center justify-center gap-2 transition-all rounded-[10px] ${
+                            tipo === t
+                              ? (t === "ingreso" ? "bg-green-400/20 border-green-400/40 text-green-400 border" : "bg-red-400/20 border-red-400/40 text-red-400 border")
+                              : "bg-white/5 border-white/10 text-rodeo-cream/50 border"
+                          }`}
+                        >
+                          {t === "ingreso" ? "Ingreso (+)" : "Egreso (-)"}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-bold text-rodeo-cream/40 uppercase tracking-widest">Concepto</label>
+                        <select value={concepto} onChange={e => setConcepto(e.target.value)}
+                          className="w-full px-3.5 py-3 text-sm text-white bg-white/5 border border-white/10 rounded-[10px] focus:outline-none focus:border-rodeo-lime/40">
+                          <option value="" style={{ background: "#1A120B" }}>Seleccionar...</option>
+                          {(tipo === "ingreso" ? CONCEPTOS_INGRESO : CONCEPTOS_EGRESO).map(c => (
+                            <option key={c} value={c} style={{ background: "#1A120B" }}>{c}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-bold text-rodeo-cream/40 uppercase tracking-widest">Monto (ARS)</label>
+                        <div className="relative">
+                          <DollarSign size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-rodeo-cream/40" />
+                          <input type="number" placeholder="0" value={monto} onChange={e => setMonto(e.target.value)}
+                            className="w-full pl-9 pr-4 py-3 text-white font-bold bg-white/5 border border-white/10 rounded-[10px] focus:outline-none focus:border-rodeo-lime/40" />
+                        </div>
+                      </div>
+                    </div>
+                    {actionError && (
+                      <div className="flex items-center gap-2 text-xs text-red-400 bg-red-400/10 border border-red-400/20 rounded-lg px-3 py-2">
+                        <AlertCircle size={13} /> {actionError}
+                      </div>
+                    )}
+                    <div className="flex justify-end gap-2 pt-2">
+                      <button onClick={() => setShowForm(false)} className="px-4 py-2 bg-white/5 text-rodeo-cream/60 rounded-[10px] text-xs font-bold hover:bg-white/10">
+                        Cancelar
+                      </button>
+                      <button onClick={handleAgregarMovimiento}
+                        disabled={!concepto || !monto || parseFloat(monto) <= 0 || actionLoading}
+                        className="px-6 py-2 bg-rodeo-lime text-rodeo-dark rounded-[10px] text-xs font-black disabled:opacity-50 flex items-center gap-2">
+                        {actionLoading ? <div className="w-3.5 h-3.5 border-2 border-rodeo-dark/30 border-t-rodeo-dark rounded-full animate-spin" /> : <CheckCircle2 size={14} />}
+                        Guardar
+                      </button>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            <div className="space-y-2">
+              {movimientos.length === 0 ? (
+                <div className="p-8 text-center bg-white/[0.02] border border-white/5 rounded-[16px]">
+                  <History size={28} className="text-rodeo-cream/20 mx-auto mb-2" />
+                  <p className="text-sm text-rodeo-cream/40">Sin movimientos para este día.</p>
+                </div>
+              ) : (
+                <AnimatePresence>
+                  {movimientos.map(m => (
+                    <motion.div key={m.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, x: -20 }}
+                      className="flex items-center justify-between px-4 py-3 bg-white/[0.02] hover:bg-white/[0.04] border border-white/[0.06] rounded-[12px] transition-colors gap-3">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className={`p-1.5 rounded-[8px] shrink-0 ${m.tipo === "ingreso" ? "bg-green-400/10" : "bg-red-400/10"}`}>
+                          {m.tipo === "ingreso" ? <TrendingUp size={14} className="text-green-400" /> : <TrendingDown size={14} className="text-red-400" />}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-sm font-bold text-white truncate">{m.categoria}</p>
+                          <p className="text-[10px] text-rodeo-cream/40 font-mono tracking-widest">{formatTime(m.fecha)}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-4 shrink-0">
+                        <span className={`text-sm font-black ${m.tipo === "ingreso" ? "text-green-400" : "text-red-400"}`}>
+                          {m.tipo === "egreso" ? "−" : "+"}{formatMoney(m.monto)}
+                        </span>
+                        <button onClick={() => handleEliminar(m.id)} className="text-rodeo-cream/20 hover:text-red-400 transition-colors">
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    </motion.div>
+                  ))}
+                </AnimatePresence>
+              )}
+            </div>
+          </>
+        )
+      )}
     </div>
   );
 }

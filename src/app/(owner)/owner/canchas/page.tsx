@@ -14,11 +14,13 @@ import {
   ToggleLeft,
   ToggleRight,
   ChevronDown,
+  Clock,
 } from "lucide-react";
 import { supabase, supabaseMut } from "@/lib/supabase";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { useActiveComplex } from "@/lib/context/ActiveComplexContext";
 import type { Court, CourtInsert, Complex, Deporte, EstadoCancha } from "@/types/database";
+import CourtScheduleEditor from "@/components/CourtScheduleEditor";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -90,6 +92,7 @@ interface FormData {
   tiene_iluminacion: boolean;
   descripcion: string;
   estado: EstadoCancha;
+  imagen_principal: string;
 }
 
 const DEFAULT_FORM: FormData = {
@@ -101,6 +104,7 @@ const DEFAULT_FORM: FormData = {
   tiene_iluminacion: false,
   descripcion: "",
   estado: "disponible",
+  imagen_principal: "",
 };
 
 // ─── Sub-components ──────────────────────────────────────────────────────────
@@ -172,11 +176,14 @@ function CourtModal({
           tiene_iluminacion: editingCourt.tiene_iluminacion,
           descripcion: editingCourt.descripcion ?? "",
           estado: editingCourt.estado,
+          imagen_principal: editingCourt.imagen_principal ?? "",
         }
       : DEFAULT_FORM
   );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { user } = useAuth();
+  const [uploadingImg, setUploadingImg] = useState(false);
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
@@ -192,6 +199,23 @@ function CourtModal({
     } else {
       setForm((prev) => ({ ...prev, [name]: value }));
     }
+  };
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+    if (file.size > 5 * 1024 * 1024) { setError("La imagen no puede superar 5MB."); return; }
+    setUploadingImg(true); setError(null);
+    try {
+      const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
+      const path = `courts/${user.id}/${Date.now()}-${Math.random().toString(36).slice(2,8)}.${ext}`;
+      const { error: upErr } = await supabaseMut.storage.from("app-media").upload(path, file, { cacheControl: "3600", upsert: false });
+      if (upErr) throw upErr;
+      const { data } = supabaseMut.storage.from("app-media").getPublicUrl(path);
+      setForm(f => ({ ...f, imagen_principal: data.publicUrl }));
+    } catch (err) {
+      setError((err as { message?: string }).message || "Error al subir.");
+    } finally { setUploadingImg(false); }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -217,6 +241,7 @@ function CourtModal({
       superficie: form.superficie,
       tiene_iluminacion: form.tiene_iluminacion,
       descripcion: form.descripcion.trim() || null,
+      imagen_principal: form.imagen_principal || null,
       estado: form.estado,
       activa: true,
     };
@@ -231,6 +256,7 @@ function CourtModal({
         superficie: form.superficie,
         tiene_iluminacion: form.tiene_iluminacion,
         descripcion: form.descripcion.trim() || null,
+        imagen_principal: form.imagen_principal || null,
         estado: form.estado,
         activa: true,
       };
@@ -487,6 +513,24 @@ function CourtModal({
             />
           </InputField>
 
+          {/* Imagen */}
+          <div className="space-y-1.5">
+            <label className="text-[11px] font-bold text-rodeo-cream/40 uppercase tracking-widest">Foto de la Cancha (Opcional)</label>
+            {form.imagen_principal ? (
+              <div className="relative" style={{ borderRadius: "12px", overflow: "hidden", border: "1px solid rgba(255,255,255,0.12)" }}>
+                <img src={form.imagen_principal} alt="" className="w-full h-40 object-cover" />
+                <button type="button" onClick={()=>setForm(f=>({...f, imagen_principal: ""}))} style={{ background:"rgba(0,0,0,0.7)", borderRadius:"8px" }} className="absolute top-2 right-2 p-1.5 text-white hover:bg-red-500/80">
+                  <X size={14}/>
+                </button>
+              </div>
+            ) : (
+              <label style={{ background:"rgba(255,255,255,0.04)", border:"1px dashed rgba(255,255,255,0.18)", borderRadius:"12px" }} className="flex items-center justify-center gap-2 py-5 cursor-pointer hover:bg-white/8">
+                {uploadingImg ? <><Loader2 size={14} className="animate-spin text-rodeo-lime"/><span className="text-xs text-rodeo-cream/60">Subiendo...</span></> : <span className="text-xs text-rodeo-cream/60">Upload Photo (Max 5MB)</span>}
+                <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} disabled={uploadingImg}/>
+              </label>
+            )}
+          </div>
+
           {/* Error */}
           {error && (
             <motion.div
@@ -554,6 +598,7 @@ function CourtCard({
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [toggling, setToggling] = useState(false);
   const [togglingExpress, setTogglingExpress] = useState(false);
+  const [showSchedule, setShowSchedule] = useState(false);
 
   const sportColor = SPORT_COLORS[court.deporte] ?? "#C8FF00";
   const estadoCfg = ESTADO_CONFIG[court.estado];
@@ -718,8 +763,24 @@ function CourtCard({
           </button>
         </div>
 
-        {/* Edit / Delete */}
+        {/* Edit / Delete / Horario */}
         <div className="flex items-center gap-2">
+          {/* Horario toggle */}
+          <button
+            onClick={() => setShowSchedule(v => !v)}
+            title="Editar horario de atención"
+            className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-xs font-bold transition-all"
+            style={{
+              background: showSchedule ? "rgba(200,255,0,0.12)" : "rgba(255,255,255,0.04)",
+              border: `1px solid ${showSchedule ? "rgba(200,255,0,0.3)" : "rgba(255,255,255,0.08)"}`,
+              color: showSchedule ? "#C8FF00" : "rgba(255,255,255,0.4)",
+            }}
+          >
+            <Clock size={13} />
+            Horario
+            <ChevronDown size={11} style={{ transform: showSchedule ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.2s" }} />
+          </button>
+
           <button
             onClick={() => onEdit(court)}
             className="p-2 rounded-lg transition-all hover:bg-white/8 text-rodeo-cream/50 hover:text-white"
@@ -742,6 +803,27 @@ function CourtCard({
           </button>
         </div>
       </div>
+
+      {/* Panel de horario expandible */}
+      <AnimatePresence>
+        {showSchedule && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="overflow-hidden"
+          >
+            <div className="pt-3 border-t border-white/6">
+              <p className="text-[10px] font-bold text-rodeo-cream/40 uppercase tracking-widest mb-3 flex items-center gap-1.5">
+                <Clock size={10} className="text-rodeo-lime" />
+                Horario de atención semanal
+              </p>
+              <CourtScheduleEditor courtId={court.id} />
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 }
