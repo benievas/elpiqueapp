@@ -2,7 +2,7 @@
 export const dynamic = 'force-dynamic';
 
 import { useState, useEffect, useCallback } from "react";
-import dynamic from "next/dynamic";
+import nextDynamic from "next/dynamic";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { supabase, supabaseMut } from "@/lib/supabase";
@@ -10,7 +10,7 @@ import { MapPin, Phone, Clock, Star, Edit, Plus, Loader, X, Save, Upload, Image 
 import { CIUDADES_DISPONIBLES } from "@/lib/context/CityContext";
 
 // Leaflet sólo funciona en el cliente
-const MapPicker = dynamic(() => import("@/components/MapPicker"), {
+const MapPicker = nextDynamic(() => import("@/components/MapPicker"), {
   ssr: false,
   loading: () => (
     <div style={{ height: "260px", borderRadius: "14px", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)" }}
