@@ -6,10 +6,11 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  Building2, Mail, Lock, Eye, EyeOff, User, Phone,
+  Building2, Mail, Lock, Eye, EyeOff, User, Phone, MapPin,
   ArrowRight, ArrowLeft, Loader, CheckCircle2, Rocket, ChevronLeft,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import { CIUDADES_DISPONIBLES } from "@/lib/context/CityContext";
 
 type Step = 1 | 2 | 3;
 
@@ -28,6 +29,7 @@ function RegistroDuenoForm() {
   // Step 2 — datos personales
   const [nombre, setNombre] = useState("");
   const [telefono, setTelefono] = useState("");
+  const [ciudad, setCiudad] = useState("Catamarca");
 
   // Step 3 — nombre del complejo (guardado para después)
   const [nombreComplejo, setNombreComplejo] = useState("");
@@ -87,7 +89,7 @@ function RegistroDuenoForm() {
           email: email.trim().toLowerCase(),
           nombre_completo: nombre.trim(),
           telefono: telefono.trim() || null,
-          ciudad: "Catamarca",
+          ciudad,
           rol: "propietario",
         }),
       });
@@ -211,6 +213,17 @@ function RegistroDuenoForm() {
                     <Phone size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-rodeo-cream/35" />
                     <input type="tel" placeholder="Teléfono (opcional)" value={telefono} onChange={e => setTelefono(e.target.value)}
                       className="w-full pl-10 pr-4 py-3 rounded-[12px] bg-white/8 border border-white/10 text-rodeo-cream placeholder:text-rodeo-cream/25 text-sm focus:outline-none focus:border-rodeo-lime/50 transition-all" />
+                  </div>
+                  <div className="relative">
+                    <MapPin size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-rodeo-cream/35 pointer-events-none" />
+                    <select value={ciudad} onChange={e => setCiudad(e.target.value)}
+                      className="w-full pl-10 pr-4 py-3 rounded-[12px] bg-white/8 border border-white/10 text-rodeo-cream text-sm focus:outline-none focus:border-rodeo-lime/50 transition-all appearance-none cursor-pointer">
+                      {CIUDADES_DISPONIBLES.map(c => (
+                        <option key={c.ciudadCorta} value={c.ciudadCorta} style={{ background: "#1A120B" }}>
+                          {c.ciudadCorta} · {c.provincia}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                 </div>
                 <div className="flex gap-3">

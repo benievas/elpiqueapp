@@ -1,20 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { MapPin, ChevronDown, Navigation, X, Check } from "lucide-react";
 import { useCityContext, CIUDADES_DISPONIBLES, ManualCity } from "@/lib/context/CityContext";
-
-// Complejos registrados por ciudad (mock — en producción viene de Supabase)
-const COMPLEJOS_POR_CIUDAD: Record<string, number> = {
-  "Catamarca": 5,
-  "Tucumán": 0,
-  "Córdoba": 0,
-  "Salta": 0,
-  "Buenos Aires": 0,
-  "Mendoza": 0,
-  "Rosario": 0,
-};
+import { supabase } from "@/lib/supabase";
 
 interface CityBannerProps {
   /** Si es true, el feed muestra toggle local/todas */
@@ -27,6 +17,19 @@ export default function CityBanner({ showFeedToggle, feedScope, onFeedScopeChang
   const { ciudadCorta, provincia, loading, cambiarCiudad, resetearCiudad, esManual, geoCity } = useCityContext();
   const [modalOpen, setModalOpen] = useState(false);
   const [buscador, setBuscador] = useState("");
+  const [complejosPorCiudad, setComplejosPorCiudad] = useState<Record<string, number>>({});
+
+  useEffect(() => {
+    if (!modalOpen || Object.keys(complejosPorCiudad).length > 0) return;
+    supabase.from("complexes").select("ciudad").eq("activo", true).then(({ data }) => {
+      const counts: Record<string, number> = {};
+      (data || []).forEach((c: { ciudad: string | null }) => {
+        if (!c.ciudad) return;
+        counts[c.ciudad] = (counts[c.ciudad] || 0) + 1;
+      });
+      setComplejosPorCiudad(counts);
+    });
+  }, [modalOpen, complejosPorCiudad]);
 
   const ciudadesFiltradas = CIUDADES_DISPONIBLES.filter(
     (c) =>
@@ -208,12 +211,12 @@ export default function CityBanner({ showFeedToggle, feedScope, onFeedScopeChang
                           <p className="text-xs text-rodeo-cream/40">{city.provincia}</p>
                         </div>
                         <div className="flex items-center gap-2 shrink-0">
-                          {(COMPLEJOS_POR_CIUDAD[city.ciudadCorta] ?? 0) > 0 ? (
+                          {(complejosPorCiudad[city.ciudadCorta] ?? 0) > 0 ? (
                             <span
                               style={{ background: "rgba(200,255,0,0.12)", border: "1px solid rgba(200,255,0,0.2)", borderRadius: "8px" }}
                               className="text-[10px] font-bold text-rodeo-lime px-2 py-0.5"
                             >
-                              {COMPLEJOS_POR_CIUDAD[city.ciudadCorta]} complejos
+                              {complejosPorCiudad[city.ciudadCorta]} complejos
                             </span>
                           ) : (
                             <span className="text-[10px] text-rodeo-cream/25 px-1">Próximamente</span>

@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { supabase, supabaseMut } from "@/lib/supabase";
 import { MapPin, Phone, Clock, Star, Edit, Plus, Loader, X, Save, Upload, Image as ImageIcon } from "lucide-react";
+import { CIUDADES_DISPONIBLES } from "@/lib/context/CityContext";
 
 interface Complex {
   id: string;
@@ -46,7 +47,7 @@ function slugify(s: string) {
 }
 
 export default function OwnerComplejoPage() {
-  const { user, loading: authLoading } = useAuth();
+  const { user, profile, loading: authLoading } = useAuth();
   const [complejos, setComplejos] = useState<Complex[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -54,7 +55,8 @@ export default function OwnerComplejoPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
-  const emptyForm = { nombre:"", descripcion:"", ciudad:"Catamarca", direccion:"", telefono:"", whatsapp:"", horario_abierto:"08:00", horario_cierre:"22:00", deporte_principal:"futbol", deportes:["futbol"] as string[], servicios:[] as string[], imagen_principal:"" as string, galeria:[] as string[] };
+  const defaultCiudad = profile?.ciudad || "Catamarca";
+  const emptyForm = { nombre:"", descripcion:"", ciudad: defaultCiudad, direccion:"", telefono:"", whatsapp:"", horario_abierto:"08:00", horario_cierre:"22:00", deporte_principal:"futbol", deportes:["futbol"] as string[], servicios:[] as string[], imagen_principal:"" as string, galeria:[] as string[] };
   const [form, setForm] = useState(emptyForm);
   const [uploadingMain, setUploadingMain] = useState(false);
   const [uploadingGallery, setUploadingGallery] = useState(false);
@@ -208,7 +210,6 @@ export default function OwnerComplejoPage() {
 
                   {[
                     { label:"Nombre del complejo *", key:"nombre", type:"text", placeholder:"Ej: Sportivo Central" },
-                    { label:"Ciudad", key:"ciudad", type:"text", placeholder:"Catamarca" },
                     { label:"Dirección *", key:"direccion", type:"text", placeholder:"Av. Libertad 1234" },
                     { label:"WhatsApp * (solo números, ej: 5493834431234)", key:"whatsapp", type:"text", placeholder:"5493834431234" },
                     { label:"Teléfono", key:"telefono", type:"text", placeholder:"+54 383 443-1234" },
@@ -218,6 +219,17 @@ export default function OwnerComplejoPage() {
                       <input type={type} placeholder={placeholder} value={(form as Record<string,any>)[key]} onChange={e=>setForm(f=>({...f,[key]:e.target.value}))} style={glassInput}/>
                     </div>
                   ))}
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-rodeo-cream/40 uppercase tracking-widest">Ciudad *</label>
+                    <select value={form.ciudad} onChange={e => setForm(f => ({ ...f, ciudad: e.target.value }))} style={glassInput} className="cursor-pointer">
+                      {CIUDADES_DISPONIBLES.map(c => (
+                        <option key={c.ciudadCorta} value={c.ciudadCorta} style={{ background: "#1A120B" }}>
+                          {c.ciudadCorta} · {c.provincia}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
 
                   <div className="space-y-1.5">
                     <label className="text-xs font-bold text-rodeo-cream/40 uppercase tracking-widest">Descripción</label>
