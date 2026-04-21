@@ -1,18 +1,18 @@
 "use client";
 export const dynamic = 'force-dynamic';
 
-import { useState } from "react";
 import { motion } from "framer-motion";
 import Link from "next/link";
-import { ChevronLeft, Settings, Save, Info, Globe, CreditCard, Clock } from "lucide-react";
+import { ChevronLeft, Settings, Info, Globe, CreditCard, Clock } from "lucide-react";
 
-// Config puramente informativa + links útiles de gestión externa
+// Toda la configuración es informativa: los valores de negocio se
+// controlan desde el código o se modifican con SQL directo.
 const CONFIG_ITEMS = [
   {
     section: "Supabase",
     icon: Globe,
     items: [
-      { label: "URL del proyecto", value: "https://aracmkttghzxdnujxuca.supabase.co", type: "text", readonly: true },
+      { label: "URL del proyecto", value: "https://aracmkttghzxdnujxuca.supabase.co", type: "text" },
       { label: "Panel Supabase", value: "https://app.supabase.com", type: "link" },
     ],
   },
@@ -20,43 +20,30 @@ const CONFIG_ITEMS = [
     section: "Autenticación",
     icon: Settings,
     items: [
-      { label: "Google OAuth — Site URL (prod)", value: "https://elpiqueapp.com", type: "text", readonly: true, note: "Configurar en Supabase → Auth → URL Configuration" },
-      { label: "Google OAuth — Redirect URL", value: "https://elpiqueapp.com/auth/callback", type: "text", readonly: true },
+      { label: "Google OAuth — Site URL (prod)", value: "https://elpiqueapp.com", type: "text", note: "Configurar en Supabase → Auth → URL Configuration" },
+      { label: "Google OAuth — Redirect URL", value: "https://elpiqueapp.com/auth/callback", type: "text" },
     ],
   },
   {
     section: "Suscripciones",
     icon: CreditCard,
     items: [
-      { label: "Duración trial (días)", value: "14", type: "editable", key: "trial_days" },
-      { label: "Precio mensual (ARS)", value: "15000", type: "editable", key: "precio_mensual" },
-      { label: "Precio anual (ARS)", value: "150000", type: "editable", key: "precio_anual" },
+      { label: "Duración trial (días)", value: "30", type: "text", note: "Definido en src/lib/hooks/useTrialStatus.ts — TRIAL_DAYS" },
+      { label: "Precio mensual (ARS)", value: "Configurado en MercadoPago", type: "text", note: "Variables de entorno MP_*" },
     ],
   },
   {
     section: "Deploy",
     icon: Globe,
     items: [
-      { label: "Vercel dashboard", value: "https://vercel.com/dashboard", type: "link" },
+      { label: "Railway dashboard", value: "https://railway.app", type: "link" },
       { label: "Dominio productivo", value: "https://elpiqueapp.com", type: "link" },
-      { label: "Repositorio", value: "GitHub — rama main → deploy automático", type: "text", readonly: true },
+      { label: "Repositorio", value: "GitHub — rama main → deploy automático", type: "text" },
     ],
   },
 ];
 
 export default function AdminSettingsPage() {
-  const [values, setValues] = useState<Record<string, string>>({
-    trial_days: "14", precio_mensual: "15000", precio_anual: "150000",
-  });
-  const [saved, setSaved] = useState(false);
-
-  function handleSave() {
-    // En el futuro: persistir en tabla config de Supabase
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2500);
-  }
-
-  const inputStyle = { background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: "10px", color: "#E1D4C2", outline: "none" } as React.CSSProperties;
 
   return (
     <div className="space-y-6 max-w-2xl">
@@ -74,7 +61,7 @@ export default function AdminSettingsPage() {
         className="flex items-start gap-3 px-4 py-3">
         <Info size={15} className="text-rodeo-lime shrink-0 mt-0.5" />
         <p className="text-xs text-rodeo-cream/60 leading-relaxed">
-          Las configuraciones editables se guardan localmente por ahora. Para persistir en DB, se necesita una tabla <code className="text-rodeo-lime">config</code> en Supabase.
+          Vista informativa. Los valores críticos (trial, precios, OAuth) se modifican en código, variables de entorno o SQL directo.
         </p>
       </div>
 
@@ -95,13 +82,9 @@ export default function AdminSettingsPage() {
                     className="flex items-center gap-2 text-sm text-rodeo-lime hover:underline">
                     <Globe size={13} /> {item.value}
                   </a>
-                ) : item.type === "editable" ? (
-                  <input value={values[item.key] ?? item.value}
-                    onChange={e => setValues(v => ({ ...v, [item.key]: e.target.value }))}
-                    style={inputStyle} className="w-full px-3 py-2.5 text-sm" />
                 ) : (
                   <div>
-                    <p className="text-sm text-rodeo-cream/60 font-mono">{item.value}</p>
+                    <p className="text-sm text-rodeo-cream/60 font-mono break-all">{item.value}</p>
                     {item.note && <p className="text-[11px] text-rodeo-cream/30 mt-1">{item.note}</p>}
                   </div>
                 )}
@@ -110,12 +93,6 @@ export default function AdminSettingsPage() {
           </div>
         </motion.div>
       ))}
-
-      <button onClick={handleSave}
-        style={{ background: saved ? "rgba(74,222,128,0.2)" : "rgba(200,255,0,0.9)", borderRadius: "12px", border: saved ? "1px solid rgba(74,222,128,0.4)" : "none" }}
-        className="flex items-center gap-2 px-6 py-3 text-sm font-black text-rodeo-dark hover:bg-rodeo-lime transition-all">
-        {saved ? <><span className="text-green-400">✓</span> <span className="text-green-300">Guardado</span></> : <><Save size={15} /> Guardar cambios</>}
-      </button>
 
       {/* Acciones rápidas de gestión */}
       <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: "16px" }} className="p-6 space-y-4">
