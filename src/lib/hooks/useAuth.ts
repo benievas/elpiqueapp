@@ -37,9 +37,21 @@ export function useAuth() {
       if (mounted) setLoading(false);
     }, 6000);
 
-    // Single source of truth: onAuthStateChange handles ALL session states.
-    // No separate getSession() call — avoids race conditions where both paths
-    // try to update state simultaneously and cause flickering / stuck loading.
+    // Fallback: si INITIAL_SESSION no llega en 800ms (puede pasar cuando el middleware
+    // hizo getUser() y renovó cookies), llamamos getSession() directamente.
+    const fallback = setTimeout(async () => {
+      if (!mounted) return;
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!mounted) return;
+      if (session?.user) {
+        setUser(session.user);
+        const p = await fetchProfile(session.user.id);
+        if (mounted) { setProfile(p); setLoading(false); }
+      } else {
+        setLoading(false);
+      }
+    }, 800);
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (!mounted) return;
 
@@ -59,6 +71,7 @@ export function useAuth() {
 
         if (event === 'INITIAL_SESSION') {
           clearTimeout(timeout);
+          clearTimeout(fallback);
           setLoading(false);
         }
       } else {
@@ -66,6 +79,7 @@ export function useAuth() {
         setProfile(null);
         if (event === 'INITIAL_SESSION') {
           clearTimeout(timeout);
+          clearTimeout(fallback);
           setLoading(false);
         }
       }
@@ -74,6 +88,7 @@ export function useAuth() {
     return () => {
       mounted = false;
       clearTimeout(timeout);
+      clearTimeout(fallback);
       subscription.unsubscribe();
     };
   }, []);

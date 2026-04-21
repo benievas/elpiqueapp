@@ -45,11 +45,18 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </div>
           <p className="text-red-400 font-black text-lg">Acceso denegado</p>
           <p className="text-rodeo-cream/50 text-sm">Necesitás rol <code className="text-rodeo-lime">superadmin</code> para entrar aquí.</p>
-          <button onClick={() => router.push("/")}
-            style={{ background: "rgba(200,255,0,0.1)", border: "1px solid rgba(200,255,0,0.2)", borderRadius: "12px" }}
-            className="px-5 py-2.5 text-sm font-bold text-rodeo-lime hover:bg-rodeo-lime/15 transition-all">
-            Volver al inicio
-          </button>
+          <div className="flex flex-col gap-2">
+            <a href="/"
+              style={{ background: "rgba(200,255,0,0.1)", border: "1px solid rgba(200,255,0,0.2)", borderRadius: "12px" }}
+              className="px-5 py-2.5 text-sm font-bold text-rodeo-lime hover:bg-rodeo-lime/15 transition-all">
+              Volver al inicio
+            </a>
+            <a href="/api/auth/signout"
+              style={{ background: "rgba(255,64,64,0.08)", border: "1px solid rgba(255,64,64,0.2)", borderRadius: "12px" }}
+              className="px-5 py-2.5 text-sm font-bold text-red-400 hover:bg-red-500/10 transition-all">
+              Cerrar sesión y reintentar
+            </a>
+          </div>
         </div>
       </div>
     );
