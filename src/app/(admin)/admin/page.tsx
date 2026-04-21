@@ -6,7 +6,7 @@ import { motion } from "framer-motion";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import {
-  Building2, Users, Calendar, TrendingUp, CreditCard,
+  Building2, Users, Calendar, TrendingUp, CreditCard, Layers,
   ArrowRight, RefreshCw, CheckCircle2, AlertCircle, Clock,
 } from "lucide-react";
 
@@ -65,12 +65,12 @@ export default function AdminDashboard() {
         supabase.from("reservations").select("id", { count: "exact" }),
         supabase.from("reservations").select("id", { count: "exact", head: true }).eq("fecha", hoy),
         supabase.from("reservations").select("precio_total").in("estado", ["confirmada", "completada"]).gte("fecha", primerMes),
-        supabase.from("subscriptions").select("estado"),
+        supabase.from("subscriptions").select("status"),
         supabase.from("complexes").select("id, nombre, ciudad, activo, created_at, profiles!owner_id(email)").order("created_at", { ascending: false }).limit(5),
       ]);
 
       const complejos = (complejosRes.data || []) as { id: string; activo: boolean }[];
-      const subs = (subsRes.data || []) as { estado: string }[];
+      const subs = (subsRes.data || []) as { status: string }[];
       const ingresos = (ingresosMesRes.data || []).reduce((s: number, r: any) => s + (r.precio_total || 0), 0);
 
       setStats({
@@ -80,9 +80,9 @@ export default function AdminDashboard() {
         totalReservas: reservasRes.count ?? 0,
         reservasHoy: reservasHoyRes.count ?? 0,
         ingresosMes: ingresos,
-        suscripcionesActivas: subs.filter(s => s.estado === "active").length,
-        suscripcionesTrial: subs.filter(s => s.estado === "trial").length,
-        suscripcionesVencidas: subs.filter(s => s.estado === "expired").length,
+        suscripcionesActivas: subs.filter(s => s.status === "active").length,
+        suscripcionesTrial: subs.filter(s => s.status === "trial").length,
+        suscripcionesVencidas: subs.filter(s => s.status === "expired").length,
       });
 
       setRecientes((complejosRecRes.data || []).map((c: any) => ({
@@ -173,6 +173,7 @@ export default function AdminDashboard() {
               { href: "/admin/duenos", icon: Users, label: "Ver propietarios" },
               { href: "/admin/suscripciones", icon: CreditCard, label: "Suscripciones" },
               { href: "/admin/feed", icon: TrendingUp, label: "Publicar en feed" },
+              { href: "/admin/home-config", icon: Layers, label: "Slides del home" },
             ].map((item) => (
               <Link key={item.href} href={item.href}>
                 <div style={{ background: "rgba(200,255,0,0.06)", border: "1px solid rgba(200,255,0,0.15)", borderRadius: "14px" }}

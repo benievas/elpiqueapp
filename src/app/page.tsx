@@ -55,7 +55,9 @@ type ComplejoRow = {
   ciudad: string;
 };
 
-// --- SLIDES PROMOCIONALES (sobre ElPiqueApp) ---
+// --- SLIDES PROMOCIONALES — fallback hardcodeado ---
+// Los slides reales se cargan desde app_config (key: "home_promo_slides")
+// Editables desde /admin/home-config
 const PROMO_SLIDES = [
   {
     id: "p1",
@@ -136,10 +138,29 @@ function HeroUserButton() {
 
   if (!user) {
     return (
-      <Link href="/login" style={{ background:"rgba(200,255,0,0.18)", border:"1px solid rgba(200,255,0,0.35)", borderRadius:"12px", backdropFilter:"blur(20px)", WebkitBackdropFilter:"blur(20px)" }}
-        className="p-2.5 hover:bg-rodeo-lime/30 transition-all flex items-center justify-center">
-        <User size={18} className="text-rodeo-lime" />
-      </Link>
+      <div className="relative">
+        <button onClick={() => setOpen(!open)} style={{ background:"rgba(200,255,0,0.18)", border:"1px solid rgba(200,255,0,0.35)", borderRadius:"12px", backdropFilter:"blur(20px)", WebkitBackdropFilter:"blur(20px)" }}
+          className="p-2.5 hover:bg-rodeo-lime/30 transition-all flex items-center justify-center">
+          <User size={18} className="text-rodeo-lime" />
+        </button>
+        <AnimatePresence>
+          {open && (
+            <motion.div initial={{ opacity:0, y:8, scale:0.95 }} animate={{ opacity:1, y:0, scale:1 }} exit={{ opacity:0, y:8, scale:0.95 }}
+              className="absolute right-0 top-full mt-2 w-48 liquid-panel p-2 space-y-0.5 shadow-2xl z-50">
+              <Link href="/login" onClick={() => setOpen(false)}>
+                <div className="flex items-center gap-2.5 px-3 py-2 rounded-[8px] hover:bg-white/8 transition-colors text-white text-xs font-bold cursor-pointer">
+                  <User size={13} className="text-rodeo-lime" /> Iniciar sesión
+                </div>
+              </Link>
+              <Link href="/owner" onClick={() => setOpen(false)}>
+                <div className="flex items-center gap-2.5 px-3 py-2 rounded-[8px] hover:bg-white/8 transition-colors text-rodeo-cream text-xs font-bold cursor-pointer mt-1 border-t border-white/10 pt-2">
+                  <Building2 size={13} className="text-rodeo-lime" /> Panel Dueño
+                </div>
+              </Link>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
     );
   }
 
@@ -190,6 +211,30 @@ export default function Home() {
   const [stats, setStats] = useState({ complejos: 0, canchas: 0, deportes: 0 });
   const [torneosActivos, setTorneosActivos] = useState<{ id: string; nombre: string; slug: string; deporte: string; estado: string; fecha_inicio: string; imagen_url: string | null; complejo_nombre: string | null }[]>([]);
   const [canchasExpress, setCanchasExpress] = useState<{ id: string; nombre: string; deporte: string; precio_por_hora: number; descuento_pct: number; slug: string; complejo_nombre: string }[]>([]);
+  const [promoSlides, setPromoSlides] = useState(PROMO_SLIDES);
+
+  // Cargar slides desde app_config (admin puede editarlos desde /admin/home-config)
+  useEffect(() => {
+    (async () => {
+      try {
+        const { data } = await (supabase as any).from("app_config").select("value").eq("key", "home_promo_slides").single();
+        if (data?.value && Array.isArray(data.value) && (data.value as any[]).length > 0) {
+          setPromoSlides((data.value as any[]).map((s: any) => ({
+            id: s.id,
+            isPromo: true,
+            title: s.titulo ?? "",
+            subtitle: s.subtitulo ?? "",
+            description: s.descripcion ?? "",
+            bgImage: s.imagen_url || PROMO_SLIDES[0].bgImage,
+            cardImage: s.imagen_url || PROMO_SLIDES[0].cardImage,
+            ctaLink: s.cta_link ?? "/explorar",
+            ctaLabel: s.cta_label ?? "Explorar",
+            video_url: s.video_url || null,
+          })));
+        }
+      } catch { /* usa fallback hardcodeado */ }
+    })();
+  }, []);
 
   // Fetch complejos reales de la ciudad activa
   useEffect(() => {
@@ -309,9 +354,9 @@ export default function Home() {
     })();
   }, [ciudadCorta, cityLoading]);
 
-  // Slider: intercala promos con complejos reales
+  // Slider: intercala promos (desde app_config o fallback) con complejos reales
   const ALL_SLIDES = useMemo(() => {
-    const realSlides = complejos.slice(0, PROMO_SLIDES.length).map((c) => ({
+    const realSlides = complejos.slice(0, promoSlides.length).map((c) => ({
       id: c.id,
       isPromo: false,
       title: c.nombre.toUpperCase(),
@@ -321,12 +366,13 @@ export default function Home() {
       cardImage: c.imagen_principal ?? FALLBACK_IMG_BY_DEPORTE[c.deporte_principal] ?? FALLBACK_IMG_BY_DEPORTE.futbol,
       ctaLink: `/complejo/${c.slug}`,
       ctaLabel: "Reservar Cancha",
+      video_url: null,
     }));
-    return PROMO_SLIDES.flatMap((promo, i) => {
+    return promoSlides.flatMap((promo, i) => {
       const complex = realSlides[i];
       return complex ? [promo, complex] : [promo];
     });
-  }, [complejos]);
+  }, [complejos, promoSlides]);
 
   const handleNext = useCallback(() => {
     setCurrentIndex((prev) => (ALL_SLIDES.length ? (prev + 1) % ALL_SLIDES.length : 0));
@@ -373,16 +419,29 @@ export default function Home() {
       {/* HERO SLIDER */}
       <section className="relative h-screen overflow-hidden">
         <AnimatePresence mode="wait">
-          <motion.img
-            key={activeItem.id}
-            src={activeItem.bgImage}
-            alt="Background"
-            initial={{ opacity: 0, scale: 1.05 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.8, ease: "easeInOut" }}
-            className="absolute inset-0 w-full h-full object-cover z-0"
-          />
+          {(activeItem as any).video_url ? (
+            <motion.video
+              key={activeItem.id + "-video"}
+              src={(activeItem as any).video_url}
+              autoPlay muted loop playsInline
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.8 }}
+              className="absolute inset-0 w-full h-full object-cover z-0"
+            />
+          ) : (
+            <motion.img
+              key={activeItem.id}
+              src={activeItem.bgImage}
+              alt="Background"
+              initial={{ opacity: 0, scale: 1.05 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.8, ease: "easeInOut" }}
+              className="absolute inset-0 w-full h-full object-cover z-0"
+            />
+          )}
         </AnimatePresence>
         {/* Overlay multicapa — radial lime + gradient vertical, sin blur */}
         <div className="absolute inset-0 z-0 pointer-events-none" style={{
