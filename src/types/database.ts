@@ -169,6 +169,8 @@ export interface Court {
   superficie: string;                // "sintetico", "cesped", "polvo_ladrillo", etc.
   estado: EstadoCancha;
   activa: boolean;
+  descuento_express: boolean;
+  descuento_pct: number;
   created_at: string;
   updated_at: string;
 }
@@ -185,6 +187,8 @@ export interface CourtInsert {
   superficie?: string;
   estado?: EstadoCancha;
   activa?: boolean;
+  descuento_express?: boolean;
+  descuento_pct?: number;
 }
 
 export interface CourtAvailability {

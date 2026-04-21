@@ -543,14 +543,17 @@ function CourtCard({
   onEdit,
   onDelete,
   onToggleActive,
+  onToggleExpress,
 }: {
   court: Court;
   onEdit: (court: Court) => void;
   onDelete: (id: string) => void;
   onToggleActive: (court: Court) => void;
+  onToggleExpress: (court: Court) => void;
 }) {
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [toggling, setToggling] = useState(false);
+  const [togglingExpress, setTogglingExpress] = useState(false);
 
   const sportColor = SPORT_COLORS[court.deporte] ?? "#C8FF00";
   const estadoCfg = ESTADO_CONFIG[court.estado];
@@ -569,6 +572,12 @@ function CourtCard({
     setToggling(true);
     await onToggleActive(court);
     setToggling(false);
+  };
+
+  const handleToggleExpress = async () => {
+    setTogglingExpress(true);
+    await onToggleExpress(court);
+    setTogglingExpress(false);
   };
 
   return (
@@ -674,22 +683,40 @@ function CourtCard({
         className="flex items-center justify-between pt-2"
         style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}
       >
-        {/* Active toggle */}
-        <button
-          onClick={handleToggle}
-          disabled={toggling}
-          className="flex items-center gap-2 text-xs font-bold transition-colors disabled:opacity-50"
-          style={{ color: court.activa ? "#C8FF00" : "rgba(255,255,255,0.35)" }}
-        >
-          {toggling ? (
-            <Spinner size={18} />
-          ) : court.activa ? (
-            <ToggleRight size={24} />
-          ) : (
-            <ToggleLeft size={24} />
-          )}
-          {court.activa ? "Activa" : "Inactiva"}
-        </button>
+        <div className="flex items-center gap-3">
+          {/* Active toggle */}
+          <button
+            onClick={handleToggle}
+            disabled={toggling}
+            className="flex items-center gap-2 text-xs font-bold transition-colors disabled:opacity-50"
+            style={{ color: court.activa ? "#C8FF00" : "rgba(255,255,255,0.35)" }}
+          >
+            {toggling ? (
+              <Spinner size={18} />
+            ) : court.activa ? (
+              <ToggleRight size={24} />
+            ) : (
+              <ToggleLeft size={24} />
+            )}
+            {court.activa ? "Activa" : "Inactiva"}
+          </button>
+
+          {/* Express discount toggle */}
+          <button
+            onClick={handleToggleExpress}
+            disabled={togglingExpress || !court.activa}
+            title={court.activa ? "Activar/desactivar descuento express" : "La cancha debe estar activa"}
+            className="flex items-center gap-1.5 text-xs font-bold transition-colors disabled:opacity-40 px-2 py-1 rounded-lg"
+            style={{
+              background: court.descuento_express ? "rgba(251,191,36,0.15)" : "rgba(255,255,255,0.04)",
+              border: `1px solid ${court.descuento_express ? "rgba(251,191,36,0.4)" : "rgba(255,255,255,0.08)"}`,
+              color: court.descuento_express ? "#FBBf24" : "rgba(255,255,255,0.35)",
+            }}
+          >
+            <Zap size={13} />
+            {court.descuento_express ? `Express ${court.descuento_pct}%` : "Express"}
+          </button>
+        </div>
 
         {/* Edit / Delete */}
         <div className="flex items-center gap-2">
@@ -840,6 +867,23 @@ export default function CanchasPage() {
     }
   };
 
+  const handleToggleExpress = async (court: Court) => {
+    const next = !court.descuento_express;
+    const pct = next && court.descuento_pct === 0 ? 20 : court.descuento_pct;
+    setCourts((prev) =>
+      prev.map((c) => (c.id === court.id ? { ...c, descuento_express: next, descuento_pct: pct } : c))
+    );
+    const { error } = await supabaseMut
+      .from("courts")
+      .update({ descuento_express: next, descuento_pct: pct })
+      .eq("id", court.id);
+    if (error) {
+      setCourts((prev) =>
+        prev.map((c) => (c.id === court.id ? { ...c, descuento_express: court.descuento_express, descuento_pct: court.descuento_pct } : c))
+      );
+    }
+  };
+
   const handleDelete = async (courtId: string) => {
     // Optimistic removal
     setCourts((prev) => prev.filter((c) => c.id !== courtId));
@@ -947,6 +991,7 @@ export default function CanchasPage() {
                 onEdit={handleOpenEdit}
                 onDelete={handleDelete}
                 onToggleActive={handleToggleActive}
+                onToggleExpress={handleToggleExpress}
               />
             ))}
           </AnimatePresence>

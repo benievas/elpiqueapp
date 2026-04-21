@@ -173,6 +173,7 @@ export default function Home() {
   const [complejos, setComplejos] = useState<ComplejoRow[]>([]);
   const [stats, setStats] = useState({ complejos: 0, canchas: 0, deportes: 0 });
   const [torneosActivos, setTorneosActivos] = useState<{ id: string; nombre: string; slug: string; deporte: string; estado: string; fecha_inicio: string; imagen_url: string | null; complejo_nombre: string | null }[]>([]);
+  const [canchasExpress, setCanchasExpress] = useState<{ id: string; nombre: string; deporte: string; precio_por_hora: number; descuento_pct: number; slug: string; complejo_nombre: string }[]>([]);
 
   // Fetch complejos reales de la ciudad activa
   useEffect(() => {
@@ -255,6 +256,41 @@ export default function Home() {
       mounted = false;
       supabase.removeChannel(channel);
     };
+  }, [ciudadCorta, cityLoading]);
+
+  // Fetch canchas express (descuento activo ahora)
+  useEffect(() => {
+    if (cityLoading) return;
+    (async () => {
+      const { data: comps } = await supabase
+        .from("complexes")
+        .select("id, nombre, slug")
+        .eq("activo", true)
+        .eq("ciudad", ciudadCorta);
+
+      const ids = (comps ?? []).map((c: { id: string }) => c.id);
+      if (!ids.length) return;
+
+      const complexMap: Record<string, { nombre: string; slug: string }> = {};
+      (comps ?? []).forEach((c: { id: string; nombre: string; slug: string }) => { complexMap[c.id] = { nombre: c.nombre, slug: c.slug }; });
+
+      const { data: courts } = await supabase
+        .from("courts")
+        .select("id, nombre, deporte, precio_por_hora, descuento_pct, complex_id")
+        .in("complex_id", ids)
+        .eq("descuento_express", true)
+        .eq("activa", true)
+        .eq("estado", "disponible")
+        .limit(8);
+
+      setCanchasExpress(
+        (courts ?? []).map((c: any) => ({
+          ...c,
+          slug: complexMap[c.complex_id]?.slug ?? "",
+          complejo_nombre: complexMap[c.complex_id]?.nombre ?? "",
+        }))
+      );
+    })();
   }, [ciudadCorta, cityLoading]);
 
   // Slider: intercala promos con complejos reales
@@ -557,6 +593,64 @@ export default function Home() {
                         <p className="text-[11px] text-rodeo-cream/50 mt-1.5 truncate">{t.complejo_nombre}</p>
                       )}
                     </div>
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* CANCHA LIBRE AHORA */}
+      {canchasExpress.length > 0 && (
+        <section className="px-6 py-12 border-t border-white/5">
+          <div className="max-w-4xl mx-auto">
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-3">
+                <h2 className="font-display" style={{ fontSize: "clamp(28px, 4vw, 40px)", color: "#fff" }}>
+                  <span className="section-slash">/</span>Cancha Libre Ahora
+                </h2>
+                <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-black"
+                  style={{ background: "rgba(251,191,36,0.15)", border: "1px solid rgba(251,191,36,0.35)", color: "#FBbf24" }}>
+                  <span className="relative flex h-1.5 w-1.5">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-yellow-400 opacity-75"/>
+                    <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-yellow-400"/>
+                  </span>
+                  DESCUENTO EXPRESS
+                </span>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+              {canchasExpress.map((cancha) => {
+                const precioFinal = Math.round(cancha.precio_por_hora * (1 - cancha.descuento_pct / 100));
+                return (
+                  <Link key={cancha.id} href={`/complejo/${cancha.slug}`}>
+                    <motion.div
+                      whileHover={{ scale: 1.02 }}
+                      style={{
+                        background: "rgba(251,191,36,0.06)",
+                        border: "1px solid rgba(251,191,36,0.25)",
+                        borderRadius: "16px",
+                      }}
+                      className="p-4 flex flex-col gap-3 cursor-pointer hover:bg-yellow-400/10 transition-colors"
+                    >
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <p className="text-xs font-black tracking-widest uppercase text-yellow-400/70">{cancha.deporte}</p>
+                          <p className="text-sm font-bold text-white mt-0.5">{cancha.nombre}</p>
+                          <p className="text-xs text-rodeo-cream/40 mt-0.5 truncate">{cancha.complejo_nombre}</p>
+                        </div>
+                        <span className="text-xs font-black px-2 py-1 rounded-lg shrink-0"
+                          style={{ background: "rgba(251,191,36,0.2)", color: "#FBbf24" }}>
+                          -{cancha.descuento_pct}%
+                        </span>
+                      </div>
+                      <div className="flex items-end gap-2">
+                        <p className="text-xl font-black text-white">${precioFinal.toLocaleString("es-AR")}</p>
+                        <p className="text-xs text-rodeo-cream/35 line-through mb-0.5">${cancha.precio_por_hora.toLocaleString("es-AR")}</p>
+                        <p className="text-xs text-rodeo-cream/40 mb-0.5">/h</p>
+                      </div>
+                    </motion.div>
                   </Link>
                 );
               })}
