@@ -27,68 +27,41 @@ export function useAuth() {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
 
   useEffect(() => {
     let mounted = true;
 
-    // Safety timeout: if INITIAL_SESSION never fires, unblock after 6s
-    const timeout = setTimeout(() => {
-      if (mounted) setLoading(false);
-    }, 6000);
-
-    // Fallback: si INITIAL_SESSION no llega en 800ms (puede pasar cuando el middleware
-    // hizo getUser() y renovó cookies), llamamos getSession() directamente.
-    const fallback = setTimeout(async () => {
-      if (!mounted) return;
-      const { data: { session } } = await supabase.auth.getSession();
+    // 1. Carga inicial: getSession() es síncrono-local (lee cookies/localStorage sin red).
+    //    Resuelve el loading de forma inmediata sin esperar eventos.
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (!mounted) return;
       if (session?.user) {
         setUser(session.user);
         const p = await fetchProfile(session.user.id);
-        if (mounted) { setProfile(p); setLoading(false); }
-      } else {
-        setLoading(false);
+        if (mounted) setProfile(p);
       }
-    }, 800);
+      setLoading(false);
+    });
 
+    // 2. Listener para cambios posteriores (login, logout, token refresh, etc.)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (!mounted) return;
 
       if (session?.user) {
         setUser(session.user);
-
-        // Only fetch profile on events that change identity (not just token refresh)
-        if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN' || event === 'USER_UPDATED') {
-          try {
-            const p = await fetchProfile(session.user.id);
-            if (!mounted) return;
-            setProfile(p);
-          } catch (err) {
-            if (mounted) setError(err instanceof Error ? err : new Error('Profile fetch failed'));
-          }
+        // Re-fetch profile solo cuando cambia la identidad, no en cada token refresh
+        if (event === 'SIGNED_IN' || event === 'USER_UPDATED') {
+          const p = await fetchProfile(session.user.id);
+          if (mounted) setProfile(p);
         }
-
-        if (event === 'INITIAL_SESSION') {
-          clearTimeout(timeout);
-          clearTimeout(fallback);
-          setLoading(false);
-        }
-      } else {
+      } else if (event === 'SIGNED_OUT') {
         setUser(null);
         setProfile(null);
-        if (event === 'INITIAL_SESSION') {
-          clearTimeout(timeout);
-          clearTimeout(fallback);
-          setLoading(false);
-        }
       }
     });
 
     return () => {
       mounted = false;
-      clearTimeout(timeout);
-      clearTimeout(fallback);
       subscription.unsubscribe();
     };
   }, []);
@@ -99,7 +72,6 @@ export function useAuth() {
     setProfile(null);
   };
 
-  // Allows pages to refresh profile after mutations (e.g. settings save)
   const refreshProfile = async () => {
     if (!user?.id) return;
     const p = await fetchProfile(user.id);
@@ -110,7 +82,6 @@ export function useAuth() {
     user,
     profile,
     loading,
-    error,
     signOut,
     refreshProfile,
     isOwner: profile?.rol === 'propietario',

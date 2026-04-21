@@ -23,13 +23,14 @@ export async function middleware(request: NextRequest) {
     }
   );
 
-  // getUser() valida el token contra Supabase Auth y renueva cookies si es necesario.
-  // Esto es crítico para evitar sesiones stale y el flickering de auth en SSR.
-  const { data: { user } } = await supabase.auth.getUser();
+  // getSession() renueva el token si expiró y actualiza las cookies.
+  // No hace network call cuando el token es válido → más rápido y estable que getUser().
+  // La validación JWT real se hace en las API routes que necesitan seguridad estricta.
+  const { data: { session } } = await supabase.auth.getSession();
 
   const pathname = request.nextUrl.pathname;
 
-  if (!user) {
+  if (!session) {
     if (pathname.startsWith('/admin')) {
       return NextResponse.redirect(new URL('/login', request.url));
     }
@@ -38,12 +39,9 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  // HTML no-store para evitar que navegadores/PWAs sirvan bundles viejos.
-  // Los assets hasheados (_next/static/*) siguen excluidos por el matcher.
   supabaseResponse.headers.set('Cache-Control', 'no-store, must-revalidate');
   supabaseResponse.headers.set('Pragma', 'no-cache');
 
-  // Siempre devolver supabaseResponse para que los cookies se propaguen
   return supabaseResponse;
 }
 
