@@ -25,6 +25,7 @@ function LoginForm() {
   const [errorHint, setErrorHint] = useState<"google" | "reset" | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [checkingAuth, setCheckingAuth] = useState(true);
+  const fromOwner = searchParams.get("from") === "owner";
 
   // Si ya hay sesión activa, redirigir sin mostrar el formulario
   useEffect(() => {
@@ -82,10 +83,11 @@ function LoginForm() {
       setGoogleLoading(true);
       setError(null);
 
+      const callbackUrl = `${window.location.origin}/auth/callback${fromOwner ? "?from=owner" : ""}`;
       const { error: signInError } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
+          redirectTo: callbackUrl,
           queryParams: { access_type: "offline", prompt: "consent" },
         },
       });
@@ -228,6 +230,21 @@ function LoginForm() {
             </h1>
             <p className="text-rodeo-cream/70 text-sm text-center">Canchas deportivas en tu ciudad.</p>
           </div>
+
+          {/* Banner acceso dueño */}
+          {fromOwner && (
+            <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}
+              className="px-4 py-3 rounded-[16px] flex flex-col gap-2"
+              style={{ background: "rgba(200,255,0,0.07)", border: "1px solid rgba(200,255,0,0.25)" }}>
+              <p className="text-sm font-black text-rodeo-lime">🏟 Acceso para dueños de complejos</p>
+              <p className="text-xs text-rodeo-cream/60">Si ya tenés cuenta, iniciá sesión abajo. Si sos nuevo, registrate primero.</p>
+              <Link href="/registro/dueno"
+                className="w-full py-2.5 rounded-[12px] text-sm font-black text-center transition-all"
+                style={{ background: "rgba(200,255,0,0.15)", border: "1px solid rgba(200,255,0,0.35)", color: "#C8FF00" }}>
+                Registrarme como dueño →
+              </Link>
+            </motion.div>
+          )}
 
           {/* Card */}
           <motion.div className="liquid-panel p-6 space-y-5" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}

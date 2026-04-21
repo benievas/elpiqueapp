@@ -30,8 +30,11 @@ export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
 
   if (!user) {
-    if (pathname.startsWith('/owner') || pathname.startsWith('/admin')) {
+    if (pathname.startsWith('/admin')) {
       return NextResponse.redirect(new URL('/login', request.url));
+    }
+    if (pathname.startsWith('/owner')) {
+      return NextResponse.redirect(new URL('/login?from=owner', request.url));
     }
   }
 

@@ -13,6 +13,7 @@ function buildRedirect(path: string, requestUrl: string): URL {
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const code = searchParams.get('code');
+  const fromOwner = searchParams.get('from') === 'owner';
 
   if (!code) {
     return NextResponse.redirect(buildRedirect('/login?error=no_code', request.url));
@@ -90,6 +91,10 @@ export async function GET(request: NextRequest) {
     let destination = isNewProfile ? '/onboarding/jugador' : '/explorar';
     if (profile?.rol === 'propietario' || profile?.rol === 'admin' || profile?.rol === 'superadmin') {
       destination = '/owner';
+    }
+    // Usuario nuevo que intentaba entrar como dueño → registro de dueño
+    if (isNewProfile && fromOwner) {
+      destination = '/registro/dueno';
     }
 
     const finalResponse = NextResponse.redirect(buildRedirect(destination, request.url));
