@@ -24,6 +24,7 @@ import {
   LogOut,
   LayoutDashboard,
   Users,
+  Building2,
 } from "lucide-react";
 import Link from "next/link";
 import { useAuth } from "@/lib/hooks/useAuth";
