@@ -3,9 +3,10 @@ export const dynamic = 'force-dynamic';
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { supabase } from "@/lib/supabase";
+import { supabase, supabaseMut } from "@/lib/supabase";
+import { useAuth } from "@/lib/hooks/useAuth";
 import { ChevronLeft, Share2, MapPin, Calendar, Loader, Heart, MessageCircle } from "lucide-react";
 
 interface Post {
@@ -39,13 +40,17 @@ const TIPO_META: Record<string, { bg: string; text: string; label: string; emoji
 
 export default function FeedPostPage() {
   const params = useParams();
+  const router = useRouter();
   const id = params?.id as string;
+  const { user } = useAuth();
   const [post, setPost] = useState<Post | null>(null);
   const [complejo, setComplejo] = useState<ComplexInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [liked, setLiked] = useState(false);
+  const [likeCount, setLikeCount] = useState(0);
+  const [likeSaving, setLikeSaving] = useState(false);
 
-  useEffect(() => { if (id) load(); }, [id]);
+  useEffect(() => { if (id) load(); }, [id, user?.id]);
 
   async function load() {
     setLoading(true);
@@ -56,7 +61,47 @@ export default function FeedPostPage() {
       const { data: c } = await supabase.from("complexes").select("nombre, slug, ciudad, imagen_principal").eq("id", p.complex_id).single();
       setComplejo(c as ComplexInfo | null);
     }
+    // Likes
+    const { data: likesData } = await supabase
+      .from("feed_likes")
+      .select("user_id")
+      .eq("post_id", p.id);
+    const likes = likesData || [];
+    setLikeCount(likes.length);
+    setLiked(!!user && likes.some((l: { user_id: string }) => l.user_id === user.id));
     setLoading(false);
+  }
+
+  async function toggleLike() {
+    if (!post) return;
+    if (!user) {
+      router.push(`/login?returnTo=/feed/${post.id}`);
+      return;
+    }
+    if (likeSaving) return;
+    setLikeSaving(true);
+
+    const wasLiked = liked;
+    setLiked(!wasLiked);
+    setLikeCount((c) => Math.max(0, wasLiked ? c - 1 : c + 1));
+
+    if (wasLiked) {
+      const { error } = await supabaseMut.from("feed_likes").delete()
+        .eq("post_id", post.id).eq("user_id", user.id);
+      if (error) {
+        setLiked(wasLiked);
+        setLikeCount((c) => c + 1);
+      }
+    } else {
+      const { error } = await supabaseMut.from("feed_likes").insert({
+        post_id: post.id, user_id: user.id,
+      });
+      if (error) {
+        setLiked(wasLiked);
+        setLikeCount((c) => Math.max(0, c - 1));
+      }
+    }
+    setLikeSaving(false);
   }
 
   async function compartir() {
@@ -168,10 +213,10 @@ export default function FeedPostPage() {
         {/* Footer interacción */}
         <div className="flex items-center justify-between pt-6 border-t border-white/10">
           <div className="flex gap-4">
-            <button onClick={() => setLiked(!liked)}
-              className={`flex items-center gap-2 text-sm font-bold transition-colors ${liked ? "text-red-400" : "text-rodeo-cream/60 hover:text-red-400"}`}>
+            <button onClick={toggleLike} disabled={likeSaving}
+              className={`flex items-center gap-2 text-sm font-bold transition-colors disabled:opacity-60 ${liked ? "text-red-400" : "text-rodeo-cream/60 hover:text-red-400"}`}>
               <Heart size={18} className={liked ? "fill-current" : ""}/>
-              Me encanta
+              {likeCount > 0 ? likeCount : "Me encanta"}
             </button>
             <button className="flex items-center gap-2 text-sm font-bold text-rodeo-cream/60">
               <MessageCircle size={18}/>

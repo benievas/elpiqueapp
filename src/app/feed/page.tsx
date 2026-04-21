@@ -5,7 +5,8 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { motion } from "framer-motion";
-import { supabase } from "@/lib/supabase";
+import { supabase, supabaseMut } from "@/lib/supabase";
+import { useAuth } from "@/lib/hooks/useAuth";
 import { Heart, MessageCircle, Share2, ChevronLeft } from "lucide-react";
 import { Skeleton } from "@/components/ui/Skeleton";
 import CityBanner from "@/components/CityBanner";
@@ -29,14 +30,16 @@ export default function FeedPage() {
   const [filtroTipo, setFiltroTipo] = useState("todos");
   const [loading, setLoading] = useState(true);
   const [likedPosts, setLikedPosts] = useState<Set<string>>(new Set());
+  const [likeCounts, setLikeCounts] = useState<Record<string, number>>({});
   const { ciudadCorta: city } = useCityContext();
+  const { user } = useAuth();
 
   useEffect(() => {
     // Don't fetch until city resolves
     if (!city) return;
     fetchPosts();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filtroTipo, city]);
+  }, [filtroTipo, city, user?.id]);
 
   const fetchPosts = async () => {
     setLoading(true);
@@ -75,11 +78,70 @@ export default function FeedPage() {
         });
 
       setPosts(postsMapeados as Post[]);
+
+      // Fetch likes for these posts
+      const postIds = postsMapeados.map((p: any) => p.id);
+      if (postIds.length > 0) {
+        const { data: likesData } = await supabase
+          .from("feed_likes")
+          .select("post_id, user_id")
+          .in("post_id", postIds);
+        const counts: Record<string, number> = {};
+        const mine = new Set<string>();
+        (likesData || []).forEach((l: { post_id: string; user_id: string }) => {
+          counts[l.post_id] = (counts[l.post_id] || 0) + 1;
+          if (user && l.user_id === user.id) mine.add(l.post_id);
+        });
+        setLikeCounts(counts);
+        setLikedPosts(mine);
+      } else {
+        setLikeCounts({});
+        setLikedPosts(new Set());
+      }
     } catch (err) {
       console.error("Error fetching posts:", err);
       setPosts([]);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const toggleLikePersist = async (postId: string) => {
+    if (!user) {
+      window.location.href = "/login?returnTo=/feed";
+      return;
+    }
+    const wasLiked = likedPosts.has(postId);
+    // Optimistic update
+    const newLiked = new Set(likedPosts);
+    const newCounts = { ...likeCounts };
+    if (wasLiked) {
+      newLiked.delete(postId);
+      newCounts[postId] = Math.max(0, (newCounts[postId] || 1) - 1);
+    } else {
+      newLiked.add(postId);
+      newCounts[postId] = (newCounts[postId] || 0) + 1;
+    }
+    setLikedPosts(newLiked);
+    setLikeCounts(newCounts);
+
+    if (wasLiked) {
+      const { error } = await supabaseMut.from("feed_likes").delete()
+        .eq("post_id", postId).eq("user_id", user.id);
+      if (error) {
+        // Rollback
+        setLikedPosts(likedPosts);
+        setLikeCounts(likeCounts);
+      }
+    } else {
+      const { error } = await supabaseMut.from("feed_likes").insert({
+        post_id: postId,
+        user_id: user.id,
+      });
+      if (error) {
+        setLikedPosts(likedPosts);
+        setLikeCounts(likeCounts);
+      }
     }
   };
 
@@ -204,11 +266,9 @@ export default function FeedPage() {
               const toggleLike = (e: React.MouseEvent) => {
                 e.preventDefault();
                 e.stopPropagation();
-                const newLiked = new Set(likedPosts);
-                if (newLiked.has(post.id)) newLiked.delete(post.id);
-                else newLiked.add(post.id);
-                setLikedPosts(newLiked);
+                toggleLikePersist(post.id);
               };
+              const likeCount = likeCounts[post.id] || 0;
 
               return (
                 <motion.div
@@ -273,7 +333,7 @@ export default function FeedPage() {
                             size={18}
                             className={isLiked ? "fill-current" : ""}
                           />
-                          Me encanta
+                          {likeCount > 0 ? likeCount : "Me encanta"}
                         </button>
                         <span className="flex items-center gap-2 text-sm font-bold text-rodeo-cream/60">
                           <MessageCircle size={18} />
