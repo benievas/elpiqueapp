@@ -3,7 +3,10 @@ export const dynamic = 'force-dynamic';
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Users, Plus, X, Calendar, Clock, MapPin, ChevronLeft, Loader, Zap } from "lucide-react";
+import {
+  Users, Plus, X, Calendar, Clock, MapPin,
+  ChevronLeft, Loader, Zap, ChevronDown, AlertCircle, CheckCircle2
+} from "lucide-react";
 import Link from "next/link";
 import { supabase, supabaseMut } from "@/lib/supabase";
 import { useAuth } from "@/lib/hooks/useAuth";
@@ -24,6 +27,11 @@ const DEPORTE_COLOR: Record<string, string> = {
   voley: "#FF6B35", basquet: "#FF4081", hockey: "#A78BFA",
 };
 
+interface Jugador {
+  user_id: string;
+  nombre_display: string | null;
+}
+
 interface Partido {
   id: string;
   deporte: string;
@@ -36,6 +44,7 @@ interface Partido {
   estado: string;
   creador_id: string;
   creador_nombre: string | null;
+  jugadores?: Jugador[];
 }
 
 interface FormState {
@@ -57,15 +66,28 @@ export default function PartidosPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [joinLoading, setJoinLoading] = useState<string | null>(null);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [createError, setCreateError] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ msg: string; type: "ok" | "err" } | null>(null);
   const [form, setForm] = useState<FormState>({
     deporte: "futbol", fecha: today, hora: "18:00", slots: 10, descripcion: "",
   });
 
+  const showToast = (msg: string, type: "ok" | "err" = "ok") => {
+    setToast({ msg, type });
+    setTimeout(() => setToast(null), 3000);
+  };
+
   const fetchPartidos = async (ciudad: string) => {
     setLoading(true);
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("partidos")
-      .select("id, deporte, fecha, hora_inicio, ciudad, descripcion, slots_totales, slots_ocupados, estado, creador_id, profiles(nombre_completo)")
+      .select(`
+        id, deporte, fecha, hora_inicio, ciudad, descripcion,
+        slots_totales, slots_ocupados, estado, creador_id,
+        profiles(nombre_completo),
+        partido_jugadores(user_id, nombre_display)
+      `)
       .eq("ciudad", ciudad)
       .in("estado", ["abierto", "completo"])
       .gte("fecha", today)
@@ -73,10 +95,17 @@ export default function PartidosPage() {
       .order("hora_inicio", { ascending: true })
       .limit(30);
 
+    if (error) {
+      console.error("fetchPartidos error:", error.message);
+      setLoading(false);
+      return;
+    }
+
     setPartidos(
       (data ?? []).map((p: any) => ({
         ...p,
         creador_nombre: p.profiles?.nombre_completo ?? null,
+        jugadores: p.partido_jugadores ?? [],
       }))
     );
     setLoading(false);
@@ -101,7 +130,9 @@ export default function PartidosPage() {
 
   const handleCreate = async () => {
     if (!user?.id) return;
+    setCreateError(null);
     setSaving(true);
+
     const { data, error } = await supabaseMut
       .from("partidos")
       .insert({
@@ -117,56 +148,85 @@ export default function PartidosPage() {
       .select("id")
       .single();
 
-    if (!error && data) {
-      await supabaseMut.from("partido_jugadores").insert({
-        partido_id: data.id,
-        user_id: user.id,
-        nombre_display: profile?.nombre_completo ?? null,
-        telefono: profile?.telefono ?? null,
-      });
-      setMisPartidos(prev => new Set([...prev, data.id]));
-      setModalOpen(false);
-      fetchPartidos(ciudadCorta);
+    if (error || !data) {
+      setCreateError(error?.message ?? "Error al crear el partido. Intentá de nuevo.");
+      setSaving(false);
+      return;
     }
+
+    const { error: pjErr } = await supabaseMut.from("partido_jugadores").insert({
+      partido_id: data.id,
+      user_id: user.id,
+      nombre_display: profile?.nombre_completo ?? null,
+      telefono: profile?.telefono ?? null,
+    });
+
+    if (pjErr) {
+      setCreateError(`Partido creado pero no se pudo inscribir: ${pjErr.message}`);
+      setSaving(false);
+      return;
+    }
+
+    setMisPartidos(prev => new Set([...prev, data.id]));
+    setModalOpen(false);
     setSaving(false);
+    setForm({ deporte: "futbol", fecha: today, hora: "18:00", slots: 10, descripcion: "" });
+    showToast("¡Partido publicado! 🎉");
+    fetchPartidos(ciudadCorta);
   };
 
   const handleJoin = async (partido: Partido) => {
     if (!user?.id) return;
     setJoinLoading(partido.id);
-    await supabaseMut.from("partido_jugadores").insert({
+
+    const { error: pjErr } = await supabaseMut.from("partido_jugadores").insert({
       partido_id: partido.id,
       user_id: user.id,
       nombre_display: profile?.nombre_completo ?? null,
       telefono: profile?.telefono ?? null,
     });
-    await supabaseMut.from("partidos").update({
-      slots_ocupados: partido.slots_ocupados + 1,
-      estado: partido.slots_ocupados + 1 >= partido.slots_totales ? "completo" : "abierto",
-    }).eq("id", partido.id);
+
+    if (pjErr) {
+      showToast(pjErr.message, "err");
+      setJoinLoading(null);
+      return;
+    }
+
+    const newOcupados = partido.slots_ocupados + 1;
+    const { error: upErr } = await supabaseMut
+      .from("partidos")
+      .update({
+        slots_ocupados: newOcupados,
+        estado: newOcupados >= partido.slots_totales ? "completo" : "abierto",
+      })
+      .eq("id", partido.id);
+
+    if (upErr) {
+      showToast(`No se pudo actualizar el cupo: ${upErr.message}`, "err");
+    } else {
+      showToast("¡Te uniste al partido! ✅");
+    }
+
     setMisPartidos(prev => new Set([...prev, partido.id]));
-    setPartidos(prev => prev.map(p => p.id === partido.id
-      ? { ...p, slots_ocupados: p.slots_ocupados + 1, estado: p.slots_ocupados + 1 >= p.slots_totales ? "completo" : "abierto" }
-      : p
-    ));
     setJoinLoading(null);
+    fetchPartidos(ciudadCorta);
   };
 
   const handleLeave = async (partido: Partido) => {
     if (!user?.id) return;
     setJoinLoading(partido.id);
+
     await supabaseMut.from("partido_jugadores").delete()
       .eq("partido_id", partido.id).eq("user_id", user.id);
     await supabaseMut.from("partidos").update({
       slots_ocupados: Math.max(1, partido.slots_ocupados - 1),
       estado: "abierto",
     }).eq("id", partido.id);
+
     setMisPartidos(prev => { const s = new Set(prev); s.delete(partido.id); return s; });
-    setPartidos(prev => prev.map(p => p.id === partido.id
-      ? { ...p, slots_ocupados: Math.max(1, p.slots_ocupados - 1), estado: "abierto" }
-      : p
-    ));
     setJoinLoading(null);
+    showToast("Saliste del partido");
+    fetchPartidos(ciudadCorta);
   };
 
   const fmtFecha = (fecha: string) =>
@@ -190,7 +250,7 @@ export default function PartidosPage() {
           </div>
           {user && (
             <motion.button
-              onClick={() => setModalOpen(true)}
+              onClick={() => { setCreateError(null); setModalOpen(true); }}
               whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.96 }}
               className="flex items-center gap-2 px-4 py-2.5 rounded-[12px] font-black text-sm"
               style={{ background: "#C8FF00", color: "#1A120B" }}
@@ -228,6 +288,7 @@ export default function PartidosPage() {
               const isFull = partido.estado === "completo";
               const isCreador = partido.creador_id === user?.id;
               const pct = Math.round((partido.slots_ocupados / partido.slots_totales) * 100);
+              const isExpanded = expandedId === partido.id;
 
               return (
                 <motion.div key={partido.id} layout initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
@@ -235,7 +296,7 @@ export default function PartidosPage() {
                   className="p-4 flex flex-col gap-3">
 
                   <div className="flex items-start justify-between gap-3">
-                    <div>
+                    <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
                         <span className="text-sm font-black" style={{ color }}>
                           {DEPORTES.find(d => d.id === partido.deporte)?.emoji} {DEPORTES.find(d => d.id === partido.deporte)?.label ?? partido.deporte}
@@ -246,8 +307,14 @@ export default function PartidosPage() {
                             COMPLETO
                           </span>
                         )}
+                        {isCreador && (
+                          <span className="text-[10px] font-black px-2 py-0.5 rounded-full"
+                            style={{ background: "rgba(255,255,255,0.08)", color: "rgba(225,212,194,0.5)", border: "1px solid rgba(255,255,255,0.1)" }}>
+                            TU PARTIDO
+                          </span>
+                        )}
                       </div>
-                      <div className="flex items-center gap-3 text-xs text-rodeo-cream/50">
+                      <div className="flex items-center gap-3 text-xs text-rodeo-cream/50 flex-wrap">
                         <span className="flex items-center gap-1"><Calendar size={11} />{fmtFecha(partido.fecha)}</span>
                         <span className="flex items-center gap-1"><Clock size={11} />{fmtHora(partido.hora_inicio)}</span>
                         <span className="flex items-center gap-1"><MapPin size={11} />{partido.ciudad}</span>
@@ -258,26 +325,38 @@ export default function PartidosPage() {
                     </div>
 
                     {/* Acción */}
-                    {user && !isCreador && (
-                      isFull && !isIn ? (
-                        <span className="text-xs text-rodeo-cream/30 shrink-0 pt-1">Lleno</span>
-                      ) : (
+                    <div className="flex flex-col items-end gap-2 shrink-0">
+                      {user && !isCreador && (
+                        isFull && !isIn ? (
+                          <span className="text-xs text-rodeo-cream/30 pt-1">Lleno</span>
+                        ) : (
+                          <button
+                            onClick={() => isIn ? handleLeave(partido) : handleJoin(partido)}
+                            disabled={joinLoading === partido.id}
+                            className="px-3 py-2 rounded-[10px] text-xs font-black transition-all disabled:opacity-50"
+                            style={isIn
+                              ? { background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.3)", color: "#EF4444" }
+                              : { background: "rgba(200,255,0,0.12)", border: "1px solid rgba(200,255,0,0.3)", color: "#C8FF00" }
+                            }
+                          >
+                            {joinLoading === partido.id ? <Loader size={12} className="animate-spin" /> : isIn ? "Salir" : "Unirme"}
+                          </button>
+                        )
+                      )}
+                      {/* Toggle lista jugadores */}
+                      {(partido.jugadores?.length ?? 0) > 0 && (
                         <button
-                          onClick={() => isIn ? handleLeave(partido) : handleJoin(partido)}
-                          disabled={joinLoading === partido.id}
-                          className="shrink-0 px-3 py-2 rounded-[10px] text-xs font-black transition-all disabled:opacity-50"
-                          style={isIn
-                            ? { background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.3)", color: "#EF4444" }
-                            : { background: "rgba(200,255,0,0.12)", border: "1px solid rgba(200,255,0,0.3)", color: "#C8FF00" }
-                          }
+                          onClick={() => setExpandedId(isExpanded ? null : partido.id)}
+                          className="flex items-center gap-1 text-[10px] text-rodeo-cream/30 hover:text-rodeo-cream/60 transition-colors"
                         >
-                          {joinLoading === partido.id ? <Loader size={12} className="animate-spin" /> : isIn ? "Salir" : "Unirme"}
+                          <Users size={10} /> ver jugadores
+                          <ChevronDown size={10} className={`transition-transform ${isExpanded ? "rotate-180" : ""}`} />
                         </button>
-                      )
-                    )}
+                      )}
+                    </div>
                   </div>
 
-                  {/* Barra de progreso de cupos */}
+                  {/* Barra progreso */}
                   <div className="space-y-1">
                     <div className="flex justify-between text-[10px] text-rodeo-cream/40">
                       <span className="flex items-center gap-1"><Users size={10} />{partido.slots_ocupados}/{partido.slots_totales} jugadores</span>
@@ -289,7 +368,32 @@ export default function PartidosPage() {
                     </div>
                   </div>
 
-                  {/* WhatsApp CTA cuando está completo y el usuario está adentro */}
+                  {/* Lista de jugadores expandida */}
+                  <AnimatePresence>
+                    {isExpanded && partido.jugadores && partido.jugadores.length > 0 && (
+                      <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: "auto" }}
+                        exit={{ opacity: 0, height: 0 }}
+                        className="overflow-hidden"
+                      >
+                        <div className="pt-2 border-t border-white/8">
+                          <p className="text-[10px] font-bold uppercase tracking-widest text-rodeo-cream/30 mb-2">Inscriptos</p>
+                          <div className="flex flex-wrap gap-1.5">
+                            {partido.jugadores.map((j, i) => (
+                              <span key={j.user_id ?? i}
+                                className="text-xs px-2 py-0.5 rounded-full"
+                                style={{ background: "rgba(255,255,255,0.06)", color: j.user_id === user?.id ? color : "rgba(225,212,194,0.6)", border: `1px solid ${j.user_id === user?.id ? color + "40" : "rgba(255,255,255,0.08)"}` }}>
+                                {j.nombre_display ?? "Anónimo"}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+
+                  {/* WhatsApp CTA cuando completo y el usuario está adentro */}
                   {isFull && isIn && (
                     <a
                       href={`https://wa.me/?text=${encodeURIComponent(`⚽ PARTIDO DE ${partido.deporte.toUpperCase()} — ${fmtFecha(partido.fecha)} ${fmtHora(partido.hora_inicio)}\n📍 ${partido.ciudad}\n\nSomos ${partido.slots_totales} jugadores. ¡Nos vemos!`)}`}
@@ -306,6 +410,23 @@ export default function PartidosPage() {
           </div>
         )}
       </div>
+
+      {/* Toast */}
+      <AnimatePresence>
+        {toast && (
+          <motion.div
+            initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 12 }}
+            className="fixed bottom-28 left-1/2 -translate-x-1/2 z-[100] flex items-center gap-2 px-4 py-2.5 rounded-2xl text-sm font-bold shadow-xl"
+            style={toast.type === "ok"
+              ? { background: "rgba(200,255,0,0.15)", border: "1px solid rgba(200,255,0,0.35)", color: "#C8FF00" }
+              : { background: "rgba(239,68,68,0.15)", border: "1px solid rgba(239,68,68,0.35)", color: "#EF4444" }
+            }
+          >
+            {toast.type === "ok" ? <CheckCircle2 size={15} /> : <AlertCircle size={15} />}
+            {toast.msg}
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Modal crear partido */}
       <AnimatePresence>
@@ -332,6 +453,15 @@ export default function PartidosPage() {
                 </div>
 
                 <div className="p-6 space-y-4">
+                  {/* Error inline */}
+                  {createError && (
+                    <div className="flex items-start gap-2 p-3 rounded-[10px] text-xs"
+                      style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", color: "#EF4444" }}>
+                      <AlertCircle size={14} className="shrink-0 mt-0.5" />
+                      <span>{createError}</span>
+                    </div>
+                  )}
+
                   {/* Deporte */}
                   <div>
                     <label className="text-xs font-bold uppercase tracking-widest text-rodeo-cream/50 block mb-2">Deporte</label>
