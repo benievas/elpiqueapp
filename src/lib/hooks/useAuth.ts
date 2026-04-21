@@ -31,9 +31,13 @@ export function useAuth() {
   useEffect(() => {
     let mounted = true;
 
+    // Failsafe: si getSession() cuelga por red, forzar loading=false tras 4s
+    const fallback = setTimeout(() => { if (mounted) setLoading(false); }, 4000);
+
     // 1. Carga inicial: getSession() es síncrono-local (lee cookies/localStorage sin red).
     //    Resuelve el loading de forma inmediata sin esperar eventos.
     supabase.auth.getSession().then(async ({ data: { session } }) => {
+      clearTimeout(fallback);
       if (!mounted) return;
       if (session?.user) {
         setUser(session.user);
@@ -62,6 +66,7 @@ export function useAuth() {
 
     return () => {
       mounted = false;
+      clearTimeout(fallback);
       subscription.unsubscribe();
     };
   }, []);

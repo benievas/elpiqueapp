@@ -70,7 +70,9 @@ function LoginForm() {
     // Usar window.location.href (recarga completa) en lugar de router.replace.
     // Esto garantiza que el middleware lea las cookies de sesión recién escritas
     // y no redirija de vuelta a /login por leer un estado de auth stale.
-    if (profile?.rol === "propietario" || profile?.rol === "admin" || profile?.rol === "superadmin") {
+    if (profile?.rol === "superadmin" || profile?.rol === "admin") {
+      window.location.href = "/admin";
+    } else if (profile?.rol === "propietario") {
       window.location.href = "/owner";
     } else {
       const onboarded = localStorage.getItem("player_onboarded");
