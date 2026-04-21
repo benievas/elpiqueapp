@@ -68,6 +68,7 @@ export default function PartidosPage() {
   const [joinLoading, setJoinLoading] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [createError, setCreateError] = useState<string | null>(null);
+  const [fetchError, setFetchError] = useState<string | null>(null);
   const [toast, setToast] = useState<{ msg: string; type: "ok" | "err" } | null>(null);
   const [form, setForm] = useState<FormState>({
     deporte: "futbol", fecha: today, hora: "18:00", slots: 10, descripcion: "",
@@ -80,14 +81,12 @@ export default function PartidosPage() {
 
   const fetchPartidos = async (ciudad: string) => {
     setLoading(true);
+    setFetchError(null);
+
+    // Query simple sin joins para evitar fallos por RLS o FK no reconocida
     const { data, error } = await supabase
       .from("partidos")
-      .select(`
-        id, deporte, fecha, hora_inicio, ciudad, descripcion,
-        slots_totales, slots_ocupados, estado, creador_id,
-        profiles(nombre_completo),
-        partido_jugadores(user_id, nombre_display)
-      `)
+      .select("id, deporte, fecha, hora_inicio, ciudad, descripcion, slots_totales, slots_ocupados, estado, creador_id")
       .eq("ciudad", ciudad)
       .in("estado", ["abierto", "completo"])
       .gte("fecha", today)
@@ -96,18 +95,44 @@ export default function PartidosPage() {
       .limit(30);
 
     if (error) {
-      console.error("fetchPartidos error:", error.message);
+      console.error("fetchPartidos error:", error.code, error.message);
+      setFetchError(`Error al cargar partidos (${error.code}): ${error.message}`);
       setLoading(false);
       return;
     }
 
-    setPartidos(
-      (data ?? []).map((p: any) => ({
-        ...p,
-        creador_nombre: p.profiles?.nombre_completo ?? null,
-        jugadores: p.partido_jugadores ?? [],
-      }))
-    );
+    const rows = data ?? [];
+
+    // Nombres de creadores (query separada, no bloquea el listado si falla)
+    const creadorIds = [...new Set(rows.map((p: any) => p.creador_id).filter(Boolean))];
+    let perfilMap: Record<string, string> = {};
+    if (creadorIds.length) {
+      const { data: perfiles } = await supabase
+        .from("profiles")
+        .select("id, nombre_completo")
+        .in("id", creadorIds);
+      perfilMap = Object.fromEntries((perfiles ?? []).map((p: any) => [p.id, p.nombre_completo]));
+    }
+
+    // Jugadores inscritos (query separada)
+    const partidoIds = rows.map((p: any) => p.id);
+    let jugadoresMap: Record<string, Jugador[]> = {};
+    if (partidoIds.length) {
+      const { data: jugadores } = await supabase
+        .from("partido_jugadores")
+        .select("partido_id, user_id, nombre_display")
+        .in("partido_id", partidoIds);
+      for (const j of (jugadores ?? []) as any[]) {
+        if (!jugadoresMap[j.partido_id]) jugadoresMap[j.partido_id] = [];
+        jugadoresMap[j.partido_id].push({ user_id: j.user_id, nombre_display: j.nombre_display });
+      }
+    }
+
+    setPartidos(rows.map((p: any) => ({
+      ...p,
+      creador_nombre: perfilMap[p.creador_id] ?? null,
+      jugadores: jugadoresMap[p.id] ?? [],
+    })));
     setLoading(false);
   };
 
@@ -265,6 +290,19 @@ export default function PartidosPage() {
         <p className="text-xs text-rodeo-cream/40 leading-relaxed">
           Publicá que te falta gente para jugar. Cuando se completan los cupos, te armamos el link de WhatsApp para coordinar.
         </p>
+
+        {/* Error de carga */}
+        {fetchError && (
+          <div className="flex items-start gap-2 p-3 rounded-[12px] text-xs"
+            style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", color: "#EF4444" }}>
+            <AlertCircle size={14} className="shrink-0 mt-0.5" />
+            <div>
+              <p className="font-bold mb-0.5">No se pudieron cargar los partidos</p>
+              <p className="opacity-80">{fetchError}</p>
+              <p className="opacity-50 mt-1">Ciudad buscada: <strong>{ciudadCorta}</strong></p>
+            </div>
+          </div>
+        )}
 
         {/* Lista */}
         {loading ? (
