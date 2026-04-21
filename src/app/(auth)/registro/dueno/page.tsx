@@ -105,8 +105,8 @@ function RegistroDuenoForm() {
         return;
       }
 
-      // 4. Tiene sesión → activar trial
-      router.push("/owner/activar-trial");
+      // 4. Tiene sesión → panel de gestión
+      window.location.href = "/owner";
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error al crear la cuenta");
     } finally {

@@ -24,11 +24,16 @@ function LoginForm() {
   const [error, setError] = useState<string | null>(null);
   const [errorHint, setErrorHint] = useState<"google" | "reset" | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [checkingAuth, setCheckingAuth] = useState(true);
 
-  // Si ya hay sesión activa, redirigir
+  // Si ya hay sesión activa, redirigir sin mostrar el formulario
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) redirectByRole(session.user.id);
+      if (session) {
+        redirectByRole(session.user.id);
+      } else {
+        setCheckingAuth(false);
+      }
     });
   }, []);
 
@@ -185,6 +190,14 @@ function LoginForm() {
     setErrorHint(null);
     setSuccess(null);
   };
+
+  if (checkingAuth) {
+    return (
+      <div className="min-h-screen bg-rodeo-dark flex items-center justify-center">
+        <Loader size={28} className="animate-spin text-rodeo-lime" />
+      </div>
+    );
+  }
 
   return (
     <div className="relative min-h-screen bg-gradient-to-b from-rodeo-dark via-rodeo-brown to-rodeo-dark overflow-hidden">

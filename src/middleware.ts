@@ -23,12 +23,13 @@ export async function middleware(request: NextRequest) {
     }
   );
 
-  // getSession lee de cookies sin round-trip al servidor → más rápido
-  const { data: { session } } = await supabase.auth.getSession();
+  // getUser() valida el token contra Supabase Auth y renueva cookies si es necesario.
+  // Esto es crítico para evitar sesiones stale y el flickering de auth en SSR.
+  const { data: { user } } = await supabase.auth.getUser();
 
   const pathname = request.nextUrl.pathname;
 
-  if (!session) {
+  if (!user) {
     if (pathname.startsWith('/owner') || pathname.startsWith('/admin')) {
       return NextResponse.redirect(new URL('/login', request.url));
     }

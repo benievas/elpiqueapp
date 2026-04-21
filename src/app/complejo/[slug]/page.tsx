@@ -107,7 +107,9 @@ export default function ComplejoPage({
   const [reviewTexto, setReviewTexto] = useState("");
   const [reviewSaving, setReviewSaving] = useState(false);
   const [reviewSaved, setReviewSaved] = useState(false);
+  const [reviewError, setReviewError] = useState<string | null>(null);
   const [reviews, setReviews] = useState<{ id: string; estrellas: number; texto: string | null; created_at: string; autor?: string }[]>([]);
+  const [aiResumen, setAiResumen] = useState<string | null>(null);
   const [torneos, setTorneos] = useState<{ id: string; nombre: string; slug: string; deporte: string; estado: string; fecha_inicio: string; imagen_url: string | null }[]>([]);
   // abierto se computa client-side para evitar hydration mismatch (#418)
   const [abierto, setAbierto] = useState<boolean | null>(null);
@@ -152,6 +154,10 @@ export default function ComplejoPage({
           .order("created_at", { ascending: false })
           .limit(10);
         if (reviewsData) {
+          // Mostrar ai_resumen del complejo si existe
+          if ((complexData as any).ai_resumen) {
+            setAiResumen((complexData as any).ai_resumen);
+          }
           setReviews(reviewsData.map((r: any) => ({
             id: r.id,
             estrellas: r.estrellas,
@@ -507,6 +513,17 @@ export default function ComplejoPage({
                 <span className="section-slash">/</span>Reseñas
               </h3>
 
+              {/* Resumen IA */}
+              {aiResumen && (
+                <div
+                  className="flex gap-3 px-4 py-3 rounded-[14px]"
+                  style={{ background: "rgba(200,255,0,0.05)", border: "1px solid rgba(200,255,0,0.15)" }}
+                >
+                  <span className="text-rodeo-lime text-base shrink-0">✦</span>
+                  <p className="text-xs text-rodeo-cream/70 leading-relaxed italic">{aiResumen}</p>
+                </div>
+              )}
+
               {/* Reviews list */}
               {reviews.length > 0 && (
                 <div className="space-y-3 mb-4">
@@ -550,19 +567,44 @@ export default function ComplejoPage({
                       style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "12px", color: "#E8F0E4", resize: "none", outline: "none" }}
                       className="w-full px-4 py-3 text-sm placeholder:text-rodeo-cream/25"
                     />
+                    {reviewError && (
+                      <p className="text-xs text-red-400 bg-red-500/10 border border-red-500/20 rounded-[10px] px-3 py-2">{reviewError}</p>
+                    )}
                     <button
                       onClick={async () => {
                         if (!reviewEstrellas || !user) return;
                         setReviewSaving(true);
-                        await supabaseMut.from("reviews").insert({
+                        setReviewError(null);
+                        const firstCourtId = canchas[0]?.id;
+                        if (!firstCourtId) {
+                          setReviewError("No hay canchas registradas en este complejo.");
+                          setReviewSaving(false);
+                          return;
+                        }
+                        const { error: reviewErr } = await supabaseMut.from("reviews").insert({
                           complex_id: complejo.id,
-                          court_id: canchas[0]?.id ?? null,
+                          court_id: firstCourtId,
                           user_id: user.id,
                           estrellas: reviewEstrellas,
                           texto: reviewTexto.trim() || null,
                         });
                         setReviewSaving(false);
-                        setReviewSaved(true);
+                        if (reviewErr) {
+                          setReviewError("No se pudo enviar la reseña. Intentá de nuevo.");
+                        } else {
+                          setReviewSaved(true);
+                          // Regenerar resumen de IA si hay 5+ reseñas
+                          if (reviews.length + 1 >= 5) {
+                            fetch("/api/ai/review-summary", {
+                              method: "POST",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({ complex_id: complejo.id }),
+                            })
+                              .then((r) => r.json())
+                              .then((d) => { if (d.resumen) setAiResumen(d.resumen); })
+                              .catch(() => {});
+                          }
+                        }
                       }}
                       disabled={!reviewEstrellas || reviewSaving}
                       style={{ background: reviewEstrellas ? "rgba(200,255,0,0.9)" : "rgba(255,255,255,0.1)", borderRadius: "12px" }}

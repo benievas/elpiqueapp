@@ -79,8 +79,7 @@ export function useAuth() {
   }, []);
 
   const signOut = async () => {
-    // scope:'local' ensures cookies are cleared even if network is unavailable
-    await supabase.auth.signOut({ scope: 'local' });
+    await supabase.auth.signOut();
     setUser(null);
     setProfile(null);
   };
