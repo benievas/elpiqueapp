@@ -1,12 +1,24 @@
 "use client";
 export const dynamic = 'force-dynamic';
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
+import dynamic from "next/dynamic";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { supabase, supabaseMut } from "@/lib/supabase";
-import { MapPin, Phone, Clock, Star, Edit, Plus, Loader, X, Save, Upload, Image as ImageIcon } from "lucide-react";
+import { MapPin, Phone, Clock, Star, Edit, Plus, Loader, X, Save, Upload, Image as ImageIcon, Navigation } from "lucide-react";
 import { CIUDADES_DISPONIBLES } from "@/lib/context/CityContext";
+
+// Leaflet sólo funciona en el cliente
+const MapPicker = dynamic(() => import("@/components/MapPicker"), {
+  ssr: false,
+  loading: () => (
+    <div style={{ height: "260px", borderRadius: "14px", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)" }}
+      className="flex items-center justify-center">
+      <Loader size={20} className="animate-spin text-rodeo-lime/50" />
+    </div>
+  ),
+});
 
 interface Complex {
   id: string;
@@ -27,7 +39,20 @@ interface Complex {
   servicios: string[];
   imagen_principal: string | null;
   galeria: string[] | null;
+  lat: number | null;
+  lng: number | null;
 }
+
+// Coordenadas por defecto de cada ciudad
+const CIUDAD_COORDS: Record<string, { lat: number; lng: number }> = {
+  Catamarca:     { lat: -28.4696, lng: -65.7852 },
+  Tucumán:       { lat: -26.8083, lng: -65.2176 },
+  Córdoba:       { lat: -31.4201, lng: -64.1888 },
+  Salta:         { lat: -24.7821, lng: -65.4232 },
+  "Buenos Aires": { lat: -34.6037, lng: -58.3816 },
+  Mendoza:       { lat: -32.8895, lng: -68.8458 },
+  Rosario:       { lat: -32.9468, lng: -60.6393 },
+};
 
 const DEPORTES = ["futbol","padel","tenis","voley","basquet"];
 const SERVICIOS_OPC = ["Vestuarios","Estacionamiento","Bar/Cantina","WiFi","Iluminación LED","Aire acondicionado","Alquiler de equipos","Cafetería","Seguridad"];
@@ -56,10 +81,27 @@ export default function OwnerComplejoPage() {
   const [error, setError] = useState("");
 
   const defaultCiudad = profile?.ciudad || "Catamarca";
-  const emptyForm = { nombre:"", descripcion:"", ciudad: defaultCiudad, direccion:"", telefono:"", whatsapp:"", horario_abierto:"08:00", horario_cierre:"22:00", deporte_principal:"futbol", deportes:["futbol"] as string[], servicios:[] as string[], imagen_principal:"" as string, galeria:[] as string[] };
+  const defaultCoords = CIUDAD_COORDS[defaultCiudad] ?? { lat: -28.4696, lng: -65.7852 };
+  const emptyForm = {
+    nombre:"", descripcion:"", ciudad: defaultCiudad, direccion:"", telefono:"", whatsapp:"",
+    horario_abierto:"08:00", horario_cierre:"22:00",
+    deporte_principal:"futbol", deportes:["futbol"] as string[], servicios:[] as string[],
+    imagen_principal:"" as string, galeria:[] as string[],
+    lat: defaultCoords.lat, lng: defaultCoords.lng,
+  };
   const [form, setForm] = useState(emptyForm);
   const [uploadingMain, setUploadingMain] = useState(false);
   const [uploadingGallery, setUploadingGallery] = useState(false);
+
+  // Cuando cambia la ciudad, centrar el mapa en esa ciudad (solo si no se movió manualmente)
+  const handleCiudadChange = useCallback((ciudad: string) => {
+    const coords = CIUDAD_COORDS[ciudad];
+    if (coords) {
+      setForm(f => ({ ...f, ciudad, lat: coords.lat, lng: coords.lng }));
+    } else {
+      setForm(f => ({ ...f, ciudad }));
+    }
+  }, []);
 
   useEffect(() => { if (user) fetchComplejos(); }, [user]);
 
@@ -69,10 +111,25 @@ export default function OwnerComplejoPage() {
     setLoading(false);
   };
 
-  const openCreate = () => { setEditing(null); setForm(emptyForm); setError(""); setShowModal(true); };
+  const openCreate = () => {
+    const coords = CIUDAD_COORDS[defaultCiudad] ?? { lat: -28.4696, lng: -65.7852 };
+    setEditing(null);
+    setForm({ ...emptyForm, lat: coords.lat, lng: coords.lng });
+    setError(""); setShowModal(true);
+  };
   const openEdit = (c: Complex) => {
     setEditing(c);
-    setForm({ nombre: c.nombre, descripcion: c.descripcion || "", ciudad: c.ciudad, direccion: c.direccion, telefono: c.telefono || "", whatsapp: c.whatsapp, horario_abierto: c.horario_abierto, horario_cierre: c.horario_cierre, deporte_principal: c.deporte_principal, deportes: c.deportes || [], servicios: c.servicios || [], imagen_principal: c.imagen_principal || "", galeria: c.galeria || [] });
+    const fallback = CIUDAD_COORDS[c.ciudad] ?? { lat: -28.4696, lng: -65.7852 };
+    setForm({
+      nombre: c.nombre, descripcion: c.descripcion || "", ciudad: c.ciudad,
+      direccion: c.direccion, telefono: c.telefono || "", whatsapp: c.whatsapp,
+      horario_abierto: c.horario_abierto, horario_cierre: c.horario_cierre,
+      deporte_principal: c.deporte_principal, deportes: c.deportes || [],
+      servicios: c.servicios || [], imagen_principal: c.imagen_principal || "",
+      galeria: c.galeria || [],
+      lat: c.lat ?? fallback.lat,
+      lng: c.lng ?? fallback.lng,
+    });
     setError(""); setShowModal(true);
   };
 
@@ -117,7 +174,15 @@ export default function OwnerComplejoPage() {
     if (!form.nombre || !form.direccion || !form.whatsapp) { setError("Nombre, dirección y WhatsApp son obligatorios."); return; }
     setSaving(true); setError("");
     try {
-      const payload = { ...form, imagen_principal: form.imagen_principal || null, slug: slugify(form.nombre), owner_id: user!.id, activo: true, lat: -28.4696, lng: -65.7852 };
+      const payload = {
+        ...form,
+        imagen_principal: form.imagen_principal || null,
+        slug: slugify(form.nombre),
+        owner_id: user!.id,
+        activo: true,
+        lat: form.lat,
+        lng: form.lng,
+      };
       if (editing) {
         const { error: e } = await supabaseMut.from("complexes").update(payload).eq("id", editing.id);
         if (e) throw e;
@@ -169,14 +234,18 @@ export default function OwnerComplejoPage() {
               </div>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 {[
-                  { icon: MapPin, label:"Ubicación", val:`${c.ciudad}` },
-                  { icon: Clock, label:"Horario", val:`${c.horario_abierto} – ${c.horario_cierre}` },
-                  { icon: Star, label:"Rating", val: c.rating_promedio ? `${c.rating_promedio.toFixed(1)}/5 (${c.total_reviews})` : "Sin reseñas" },
-                  { icon: Phone, label:"WhatsApp", val: c.whatsapp },
-                ].map(({icon:Icon,label,val})=>(
+                  { icon: MapPin, label:"Ubicación", val:`${c.ciudad}`, href: c.lat && c.lng ? `https://maps.google.com/?q=${c.lat},${c.lng}` : null },
+                  { icon: Clock, label:"Horario", val:`${c.horario_abierto} – ${c.horario_cierre}`, href: null },
+                  { icon: Star, label:"Rating", val: c.rating_promedio ? `${c.rating_promedio.toFixed(1)}/5 (${c.total_reviews})` : "Sin reseñas", href: null },
+                  { icon: Phone, label:"WhatsApp", val: c.whatsapp, href: null },
+                ].map(({icon:Icon,label,val,href})=>(
                   <div key={label} style={{ background:"rgba(255,255,255,0.03)", border:"1px solid rgba(255,255,255,0.06)", borderRadius:"12px" }} className="p-3">
                     <div className="flex items-center gap-1.5 mb-1"><Icon size={12} className="text-rodeo-lime"/><p className="text-[10px] text-rodeo-cream/40 uppercase tracking-wide">{label}</p></div>
-                    <p className="text-xs font-bold text-white truncate">{val}</p>
+                    {href ? (
+                      <a href={href} target="_blank" rel="noopener noreferrer" className="text-xs font-bold text-rodeo-lime underline underline-offset-2 truncate block hover:text-white transition-colors">{val} ↗</a>
+                    ) : (
+                      <p className="text-xs font-bold text-white truncate">{val}</p>
+                    )}
                   </div>
                 ))}
               </div>
@@ -222,13 +291,35 @@ export default function OwnerComplejoPage() {
 
                   <div className="space-y-1.5">
                     <label className="text-xs font-bold text-rodeo-cream/40 uppercase tracking-widest">Ciudad *</label>
-                    <select value={form.ciudad} onChange={e => setForm(f => ({ ...f, ciudad: e.target.value }))} style={glassInput} className="cursor-pointer">
+                    <select value={form.ciudad} onChange={e => handleCiudadChange(e.target.value)} style={glassInput} className="cursor-pointer">
                       {CIUDADES_DISPONIBLES.map(c => (
                         <option key={c.ciudadCorta} value={c.ciudadCorta} style={{ background: "#1A120B" }}>
                           {c.ciudadCorta} · {c.provincia}
                         </option>
                       ))}
                     </select>
+                  </div>
+
+                  {/* Mapa de ubicación */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-bold text-rodeo-cream/40 uppercase tracking-widest flex items-center gap-1.5">
+                        <Navigation size={11} className="text-rodeo-lime" />
+                        Ubicación en el mapa *
+                      </label>
+                      <span className="text-[10px] text-rodeo-cream/30 font-mono">
+                        {form.lat.toFixed(5)}, {form.lng.toFixed(5)}
+                      </span>
+                    </div>
+                    <MapPicker
+                      lat={form.lat}
+                      lng={form.lng}
+                      onChange={(lat, lng) => setForm(f => ({ ...f, lat, lng }))}
+                      height="260px"
+                    />
+                    <p className="text-[10px] text-rodeo-cream/30 leading-relaxed">
+                      Hacé zoom y mové el marcador al lugar exacto de tu complejo. Podés buscar la dirección en el mapa y hacer click donde está.
+                    </p>
                   </div>
 
                   <div className="space-y-1.5">
