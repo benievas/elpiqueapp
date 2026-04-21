@@ -80,6 +80,13 @@ export async function POST(req: NextRequest) {
       .eq("mp_external_ref", externalRef);
 
     if (status !== "approved") {
+      // Si el pago fue rechazado, sincronizar por si la suscripción expiró
+      if (status === "rejected" || status === "cancelled") {
+        const parts = externalRef.split("_");
+        if (parts.length >= 3 && parts[0] === "owner-sub") {
+          await supabaseAdmin.rpc("sync_complex_activo", { p_user_id: parts[1] });
+        }
+      }
       return NextResponse.json({ ok: true });
     }
 
@@ -137,13 +144,14 @@ export async function POST(req: NextRequest) {
     }
 
     // Asegurar que el usuario tiene rol 'propietario' (sin pisar admin/superadmin)
-    // NOTE: schema check — sql/sprint7_suscripciones.sql usa `role`/'owner',
-    // pero UI usa `rol`/'propietario'. Aquí seguimos la convención de UI.
     await supabaseAdmin
       .from("profiles")
       .update({ rol: "propietario" })
       .eq("id", userId)
       .not("rol", "in", '("admin","superadmin")');
+
+    // Sincronizar visibilidad de complejos según suscripción
+    await supabaseAdmin.rpc("sync_complex_activo", { p_user_id: userId });
 
     return NextResponse.json({ ok: true });
   } catch (error) {
