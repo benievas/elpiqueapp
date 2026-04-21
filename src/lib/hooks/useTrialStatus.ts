@@ -62,20 +62,16 @@ export function useTrialStatus(complexId?: string | null): TrialStatus {
     if (complexId === null) return;
 
     const fetchStatus = async () => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      // Las suscripciones son por usuario (owner), no por complejo.
+      // Así se evita el loop infinito de trial cuando el owner crea un complejo
+      // y la suscripción había sido guardada con complex_id = null.
       let query: any = supabase
         .from('subscriptions' as never)
         .select('status, is_trial, starts_at, ends_at')
         .eq('plan', 'owner')
+        .eq('user_id', user.id)
         .order('created_at', { ascending: false })
         .limit(1);
-
-      if (complexId) {
-        query = query.eq('complex_id', complexId);
-      } else {
-        // undefined: sin complejo todavía → fallback por user_id
-        query = query.eq('user_id', user.id);
-      }
 
       const { data } = await query.maybeSingle() as { data: {
         status: string;

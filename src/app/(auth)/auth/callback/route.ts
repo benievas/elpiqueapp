@@ -3,8 +3,9 @@ import { createClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
 
 function buildRedirect(path: string, requestUrl: string, headers?: Headers): URL {
-  // In Vercel/serverless, request.url may be internal (localhost).
-  // x-forwarded-host contains the actual public hostname.
+  if (process.env.NEXT_PUBLIC_SITE_URL) {
+    return new URL(path, process.env.NEXT_PUBLIC_SITE_URL);
+  }
   const forwardedHost = headers?.get('x-forwarded-host');
   const forwardedProto = headers?.get('x-forwarded-proto') ?? 'https';
   if (forwardedHost) {
