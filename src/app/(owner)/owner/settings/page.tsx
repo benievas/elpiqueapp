@@ -32,6 +32,17 @@ export default function OwnerSettingsPage() {
   const [passLoading, setPassLoading] = useState(false);
   const [passSent, setPassSent] = useState(false);
 
+  // Notification preferences
+  const [notifEmail, setNotifEmail] = useState(true);
+  const [notifLoading, setNotifLoading] = useState(false);
+  const [notifSaved, setNotifSaved] = useState(false);
+
+  useEffect(() => {
+    if (profile && "notif_email" in profile) {
+      setNotifEmail((profile as any).notif_email ?? true);
+    }
+  }, [profile?.id]);
+
   const handleSave = async () => {
     if (!user?.id) return;
     setLoading(true);
@@ -67,6 +78,16 @@ export default function OwnerSettingsPage() {
       setEmailMsg({ type: "ok", text: "Te enviamos un mail de confirmación al nuevo email." });
       setNewEmail("");
     }
+  };
+
+  const handleNotifToggle = async (val: boolean) => {
+    if (!user?.id) return;
+    setNotifEmail(val);
+    setNotifLoading(true);
+    await supabaseMut.from("profiles").update({ notif_email: val } as any).eq("id", user.id);
+    setNotifLoading(false);
+    setNotifSaved(true);
+    setTimeout(() => setNotifSaved(false), 2000);
   };
 
   const handlePasswordReset = async () => {
@@ -217,14 +238,40 @@ export default function OwnerSettingsPage() {
         </button>
       </div>
 
-      {/* Notificaciones (futuro) */}
-      <div className="liquid-panel p-6 opacity-50">
-        <div className="flex items-center gap-3 mb-2">
-          <Bell size={18} className="text-rodeo-cream/40" />
-          <h2 className="text-base font-bold text-rodeo-cream/50">Notificaciones</h2>
-          <span className="text-xs bg-white/10 text-rodeo-cream/40 px-2 py-0.5 rounded-full">Próximamente</span>
+      {/* Notificaciones */}
+      <div className="liquid-panel p-6 space-y-4">
+        <div className="flex items-center gap-3">
+          <Bell size={18} className="text-rodeo-lime" />
+          <h2 className="text-base font-bold text-white">Notificaciones</h2>
+          {notifSaved && (
+            <motion.span
+              initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }}
+              className="text-xs text-rodeo-lime font-bold flex items-center gap-1"
+            >
+              <Check size={12} /> Guardado
+            </motion.span>
+          )}
         </div>
-        <p className="text-sm text-rodeo-cream/30">Configurá alertas de nuevas reservas, vencimientos y más.</p>
+        <div className="flex items-center justify-between py-2">
+          <div>
+            <p className="text-sm font-bold text-rodeo-cream">Notificaciones por email</p>
+            <p className="text-xs text-rodeo-cream/40 mt-0.5">Reservas nuevas y equipos inscriptos en torneos</p>
+          </div>
+          <button
+            onClick={() => handleNotifToggle(!notifEmail)}
+            disabled={notifLoading}
+            className="relative w-12 h-6 rounded-full transition-all duration-300 shrink-0 disabled:opacity-60"
+            style={{ background: notifEmail ? "#C8FF00" : "rgba(255,255,255,0.12)" }}
+          >
+            <span
+              className="absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-all duration-300"
+              style={{ transform: notifEmail ? "translateX(24px)" : "translateX(0)" }}
+            />
+          </button>
+        </div>
+        <p className="text-xs text-rodeo-cream/30">
+          {notifEmail ? "Recibirás un email cada vez que llegue una nueva reserva o inscripción." : "No recibirás emails de notificación."}
+        </p>
       </div>
 
       {/* Dominio/Link (futuro) */}

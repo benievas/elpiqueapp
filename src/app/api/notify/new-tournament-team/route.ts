@@ -36,11 +36,12 @@ export async function POST(req: NextRequest) {
 
     const { data: owner } = await supabaseAdmin
       .from("profiles")
-      .select("email, nombre_completo")
+      .select("email, nombre_completo, notif_email")
       .eq("id", complejo.owner_id)
       .single();
 
     if (!owner?.email) return NextResponse.json({ ok: false, reason: "owner_no_email" });
+    if (owner.notif_email === false) return NextResponse.json({ ok: true, sent: false, reason: "user_disabled" });
 
     const apiKey = process.env.RESEND_API_KEY;
     if (!apiKey) {
