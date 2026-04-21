@@ -93,7 +93,8 @@ export default function HomeConfigPage() {
   async function load() {
     setLoading(true);
     try {
-      const { data } = await supabase
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data } = await (supabase as any)
         .from("app_config")
         .select("value")
         .eq("key", "home_promo_slides")
@@ -110,7 +111,8 @@ export default function HomeConfigPage() {
   async function saveAll(newSlides: Slide[]) {
     setSaving(true);
     const ordenados = newSlides.map((s, i) => ({ ...s, orden: i }));
-    const { error } = await supabaseMut
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error } = await (supabaseMut as any)
       .from("app_config")
       .upsert({ key: "home_promo_slides", value: ordenados, updated_at: new Date().toISOString() });
     if (error) setErrorText("Error al guardar: " + error.message);
