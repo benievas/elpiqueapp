@@ -3,10 +3,11 @@ export const dynamic = 'force-dynamic';
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
-import { motion } from "framer-motion";
-import { supabase } from "@/lib/supabase";
-import { ChevronLeft, Trophy, Users, Calendar, Loader, Share2, MapPin, Radio } from "lucide-react";
+import { useParams, useRouter } from "next/navigation";
+import { AnimatePresence, motion } from "framer-motion";
+import { supabase, supabaseMut } from "@/lib/supabase";
+import { useAuth } from "@/lib/hooks/useAuth";
+import { ChevronLeft, Trophy, Users, Calendar, Loader, Share2, MapPin, Radio, UserPlus, X, Plus, Check } from "lucide-react";
 
 interface Torneo {
   id: string;
@@ -58,7 +59,9 @@ const ESTADO_META: Record<string, { color: string; bg: string; label: string }> 
 
 export default function TorneoPublicoPage() {
   const params = useParams();
+  const router = useRouter();
   const slug = params?.slug as string;
+  const { user } = useAuth();
 
   const [torneo, setTorneo] = useState<Torneo | null>(null);
   const [teams, setTeams] = useState<Team[]>([]);
@@ -66,6 +69,13 @@ export default function TorneoPublicoPage() {
   const [complejo, setComplejo] = useState<ComplexInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [liveFlash, setLiveFlash] = useState<string | null>(null);
+
+  const [showInscripcion, setShowInscripcion] = useState(false);
+  const [equipoNombre, setEquipoNombre] = useState("");
+  const [miembros, setMiembros] = useState<string[]>([""]);
+  const [submitting, setSubmitting] = useState(false);
+  const [inscripcionOk, setInscripcionOk] = useState(false);
+  const [inscripcionError, setInscripcionError] = useState<string | null>(null);
 
   useEffect(() => {
     if (slug) load();
@@ -139,6 +149,66 @@ export default function TorneoPublicoPage() {
     return teams.find(t => t.id === id)?.nombre ?? "TBD";
   }
 
+  function abrirInscripcion() {
+    if (!user) {
+      router.push(`/login?returnTo=/torneos/${slug}`);
+      return;
+    }
+    setInscripcionError(null);
+    setShowInscripcion(true);
+  }
+
+  async function inscribirEquipo() {
+    if (!torneo || !user) return;
+    const nombre = equipoNombre.trim();
+    if (!nombre) { setInscripcionError("Poné un nombre de equipo"); return; }
+    if (teams.length >= torneo.cupos_totales) { setInscripcionError("No hay cupos disponibles"); return; }
+
+    setSubmitting(true);
+    setInscripcionError(null);
+
+    const miembrosLimpio = miembros.map(m => m.trim()).filter(Boolean);
+
+    const { error } = await supabaseMut.from("tournament_teams").insert({
+      tournament_id: torneo.id,
+      nombre,
+      miembros: miembrosLimpio,
+      miembros_ids: [user.id],
+      puntos: 0,
+    });
+
+    if (error) {
+      setInscripcionError(error.message || "No se pudo inscribir");
+      setSubmitting(false);
+      return;
+    }
+
+    await supabaseMut.from("tournaments")
+      .update({ cupos_ocupados: teams.length + 1 })
+      .eq("id", torneo.id);
+
+    fetch("/api/notify/new-tournament-team", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        tournament_id: torneo.id,
+        equipo_nombre: nombre,
+        capitan_nombre: (user.user_metadata?.nombre_completo as string) || user.email?.split("@")[0] || "Jugador",
+        capitan_email: user.email || "",
+        miembros: miembrosLimpio,
+      }),
+    }).catch(() => { /* silencioso */ });
+
+    setInscripcionOk(true);
+    setSubmitting(false);
+    setTimeout(() => {
+      setShowInscripcion(false);
+      setInscripcionOk(false);
+      setEquipoNombre("");
+      setMiembros([""]);
+    }, 1600);
+  }
+
   async function compartir() {
     if (!torneo) return;
     const url = typeof window !== "undefined" ? window.location.href : "";
@@ -197,11 +267,20 @@ export default function TorneoPublicoPage() {
               className="w-10 h-10 flex items-center justify-center hover:bg-white/15 transition-all">
               <ChevronLeft size={20} className="text-white" />
             </Link>
-            <button onClick={compartir}
-              style={{ background: "rgba(200,255,0,0.12)", border: "1px solid rgba(200,255,0,0.25)", borderRadius: "12px" }}
-              className="flex items-center gap-2 px-4 py-2 hover:bg-rodeo-lime/20 transition-all text-rodeo-lime text-xs font-bold">
-              <Share2 size={14} /> Compartir
-            </button>
+            <div className="flex items-center gap-2">
+              {torneo.estado === "registracion" && teams.length < torneo.cupos_totales && (
+                <button onClick={abrirInscripcion}
+                  style={{ background: "rgba(200,255,0,0.9)", borderRadius: "12px" }}
+                  className="flex items-center gap-2 px-4 py-2 hover:brightness-110 transition-all text-rodeo-dark text-xs font-black">
+                  <UserPlus size={14} /> Inscribirme
+                </button>
+              )}
+              <button onClick={compartir}
+                style={{ background: "rgba(200,255,0,0.12)", border: "1px solid rgba(200,255,0,0.25)", borderRadius: "12px" }}
+                className="flex items-center gap-2 px-4 py-2 hover:bg-rodeo-lime/20 transition-all text-rodeo-lime text-xs font-bold">
+                <Share2 size={14} /> Compartir
+              </button>
+            </div>
           </div>
 
           <div className="mt-8 space-y-3">
@@ -311,9 +390,132 @@ export default function TorneoPublicoPage() {
           <div style={{ background:"rgba(255,255,255,0.03)", border:"1px solid rgba(255,255,255,0.07)", borderRadius:"16px" }} className="p-12 text-center">
             <Trophy size={32} className="mx-auto text-rodeo-cream/30 mb-3"/>
             <p className="text-rodeo-cream/60 text-sm">Aún no hay equipos inscritos</p>
+            {torneo.estado === "registracion" && teams.length < torneo.cupos_totales && (
+              <button onClick={abrirInscripcion}
+                style={{ background: "rgba(200,255,0,0.9)", borderRadius: "12px" }}
+                className="mt-4 inline-flex items-center gap-2 px-5 py-2.5 text-rodeo-dark text-sm font-black hover:brightness-110 transition-all">
+                <UserPlus size={14}/> Ser el primero en inscribirse
+              </button>
+            )}
           </div>
         )}
       </div>
+
+      {/* MODAL INSCRIPCIÓN */}
+      <AnimatePresence>
+        {showInscripcion && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => !submitting && !inscripcionOk && setShowInscripcion(false)}
+            className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 20 }}
+              onClick={(e) => e.stopPropagation()}
+              style={{ background: "#1A120B", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "20px" }}
+              className="w-full max-w-md p-6 my-8">
+              {inscripcionOk ? (
+                <div className="text-center py-6 space-y-3">
+                  <div className="w-14 h-14 mx-auto rounded-full bg-rodeo-lime/20 flex items-center justify-center">
+                    <Check size={28} className="text-rodeo-lime"/>
+                  </div>
+                  <h3 className="text-xl font-black text-white">¡Equipo inscrito!</h3>
+                  <p className="text-sm text-rodeo-cream/60">El dueño del complejo fue notificado.</p>
+                </div>
+              ) : (
+                <>
+                  <div className="flex items-start justify-between mb-5">
+                    <div>
+                      <p className="text-[11px] font-black text-rodeo-lime uppercase tracking-widest mb-1">Inscripción</p>
+                      <h3 style={{ fontFamily: "'Barlow Condensed', system-ui, sans-serif", fontWeight: 900, fontSize: "26px", letterSpacing: "-0.01em", textTransform: "uppercase", lineHeight: 1 }} className="text-white">
+                        {torneo?.nombre}
+                      </h3>
+                    </div>
+                    <button onClick={() => setShowInscripcion(false)} className="p-2 hover:bg-white/5 rounded-lg text-rodeo-cream/50">
+                      <X size={18}/>
+                    </button>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-[11px] font-black text-rodeo-cream/60 uppercase tracking-wide mb-1.5">Nombre del equipo</label>
+                      <input
+                        value={equipoNombre}
+                        onChange={(e) => setEquipoNombre(e.target.value)}
+                        placeholder="Ej: Los Pumas"
+                        maxLength={40}
+                        style={{ background:"rgba(255,255,255,0.05)", border:"1px solid rgba(255,255,255,0.12)", borderRadius:"10px", color:"#E1D4C2" }}
+                        className="w-full px-3 py-2.5 text-sm placeholder:text-rodeo-cream/25 outline-none focus:border-rodeo-lime/40"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-black text-rodeo-cream/60 uppercase tracking-wide mb-1.5">Miembros (opcional)</label>
+                      <div className="space-y-2">
+                        {miembros.map((m, i) => (
+                          <div key={i} className="flex gap-2">
+                            <input
+                              value={m}
+                              onChange={(e) => {
+                                const next = [...miembros];
+                                next[i] = e.target.value;
+                                setMiembros(next);
+                              }}
+                              placeholder={`Jugador ${i + 1}`}
+                              maxLength={60}
+                              style={{ background:"rgba(255,255,255,0.05)", border:"1px solid rgba(255,255,255,0.12)", borderRadius:"10px", color:"#E1D4C2" }}
+                              className="flex-1 px-3 py-2 text-sm placeholder:text-rodeo-cream/25 outline-none focus:border-rodeo-lime/40"
+                            />
+                            {miembros.length > 1 && (
+                              <button
+                                onClick={() => setMiembros(miembros.filter((_, idx) => idx !== i))}
+                                className="p-2 rounded-lg text-rodeo-cream/40 hover:text-red-400 hover:bg-white/5">
+                                <X size={14}/>
+                              </button>
+                            )}
+                          </div>
+                        ))}
+                        {miembros.length < 10 && (
+                          <button
+                            onClick={() => setMiembros([...miembros, ""])}
+                            className="flex items-center gap-1 text-[11px] font-bold text-rodeo-lime hover:underline">
+                            <Plus size={12}/> Agregar jugador
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    {inscripcionError && (
+                      <p className="text-xs text-red-400">{inscripcionError}</p>
+                    )}
+
+                    <div className="flex gap-2 pt-2">
+                      <button
+                        onClick={() => setShowInscripcion(false)}
+                        disabled={submitting}
+                        style={{ background:"rgba(255,255,255,0.06)", border:"1px solid rgba(255,255,255,0.12)", borderRadius:"10px" }}
+                        className="flex-1 px-4 py-2.5 text-sm font-bold text-rodeo-cream/70 disabled:opacity-50">
+                        Cancelar
+                      </button>
+                      <button
+                        onClick={inscribirEquipo}
+                        disabled={submitting || !equipoNombre.trim()}
+                        style={{ background: "rgba(200,255,0,0.9)", borderRadius:"10px" }}
+                        className="flex-1 px-4 py-2.5 text-sm font-black text-rodeo-dark disabled:opacity-50 flex items-center justify-center gap-2">
+                        {submitting ? <Loader size={14} className="animate-spin"/> : <Check size={14}/>}
+                        {submitting ? "Inscribiendo..." : "Confirmar inscripción"}
+                      </button>
+                    </div>
+                  </div>
+                </>
+              )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
