@@ -126,6 +126,8 @@ export interface Complex {
   precio_promedio: number | null;
   rating_promedio: number | null;
   total_reviews: number;
+  ai_resumen: string | null;
+  ai_resumen_updated_at: string | null;
   owner_id: string;                  // refs profiles.id (propietario)
   activo: boolean;
   created_at: string;
