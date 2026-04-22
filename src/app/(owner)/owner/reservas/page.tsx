@@ -17,6 +17,8 @@ import {
   Plus,
   Trash2,
   Building2,
+  LayoutGrid,
+  List as ListIcon,
 } from "lucide-react";
 import { supabase, supabaseMut } from "@/lib/supabase";
 import { useAuth } from "@/lib/hooks/useAuth";
@@ -53,15 +55,24 @@ for (let h = 7; h <= 23; h++) {
 interface NewReservationModalProps {
   courts: CourtOption[];
   userId: string;
+  defaultCourtId?: string;
+  defaultFecha?: string;
+  defaultHora?: string;
   onClose: () => void;
   onSaved: (r: ReservationWithDetails) => void;
 }
 
-function NewReservationModal({ courts, userId, onClose, onSaved }: NewReservationModalProps) {
-  const [courtId, setCourtId] = useState(courts[0]?.id ?? "");
-  const [fecha, setFecha] = useState(new Date().toISOString().slice(0, 10));
-  const [horaInicio, setHoraInicio] = useState("08:00");
-  const [horaFin, setHoraFin] = useState("09:00");
+function NewReservationModal({ courts, userId, defaultCourtId, defaultFecha, defaultHora, onClose, onSaved }: NewReservationModalProps) {
+  const [courtId, setCourtId] = useState(defaultCourtId || courts[0]?.id || "");
+  const [fecha, setFecha] = useState(defaultFecha || new Date().toISOString().slice(0, 10));
+  const [horaInicio, setHoraInicio] = useState(defaultHora || "08:00");
+  const [horaFin, setHoraFin] = useState(() => {
+    if (defaultHora) {
+      const h = parseInt(defaultHora.split(":")[0]);
+      return `${String(h + 1).padStart(2, "0")}:00`;
+    }
+    return "09:00";
+  });
   const [jugadorNombre, setJugadorNombre] = useState("");
   const [jugadorTelefono, setJugadorTelefono] = useState("");
   const [precioTotal, setPrecioTotal] = useState<number>(0);
@@ -494,6 +505,7 @@ export default function ReservasPage() {
 
   const [reservations, setReservations] = useState<ReservationWithDetails[]>([]);
   const [courts, setCourts] = useState<CourtOption[]>([]);
+  const [schedules, setSchedules] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -502,6 +514,15 @@ export default function ReservasPage() {
 
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [showNewModal, setShowNewModal] = useState(false);
+  const [modalDefaults, setModalDefaults] = useState<{courtId?: string, fecha?: string, hora?: string}>({});
+
+  const handleOpenModal = (defaults = {}) => {
+    setModalDefaults(defaults);
+    setShowNewModal(true);
+  };
+
+  const [viewMode, setViewMode] = useState<"lista" | "cuadricula">("lista");
+  const [gridDate, setGridDate] = useState(getTodayISO());
 
   // ── Realtime subscription ──────────────────────────────────────────────────
 
@@ -556,7 +577,7 @@ export default function ReservasPage() {
       setError(null);
 
       try {
-        const [courtsRes, reservasRes] = await Promise.all([
+        const [courtsRes, reservasRes, schedulesRes] = await Promise.all([
           supabase
             .from("courts")
             .select("id, nombre, deporte, precio_por_hora, complex_id")
@@ -569,11 +590,19 @@ export default function ReservasPage() {
             .order("fecha", { ascending: false })
             .order("hora_inicio", { ascending: false })
             .limit(100),
+          supabase
+            .from("court_schedules")
+            .select("*")
+            .eq("activo", true)
         ]);
 
         if (reservasRes.error) throw reservasRes.error;
         setCourts((courtsRes.data as any) ?? []);
         setReservations((reservasRes.data as any) ?? []);
+        
+        const complexCourtIds = courtsRes.data?.map(c => c.id) || [];
+        const filteredSchedules = (schedulesRes.data as any)?.filter((s: any) => complexCourtIds.includes(s.court_id)) || [];
+        setSchedules(filteredSchedules);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Error al cargar reservas");
       } finally {
@@ -780,8 +809,37 @@ export default function ReservasPage() {
         </div>
 
         <div className="flex items-center gap-3">
+          <div
+            style={{
+              background: "rgba(255,255,255,0.04)",
+              border: "1px solid rgba(255,255,255,0.08)",
+              borderRadius: "12px",
+            }}
+            className="flex p-1"
+          >
+            <button
+              onClick={() => setViewMode("lista")}
+              className={`p-1.5 rounded-[8px] transition-all ${
+                viewMode === "lista"
+                  ? "bg-rodeo-cream/10 text-white"
+                  : "text-rodeo-cream/40 hover:text-white"
+              }`}
+            >
+              <ListIcon size={18} />
+            </button>
+            <button
+              onClick={() => setViewMode("cuadricula")}
+              className={`p-1.5 rounded-[8px] transition-all ${
+                viewMode === "cuadricula"
+                  ? "bg-rodeo-cream/10 text-white"
+                  : "text-rodeo-cream/40 hover:text-white"
+              }`}
+            >
+              <LayoutGrid size={18} />
+            </button>
+          </div>
           <button
-            onClick={() => setShowNewModal(true)}
+            onClick={() => handleOpenModal()}
             style={{
               background: "rgba(200,255,0,0.9)",
               borderRadius: "12px",
@@ -875,13 +933,15 @@ export default function ReservasPage() {
         ))}
       </motion.div>
 
-      {/* ── Filter Bar ─────────────────────────────────────────────────────── */}
-      <motion.div
-        initial={{ opacity: 0, y: 12 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.1 }}
-        className="space-y-3"
-      >
+      {viewMode === "lista" && (
+        <>
+          {/* ── Filter Bar ─────────────────────────────────────────────────────── */}
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+            className="space-y-3"
+          >
         {/* Date filter */}
         <div className="flex gap-2">
           {(
@@ -1292,6 +1352,142 @@ export default function ReservasPage() {
           </motion.div>
         )}
       </AnimatePresence>
+      </>
+      )}
+
+      {viewMode === "cuadricula" && (
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="space-y-4"
+        >
+          {/* Date selector for grid */}
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-black text-white">Disponibilidad por Cancha</h2>
+            <input
+              type="date"
+              value={gridDate}
+              onChange={(e) => setGridDate(e.target.value)}
+              style={{
+                background: "rgba(255,255,255,0.06)",
+                border: "1px solid rgba(255,255,255,0.12)",
+                borderRadius: "10px",
+                color: "#E1D4C2",
+              }}
+              className="px-3 py-2 text-sm focus:outline-none focus:border-rodeo-lime/40"
+            />
+          </div>
+
+          <div className="overflow-x-auto rounded-[16px] border border-white/10 scrollbar-thin">
+            <div className="min-w-[600px] flex">
+              {/* Timeline Column */}
+              <div className="w-20 shrink-0 bg-white/5 border-r border-white/10 py-6">
+                <div className="h-10 border-b border-transparent" /> {/* Header spacer */}
+                {HORA_OPTIONS.filter((h) => !h.endsWith("30")).map((h) => (
+                  <div key={h} className="h-16 flex items-start justify-center text-xs font-bold text-rodeo-cream/40 border-b border-white/5 mx-2">
+                    <span className="-mt-2.5 bg-[#17130F] px-1">{h}</span>
+                  </div>
+                ))}
+              </div>
+
+              {/* Courts Columns */}
+              {courts.map((court) => {
+                const dayReservations = reservations.filter((r) => r.court_id === court.id && r.fecha === gridDate && r.estado !== "cancelada");
+                return (
+                  <div key={court.id} className="flex-1 min-w-[120px] bg-white/[0.02] border-r border-white/10 last:border-0 py-6 relative">
+                    <div className="h-10 flex flex-col items-center justify-center border-b border-white/10 mb-2 -mt-6">
+                      <span className="text-sm font-black text-white truncate max-w-full px-2">{court.nombre}</span>
+                      <span className="text-[10px] text-rodeo-lime/80 uppercase font-bold tracking-wider">{DEPORTE_LABELS[court.deporte] ?? court.deporte}</span>
+                    </div>
+
+                    <div className="relative mx-2 h-[1024px]"> {/* 16 hours * 64px (h-16) */}
+                      {HORA_OPTIONS.filter((h) => !h.endsWith("30")).map((h) => (
+                        <div key={h} className="absolute w-full h-16 border-b border-white/5 pointer-events-none" style={{ top: `${(parseInt(h.split(":")[0]) - 8) * 64}px` }} />
+                      ))}
+
+                      {/* Render available slots */}
+                      {(() => {
+                        const [y, m, d] = gridDate.split("-").map(Number);
+                        const dayOfWeek = new Date(y, m - 1, d).getDay();
+                        
+                        const schedule = schedules.find(s => s.court_id === court.id && s.dia_semana === dayOfWeek);
+                        
+                        if (!schedule) return null;
+                        
+                        const slots = [];
+                        const startHour = parseInt(schedule.hora_inicio.split(":")[0]);
+                        const endHour = parseInt(schedule.hora_fin.split(":")[0]);
+                        
+                        for (let hr = Math.max(8, startHour); hr < Math.min(24, endHour); hr++) {
+                          const horaStr = `${String(hr).padStart(2, "0")}:00`;
+                          const horaFinStr = `${String(hr + 1).padStart(2, "0")}:00`;
+                          
+                          const isOccupied = dayReservations.some(r => {
+                            return r.hora_inicio < horaFinStr && r.hora_fin > horaStr;
+                          });
+                          
+                          if (!isOccupied) {
+                            const topPixels = (hr - 8) * 64;
+                            slots.push(
+                              <div
+                                key={`free-${hr}`}
+                                onClick={() => handleOpenModal({ courtId: court.id, fecha: gridDate, hora: horaStr })}
+                                className="absolute left-0 right-0 p-2 overflow-hidden border border-dashed rounded-lg cursor-pointer flex items-center justify-center hover:bg-rodeo-lime/20 transition-all group"
+                                style={{
+                                  top: `${topPixels}px`,
+                                  height: `64px`,
+                                  background: "rgba(200,255,0,0.05)",
+                                  borderColor: "rgba(200,255,0,0.3)",
+                                  zIndex: 5,
+                                }}
+                              >
+                                <span className="text-[10px] font-black uppercase text-rodeo-lime opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
+                                  <Plus size={12} /> Libre
+                                </span>
+                              </div>
+                            );
+                          }
+                        }
+                        return slots;
+                      })()}
+
+                      {dayReservations.map((r) => {
+                        const [hi, mi] = r.hora_inicio.split(":").map(Number);
+                        const [hf, mf] = r.hora_fin.split(":").map(Number);
+                        const topPixels = ((hi - 8) + (mi / 60)) * 64;
+                        const heightPixels = (((hf - 8) + (mf / 60)) * 64) - topPixels;
+                        const meta = STATUS_META[r.estado];
+
+                        return (
+                          <div
+                            key={r.id}
+                            className="absolute left-0 right-0 rounded-lg p-2 overflow-hidden border"
+                            style={{
+                              top: `${topPixels}px`,
+                              height: `${heightPixels}px`,
+                              background: meta.bg,
+                              borderColor: meta.color,
+                              zIndex: 10,
+                            }}
+                          >
+                            <p className="text-[10px] font-black uppercase text-white truncate drop-shadow-md">
+                              {r.jugador?.nombre_completo || "Reserva"}
+                            </p>
+                            <p className="text-[9px] font-bold mt-0.5 truncate drop-shadow-md" style={{ color: meta.color }}>
+                              {r.hora_inicio} — {r.hora_fin}
+                            </p>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </motion.div>
+      )}
 
       {/* ── New Reservation Modal ──────────────────────────────────────────── */}
       <AnimatePresence>
@@ -1299,6 +1495,9 @@ export default function ReservasPage() {
           <NewReservationModal
             courts={courts}
             userId={user.id}
+            defaultCourtId={modalDefaults.courtId}
+            defaultFecha={modalDefaults.fecha}
+            defaultHora={modalDefaults.hora}
             onClose={() => setShowNewModal(false)}
             onSaved={(r) => {
               setReservations((prev) => [r, ...prev]);
