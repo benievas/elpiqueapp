@@ -11,13 +11,54 @@ import { QRCodeSVG, QRCodeCanvas } from "qrcode.react";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { useActiveComplex } from "@/lib/context/ActiveComplexContext";
 
-const APP_DOMAIN = "https://elpique.app";
+const APP_DOMAIN = "https://elpiqueapp.com";
+
+// ─── Templates de Flyer ────────────────────────────────────────────────────────
+const FLYER_TEMPLATES = [
+  {
+    id: "verde",
+    name: "Dark & Lime",
+    bgTop: "#1A120B",
+    bgMid: "#291C0E",
+    bgBot: "#1A120B",
+    decor1: "rgba(200,255,0,0.06)",
+    decor2: "rgba(200,255,0,0.04)",
+    accent: "#C8FF00",
+    accentHalo: "rgba(200,255,0,0.2)",
+    boxBg: "rgba(200,255,0,0.12)",
+  },
+  {
+    id: "naranja",
+    name: "Dark & Orange",
+    bgTop: "#1F1209",
+    bgMid: "#331604",
+    bgBot: "#1F1209",
+    decor1: "rgba(255,107,53,0.06)",
+    decor2: "rgba(255,107,53,0.04)",
+    accent: "#FF6B35",
+    accentHalo: "rgba(255,107,53,0.2)",
+    boxBg: "rgba(255,107,53,0.12)",
+  },
+  {
+    id: "cyan",
+    name: "Cyber Neon",
+    bgTop: "#0B1120",
+    bgMid: "#0A1D33",
+    bgBot: "#140A28",
+    decor1: "rgba(0,229,255,0.08)",
+    decor2: "rgba(255,0,127,0.06)",
+    accent: "#00E5FF",
+    accentHalo: "rgba(0,229,255,0.2)",
+    boxBg: "rgba(0,229,255,0.12)",
+  }
+];
 
 // ─── Flyer Generator ──────────────────────────────────────────────────────────
 
 function FlyerGenerator({ publicUrl, complexName }: { publicUrl: string; complexName: string }) {
   const [logoDataUrl, setLogoDataUrl] = useState<string | null>(null);
   const [generating, setGenerating] = useState(false);
+  const [activeTemplate, setActiveTemplate] = useState("verde");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const hiddenQrRef = useRef<HTMLDivElement>(null);
 
@@ -32,6 +73,8 @@ function FlyerGenerator({ publicUrl, complexName }: { publicUrl: string; complex
   const generateFlyer = useCallback(async () => {
     setGenerating(true);
 
+    const preset = FLYER_TEMPLATES.find(t => t.id === activeTemplate) || FLYER_TEMPLATES[0];
+
     // Get QR canvas data from the hidden QRCodeCanvas
     const qrCanvas = document.getElementById("flyer-qr-canvas") as HTMLCanvasElement | null;
     const qrDataUrl = qrCanvas?.toDataURL("image/png") ?? null;
@@ -45,9 +88,9 @@ function FlyerGenerator({ publicUrl, complexName }: { publicUrl: string; complex
 
     // Background gradient
     const grad = ctx.createLinearGradient(0, 0, 0, H);
-    grad.addColorStop(0, "#1A120B");
-    grad.addColorStop(0.5, "#291C0E");
-    grad.addColorStop(1, "#1A120B");
+    grad.addColorStop(0, preset.bgTop);
+    grad.addColorStop(0.5, preset.bgMid);
+    grad.addColorStop(1, preset.bgBot);
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, W, H);
 
@@ -62,20 +105,20 @@ function FlyerGenerator({ publicUrl, complexName }: { publicUrl: string; complex
     // ── Círculos decorativos ───────────────────────────────────────────────
     ctx.beginPath();
     ctx.arc(W + 100, -100, 500, 0, Math.PI * 2);
-    ctx.fillStyle = "rgba(200,255,0,0.06)";
+    ctx.fillStyle = preset.decor1;
     ctx.fill();
     ctx.beginPath();
     ctx.arc(-150, H + 100, 500, 0, Math.PI * 2);
-    ctx.fillStyle = "rgba(200,255,0,0.04)";
+    ctx.fillStyle = preset.decor2;
     ctx.fill();
 
     // ── Barra superior ─────────────────────────────────────────────────────
-    ctx.fillStyle = "rgba(200,255,0,0.12)";
+    ctx.fillStyle = preset.boxBg;
     ctx.beginPath();
     ctx.roundRect(60, 80, W - 120, 100, 20);
     ctx.fill();
 
-    ctx.fillStyle = "#C8FF00";
+    ctx.fillStyle = preset.accent;
     ctx.font = "900 34px Impact, Arial Black, sans-serif";
     ctx.textAlign = "center";
     ctx.fillText("ELPIQUE · TU COMPLEJO DEPORTIVO ONLINE", W / 2, 144);
@@ -138,10 +181,10 @@ function FlyerGenerator({ publicUrl, complexName }: { publicUrl: string; complex
           const lx = (W - lSize) / 2;
           const ly = afterQr + 20;
           ctx.save();
-          // Halo lime
+          // Halo
           ctx.beginPath();
           ctx.arc(lx + lSize / 2, ly + lSize / 2, lSize / 2 + 10, 0, Math.PI * 2);
-          ctx.fillStyle = "rgba(200,255,0,0.2)";
+          ctx.fillStyle = preset.accentHalo;
           ctx.fill();
           // Ring blanco
           ctx.beginPath();
@@ -171,10 +214,12 @@ function FlyerGenerator({ publicUrl, complexName }: { publicUrl: string; complex
       ctx.drawImage(logoMain, lx, pieY, lw, lh);
       ctx.globalAlpha = 1;
     } else {
-      ctx.fillStyle = "rgba(200,255,0,0.9)";
+      ctx.fillStyle = preset.accent;
+      ctx.globalAlpha = 0.9;
       ctx.font = "900 44px Impact, Arial Black, sans-serif";
       ctx.textAlign = "center";
-      ctx.fillText("ELPIQUE.APP", W / 2, pieY + 60);
+      ctx.fillText("ELPIQUEAPP.COM", W / 2, pieY + 60);
+      ctx.globalAlpha = 1;
     }
 
     ctx.fillStyle = "rgba(225,212,194,0.4)";
@@ -190,7 +235,7 @@ function FlyerGenerator({ publicUrl, complexName }: { publicUrl: string; complex
     a.click();
 
     setGenerating(false);
-  }, [publicUrl, complexName, logoDataUrl]);
+  }, [publicUrl, complexName, logoDataUrl, activeTemplate]);
 
   return (
     <motion.div
@@ -242,6 +287,37 @@ function FlyerGenerator({ publicUrl, complexName }: { publicUrl: string; complex
         </div>
       </div>
 
+      {/* Plantillas */}
+      <div>
+        <p className="text-xs font-bold uppercase tracking-wider text-rodeo-cream/50 mb-3">Estilos de Diseño</p>
+        <div className="grid grid-cols-3 gap-3">
+          {FLYER_TEMPLATES.map((tmpl) => (
+            <button
+              key={tmpl.id}
+              onClick={() => setActiveTemplate(tmpl.id)}
+              className={`relative flex flex-col items-center gap-2 p-3 rounded-[14px] transition-all overflow-hidden ${
+                activeTemplate === tmpl.id
+                  ? "border border-rodeo-lime/50 bg-white/10"
+                  : "border border-white/10 bg-white/5 hover:bg-white/10"
+              }`}
+            >
+              <div
+                className="w-full h-10 rounded-lg flex items-center justify-center opacity-80"
+                style={{ background: `linear-gradient(135deg, ${tmpl.bgTop}, ${tmpl.bgMid})` }}
+              >
+                <div className="w-4 h-4 rounded-full" style={{ background: tmpl.accent }} />
+              </div>
+              <span className="text-[10px] font-bold text-white text-center">{tmpl.name}</span>
+              {activeTemplate === tmpl.id && (
+                <div className="absolute top-2 right-2 flex items-center justify-center w-4 h-4 rounded-full bg-rodeo-lime">
+                  <Check size={10} className="text-rodeo-dark" />
+                </div>
+              )}
+            </button>
+          ))}
+        </div>
+      </div>
+
       {/* Preview hint */}
       <div style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "12px" }}
         className="p-4 flex items-start gap-3"
@@ -250,7 +326,7 @@ function FlyerGenerator({ publicUrl, complexName }: { publicUrl: string; complex
         <div className="space-y-1">
           <p className="text-xs font-bold text-white">El flyer incluye:</p>
           <ul className="text-xs text-rodeo-cream/50 space-y-1">
-            {["Nombre de tu complejo en grande", "QR listo para escanear", logoDataUrl ? "Tu logo ✓" : "Tu logo (opcional)", "Branding de ElPiqueApp"].map((item) => (
+            {["Nombre de tu complejo en grande", "QR listo para escanear", logoDataUrl ? "Tu logo ✓" : "Tu logo (opcional)", "Colores de " + FLYER_TEMPLATES.find(t=>t.id===activeTemplate)?.name, "Branding de ElPiqueApp"].map((item) => (
               <li key={item} className="flex items-center gap-2">
                 <span className="w-1 h-1 rounded-full bg-rodeo-lime/50 shrink-0" />
                 {item}
