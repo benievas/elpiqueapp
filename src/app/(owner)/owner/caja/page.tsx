@@ -103,7 +103,7 @@ function HistorialTab({ complexId }: { complexId: string }) {
 
       const sessionIds = sessionsData.map((s: any) => s.id);
       
-      const { data: movsData } = await supabase
+      const { data: movsData } = await (supabase as any)
         .from("cash_movements")
         .select("*")
         .in("session_id", sessionIds)
@@ -111,7 +111,7 @@ function HistorialTab({ complexId }: { complexId: string }) {
 
       const movsBySession: Record<string, CashMovement[]> = {};
       if (movsData) {
-        for (const m of movsData) {
+        for (const m of movsData as any[]) {
           if (!movsBySession[m.session_id]) movsBySession[m.session_id] = [];
           movsBySession[m.session_id].push(m);
         }
@@ -271,7 +271,7 @@ export default function CajaPage() {
     if (sessionData) {
       setSession(sessionData);
       // Cargar movimientos de esta sesión
-      const { data: movsData } = await supabase
+      const { data: movsData } = await (supabase as any)
         .from("cash_movements")
         .select("*")
         .eq("session_id", sessionData.id)
