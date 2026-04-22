@@ -88,7 +88,7 @@ function HistorialTab({ complexId }: { complexId: string }) {
     const load = async () => {
       setLoading(true);
       // Últimas sesiones cerradas
-      const { data: sessionsData } = await supabase
+      const { data: sessionsData } = await (supabase as any)
         .from("cash_sessions")
         .select("*")
         .eq("complex_id", complexId)
@@ -101,7 +101,7 @@ function HistorialTab({ complexId }: { complexId: string }) {
         return;
       }
 
-      const sessionIds = sessionsData.map(s => s.id);
+      const sessionIds = sessionsData.map((s: any) => s.id);
       
       const { data: movsData } = await supabase
         .from("cash_movements")
@@ -261,7 +261,7 @@ export default function CajaPage() {
     setLoading(true);
     
     // Buscar sesión abierta
-    const { data: sessionData } = await supabase
+    const { data: sessionData } = await (supabase as any)
       .from("cash_sessions")
       .select("*")
       .eq("complex_id", activeComplexId)
@@ -313,7 +313,7 @@ export default function CajaPage() {
     setActionLoading(true);
     setActionError("");
     
-    const { data, error } = await supabaseMut
+    const { data, error } = await (supabaseMut as any)
       .from("cash_sessions")
       .insert({
         complex_id: activeComplexId,
@@ -344,7 +344,7 @@ export default function CajaPage() {
     const totalEgresos = movimientos.filter(m => m.tipo === "egreso").reduce((s, m) => s + m.monto, 0);
     const saldoFinal = session.fondo_inicial + totalIngresos - totalEgresos;
     
-    const { error } = await supabaseMut
+    const { error } = await (supabaseMut as any)
       .from("cash_sessions")
       .update({
         closed_by: user.id,
