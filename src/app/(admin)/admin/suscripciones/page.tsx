@@ -8,8 +8,8 @@ import { supabase, supabaseMut } from "@/lib/supabase";
 import { CreditCard, ChevronLeft, RefreshCw, CheckCircle2, Clock, AlertCircle, Search, Zap } from "lucide-react";
 
 interface Sub {
-  id: string; owner_id: string; estado: string;
-  fecha_inicio: string | null; fecha_fin: string | null; plan: string | null;
+  id: string; user_id: string; status: string;
+  starts_at: string | null; ends_at: string | null; plan: string | null;
   owner_email?: string; owner_nombre?: string; complejo_nombre?: string;
 }
 
@@ -32,15 +32,19 @@ export default function AdminSuscripcionesPage() {
   async function load() {
     setLoading(true);
     try {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("subscriptions")
-        .select("id, owner_id, estado, fecha_inicio, fecha_fin, plan, profiles!owner_id(email, nombre_completo)")
-        .order("created_at", { ascending: false }) as { data: any[] | null };
+        .select("id, user_id, status, starts_at, ends_at, plan, profiles!user_id(email, nombre_completo)")
+        .order("created_at", { ascending: false });
 
-      const ownerIds = (data || []).map((s: any) => s.owner_id);
+      if (error) {
+        console.error("Error loading subscriptions:", error);
+      }
+
+      const userIds = (data || []).map((s: any) => s.user_id);
       let compMap: Record<string, string> = {};
-      if (ownerIds.length) {
-        const { data: comps } = await supabase.from("complexes").select("owner_id, nombre").in("owner_id", ownerIds);
+      if (userIds.length > 0) {
+        const { data: comps } = await supabase.from("complexes").select("owner_id, nombre").in("owner_id", userIds);
         (comps || []).forEach((c: any) => { compMap[c.owner_id] = c.nombre; });
       }
 
@@ -48,7 +52,7 @@ export default function AdminSuscripcionesPage() {
         ...s,
         owner_email: Array.isArray(s.profiles) ? s.profiles[0]?.email : s.profiles?.email,
         owner_nombre: Array.isArray(s.profiles) ? s.profiles[0]?.nombre_completo : s.profiles?.nombre_completo,
-        complejo_nombre: compMap[s.owner_id],
+        complejo_nombre: compMap[s.user_id],
       })));
     } catch (e) { console.error(e); }
     finally { setLoading(false); }
@@ -59,11 +63,12 @@ export default function AdminSuscripcionesPage() {
     const now = new Date();
     const fin = new Date(now); fin.setDate(fin.getDate() + 14);
     await supabaseMut.from("subscriptions").update({
-      estado: "trial",
-      fecha_inicio: now.toISOString().split("T")[0],
-      fecha_fin: fin.toISOString().split("T")[0],
+      status: "trial",
+      starts_at: now.toISOString().split("T")[0],
+      ends_at: fin.toISOString().split("T")[0],
+      is_trial: true,
     }).eq("id", sub.id);
-    setSubs(prev => prev.map(s => s.id === sub.id ? { ...s, estado: "trial", fecha_inicio: now.toISOString().split("T")[0], fecha_fin: fin.toISOString().split("T")[0] } : s));
+    setSubs(prev => prev.map(s => s.id === sub.id ? { ...s, status: "trial", starts_at: now.toISOString().split("T")[0], ends_at: fin.toISOString().split("T")[0] } : s));
     setActivating(null);
   }
 
@@ -72,16 +77,17 @@ export default function AdminSuscripcionesPage() {
     const now = new Date();
     const fin = new Date(now); fin.setFullYear(fin.getFullYear() + 1);
     await supabaseMut.from("subscriptions").update({
-      estado: "active",
-      fecha_inicio: now.toISOString().split("T")[0],
-      fecha_fin: fin.toISOString().split("T")[0],
+      status: "active",
+      starts_at: now.toISOString().split("T")[0],
+      ends_at: fin.toISOString().split("T")[0],
+      is_trial: false,
     }).eq("id", sub.id);
-    setSubs(prev => prev.map(s => s.id === sub.id ? { ...s, estado: "active" } : s));
+    setSubs(prev => prev.map(s => s.id === sub.id ? { ...s, status: "active", starts_at: now.toISOString().split("T")[0], ends_at: fin.toISOString().split("T")[0] } : s));
     setActivating(null);
   }
 
   const filtradas = subs.filter(s =>
-    (filtroEstado === "Todos" || s.estado === filtroEstado) &&
+    (filtroEstado === "Todos" || s.status === filtroEstado) &&
     ((s.owner_email ?? "").toLowerCase().includes(busqueda.toLowerCase()) ||
      (s.owner_nombre ?? "").toLowerCase().includes(busqueda.toLowerCase()) ||
      (s.complejo_nombre ?? "").toLowerCase().includes(busqueda.toLowerCase()))
@@ -107,7 +113,7 @@ export default function AdminSuscripcionesPage() {
       {/* Resumen */}
       <div className="grid grid-cols-3 gap-3">
         {["active", "trial", "expired"].map(est => {
-          const m = ESTADO_META[est]; const count = subs.filter(s => s.estado === est).length;
+          const m = ESTADO_META[est]; const count = subs.filter(s => s.status === est).length;
           return (
             <div key={est} style={{ background: m.bg, border: `1px solid ${m.color}25`, borderRadius: "14px" }} className="p-4 flex items-center gap-3">
               <m.icon size={18} style={{ color: m.color }} />
@@ -144,7 +150,7 @@ export default function AdminSuscripcionesPage() {
       ) : (
         <div className="space-y-2">
           {filtradas.map((s, i) => {
-            const m = ESTADO_META[s.estado] ?? ESTADO_META.expired;
+            const m = ESTADO_META[s.status] ?? ESTADO_META.expired;
             return (
               <motion.div key={s.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.03 }}
                 style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: "14px" }}
@@ -155,22 +161,22 @@ export default function AdminSuscripcionesPage() {
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-bold text-white">{s.owner_nombre ?? s.owner_email}</p>
                   <p className="text-xs text-rodeo-cream/40">{s.complejo_nombre ?? "Sin complejo"}</p>
-                  {s.fecha_fin && (
+                  {s.ends_at && (
                     <p className="text-[11px] text-rodeo-cream/30 mt-0.5">
-                      {s.estado === "expired" ? "Venció" : "Vence"} {new Date(s.fecha_fin).toLocaleDateString("es-AR")}
+                      {s.status === "expired" ? "Venció" : "Vence"} {new Date(s.ends_at).toLocaleDateString("es-AR")}
                     </p>
                   )}
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                   <span className="text-[11px] font-bold px-2.5 py-1 rounded-full" style={{ background: m.bg, color: m.color }}>{m.label}</span>
-                  {s.estado !== "trial" && (
+                  {s.status !== "trial" && (
                     <button onClick={() => activarTrial(s)} disabled={activating === s.id}
                       style={{ background: "rgba(251,191,36,0.12)", border: "1px solid rgba(251,191,36,0.25)", borderRadius: "8px" }}
                       className="flex items-center gap-1 px-2.5 py-1.5 text-[11px] font-bold text-yellow-400 hover:bg-yellow-400/20 transition-all disabled:opacity-40">
                       {activating === s.id ? <RefreshCw size={10} className="animate-spin" /> : <Clock size={11} />} Trial 14d
                     </button>
                   )}
-                  {s.estado !== "active" && (
+                  {s.status !== "active" && (
                     <button onClick={() => marcarActiva(s)} disabled={activating === s.id}
                       style={{ background: "rgba(74,222,128,0.12)", border: "1px solid rgba(74,222,128,0.25)", borderRadius: "8px" }}
                       className="flex items-center gap-1 px-2.5 py-1.5 text-[11px] font-bold text-green-400 hover:bg-green-400/20 transition-all disabled:opacity-40">

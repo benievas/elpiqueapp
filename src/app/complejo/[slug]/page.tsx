@@ -115,11 +115,15 @@ export default function ComplejoPage({
   const [abierto, setAbierto] = useState<boolean | null>(null);
   useEffect(() => {
     if (!complejo) return;
-    const now = new Date();
-    const h = now.getHours() * 100 + now.getMinutes();
-    const [openH, openM] = complejo.horario_abierto.split(":").map(Number);
-    const [closeH, closeM] = complejo.horario_cierre.split(":").map(Number);
-    setAbierto(h >= openH * 100 + openM && h < closeH * 100 + closeM);
+    try {
+      const now = new Date();
+      const h = now.getHours() * 100 + now.getMinutes();
+      const [openH, openM] = (complejo.horario_abierto || "08:00").split(":").map(Number);
+      const [closeH, closeM] = (complejo.horario_cierre || "23:59").split(":").map(Number);
+      setAbierto(h >= openH * 100 + openM && h < closeH * 100 + closeM);
+    } catch {
+      setAbierto(null);
+    }
   }, [complejo]);
 
   useEffect(() => {
@@ -185,7 +189,7 @@ export default function ComplejoPage({
   }, [slug]);
 
   const handleShare = async () => {
-    const url = `${typeof window !== "undefined" ? window.location.origin : "https://elpique.app"}/complejo/${slug}`;
+    const url = `${typeof window !== "undefined" ? window.location.origin : "https://elpiqueapp.com"}/complejo/${slug}`;
     if (navigator.share) {
       await navigator.share({ title: complejo?.nombre, text: `Reservá canchas en ${complejo?.nombre}`, url });
     } else {
@@ -239,8 +243,10 @@ export default function ComplejoPage({
   }
 
   // Compute derived values
-  const horario = `${complejo.horario_abierto} – ${complejo.horario_cierre}`;
-  const diasAtencion = complejo.dias_abiertos?.join(", ") || "Todos los días";
+  const horario = complejo.horario_abierto && complejo.horario_cierre 
+    ? `${complejo.horario_abierto} – ${complejo.horario_cierre}` 
+    : "Consultar horario";
+  const diasAtencion = complejo.dias_abiertos && complejo.dias_abiertos.length > 0 ? complejo.dias_abiertos.join(", ") : "Todos los días";
   const ubicacion = `${complejo.direccion}, ${complejo.ciudad}`;
   const tags = complejo.deportes?.map((d) => d.charAt(0).toUpperCase() + d.slice(1)) || [];
   const rating = complejo.rating_promedio || 0;
@@ -593,6 +599,7 @@ export default function ComplejoPage({
                           setReviewError("No se pudo enviar la reseña. Intentá de nuevo.");
                         } else {
                           setReviewSaved(true);
+                          router.refresh(); // FORZAR REFRESCO PARA QUE EXPLORAR MUESTRE EL NUEVO RATING
                           // Regenerar resumen de IA si hay 5+ reseñas
                           if (reviews.length + 1 >= 5) {
                             fetch("/api/ai/review-summary", {

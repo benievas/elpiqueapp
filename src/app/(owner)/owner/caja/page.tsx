@@ -117,7 +117,7 @@ function HistorialTab({ complexId }: { complexId: string }) {
         }
       }
 
-      setSesiones(sessionsData.map(s => ({
+      setSesiones(sessionsData.map((s: any) => ({
         ...s,
         movimientos: movsBySession[s.id] || []
       })));

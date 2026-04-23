@@ -63,7 +63,7 @@ export function useTrialStatus(complexId?: string | null): TrialStatus {
 
     const fetchStatus = async () => {
       try {
-        const res = await fetch('/api/auth/me', { cache: 'no-store' });
+        const res = await fetch(`/api/auth/me?t=${Date.now()}`, { cache: 'no-store' });
         if (!res.ok) throw new Error('Error en API');
         const { subscription: data } = await res.json();
 

@@ -2,6 +2,8 @@ import { createServerClient } from "@supabase/ssr";
 import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: NextRequest) {
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -41,6 +43,15 @@ export async function GET(request: NextRequest) {
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
+
+  // Force superadmin for the master account in case the UUID changed or RLS botched
+  if (user.email?.toLowerCase() === 'contactomatchpro@gmail.com') {
+    if (!profile) {
+      profile = { id: user.id, email: user.email, rol: 'superadmin' };
+    } else {
+      profile.rol = 'superadmin';
+    }
+  }
 
   return NextResponse.json({
     authenticated: true,

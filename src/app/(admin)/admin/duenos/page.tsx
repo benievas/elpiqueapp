@@ -41,13 +41,13 @@ export default function AdminDuenosPage() {
       const ids = profiles.map(p => p.id);
       const [complejosRes, subsRes] = await Promise.all([
         supabase.from("complexes").select("owner_id, nombre, slug").in("owner_id", ids),
-        supabase.from("subscriptions").select("owner_id, estado, fecha_fin").in("owner_id", ids),
+        supabase.from("subscriptions").select("user_id, status, ends_at").in("user_id", ids),
       ]);
 
       const compMap: Record<string, { nombre: string; slug: string }> = {};
       (complejosRes.data || []).forEach((c: any) => { compMap[c.owner_id] = { nombre: c.nombre, slug: c.slug }; });
       const subMap: Record<string, { estado: string; fecha_fin: string }> = {};
-      (subsRes.data || []).forEach((s: any) => { subMap[s.owner_id] = { estado: s.estado, fecha_fin: s.fecha_fin }; });
+      (subsRes.data || []).forEach((s: any) => { subMap[s.user_id] = { estado: s.status, fecha_fin: s.ends_at }; });
 
       setOwners(profiles.map(p => ({
         ...p,

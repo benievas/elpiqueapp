@@ -64,6 +64,11 @@ export interface Database {
         Insert: FeedPostInsert;
         Update: Partial<FeedPostInsert>;
       };
+      cash_movements: {
+        Row: CashMovement;
+        Insert: CashMovementInsert;
+        Update: Partial<CashMovementInsert>;
+      };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;
@@ -372,4 +377,31 @@ export interface FeedPostInsert {
   autor_id: string;
   visible?: boolean;
   fecha_expiracion?: string | null;
+}
+
+export interface CashMovement {
+  id: string;
+  complex_id: string;
+  user_id: string;
+  tipo: "ingreso" | "egreso";
+  categoria: string;
+  monto: number;
+  metodo_pago: string;
+  descripcion: string | null;
+  fecha: string;
+  reservation_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CashMovementInsert {
+  complex_id: string;
+  user_id: string;
+  tipo: "ingreso" | "egreso";
+  categoria: string;
+  monto: number;
+  metodo_pago: string;
+  descripcion?: string | null;
+  fecha?: string;
+  reservation_id?: string | null;
 }

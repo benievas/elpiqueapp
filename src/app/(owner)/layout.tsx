@@ -33,15 +33,24 @@ function OwnerLayoutInner({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const { signOut, profile, loading: authLoading, user, isOwner, isAdmin } = useAuth();
   const { complexes, activeComplexId, activeComplexName, setActiveComplexId, loading: complexLoading } = useActiveComplex();
-  // null mientras el contexto carga → trial no evalúa guards todavía
   const trialComplexId = complexLoading ? null : (activeComplexId ?? undefined);
   const trial = useTrialStatus(trialComplexId);
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [trialBannerOpen, setTrialBannerOpen] = useState(true);
+  const [trialBannerOpen, setTrialBannerOpen] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("hideTrialBanner") !== "true";
+    }
+    return true;
+  });
   const [timedOut, setTimedOut] = useState(false);
   const [showSignOut, setShowSignOut] = useState(false);
   const [showComplexSelector, setShowComplexSelector] = useState(false);
   const [initialized, setInitialized] = useState(false);
+
+  const hideBanner = () => {
+    setTrialBannerOpen(false);
+    localStorage.setItem("hideTrialBanner", "true");
+  };
 
   useEffect(() => {
     if (!authLoading && trial.state !== "loading") setInitialized(true);
@@ -109,7 +118,7 @@ function OwnerLayoutInner({ children }: { children: React.ReactNode }) {
               <Link href="/owner/suscripcion" className="flex items-center gap-1.5 px-3 py-1.5 rounded-[10px] bg-red-500 text-white text-xs font-black hover:bg-red-600 transition-colors">
                 <Zap size={12} /> Ver planes
               </Link>
-              <button onClick={() => setTrialBannerOpen(false)} className="text-red-400/50 hover:text-red-400 transition-colors"><X size={16} /></button>
+              <button onClick={hideBanner} className="text-red-400/50 hover:text-red-400 transition-colors"><X size={16} /></button>
             </div>
           </motion.div>
         )}
@@ -131,7 +140,7 @@ function OwnerLayoutInner({ children }: { children: React.ReactNode }) {
               <Link href="/owner/suscripcion" className="flex items-center gap-1.5 px-3 py-1.5 rounded-[10px] bg-yellow-400 text-rodeo-dark text-xs font-black hover:brightness-110 transition-all">
                 <Zap size={12} /> Suscribirme
               </Link>
-              <button onClick={() => setTrialBannerOpen(false)} className="text-yellow-400/50 hover:text-yellow-400 transition-colors"><X size={16} /></button>
+              <button onClick={hideBanner} className="text-yellow-400/50 hover:text-yellow-400 transition-colors"><X size={16} /></button>
             </div>
           </motion.div>
         )}
