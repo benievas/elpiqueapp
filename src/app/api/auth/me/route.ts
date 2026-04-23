@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   );
 
-  const { data: profile } = await admin
+  const { data: rawProfile } = await admin
     .from("profiles")
     .select("*")
     .eq("id", user.id)
@@ -44,12 +44,13 @@ export async function GET(request: NextRequest) {
     .limit(1)
     .maybeSingle();
 
-  // Force superadmin for the master account in case the UUID changed or RLS botched
+  // Force superadmin for the master account
+  let profile: any = rawProfile;
   if (user.email?.toLowerCase() === 'contactomatchpro@gmail.com') {
     if (!profile) {
       profile = { id: user.id, email: user.email, rol: 'superadmin' };
     } else {
-      profile.rol = 'superadmin';
+      profile = { ...profile, rol: 'superadmin' };
     }
   }
 
