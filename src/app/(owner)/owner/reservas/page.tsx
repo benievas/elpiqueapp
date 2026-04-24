@@ -8,6 +8,21 @@ import {
   MessageCircle, User, Phone, DollarSign, Calendar, Plus, Trash2,
   Building2, ChevronLeft, ChevronRight, List as ListIcon, LayoutGrid, Pencil,
 } from "lucide-react";
+import OwnerTooltip from "@/components/OwnerTooltip";
+import type { TooltipDef } from "@/lib/hooks/useOwnerTooltips";
+
+const TT_NUEVA_RESERVA: TooltipDef = {
+  id: "reservas_nueva",
+  text: "Creá reservas manuales para jugadores que te contacten por teléfono o en persona. El nombre y teléfono se guardan para confirmar por WhatsApp.",
+};
+const TT_AGENDA: TooltipDef = {
+  id: "reservas_agenda",
+  text: "Tocá cualquier celda vacía para agregar una reserva en ese horario. Tocá una reserva existente para ver detalles, confirmar o cancelar.",
+};
+const TT_LISTA: TooltipDef = {
+  id: "reservas_lista",
+  text: "En vista lista podés filtrar por estado y período. Las reservas pendientes aparecen primero para que no se te pasen.",
+};
 import { supabase, supabaseMut } from "@/lib/supabase";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { useActiveComplex } from "@/lib/context/ActiveComplexContext";
@@ -571,10 +586,12 @@ export default function ReservasPage() {
               </button>
             ))}
           </div>
-          <button onClick={() => openModal()} style={{ background: "rgba(200,255,0,0.9)", borderRadius: "12px" }}
-            className="flex items-center gap-2 px-4 py-2.5 text-sm font-black text-rodeo-dark hover:opacity-90 transition-all">
-            <Plus size={16} /> Nueva reserva
-          </button>
+          <OwnerTooltip tooltip={TT_NUEVA_RESERVA} position="left">
+            <button onClick={() => openModal()} style={{ background: "rgba(200,255,0,0.9)", borderRadius: "12px" }}
+              className="flex items-center gap-2 px-4 py-2.5 text-sm font-black text-rodeo-dark hover:opacity-90 transition-all">
+              <Plus size={16} /> Nueva reserva
+            </button>
+          </OwnerTooltip>
         </div>
       </motion.div>
 
@@ -640,7 +657,10 @@ export default function ReservasPage() {
             </button>
           </div>
 
-          <p className="text-sm font-bold text-rodeo-cream/60 capitalize px-1">{formatDateLong(agendaDate)}</p>
+          <p className="text-sm font-bold text-rodeo-cream/60 capitalize px-1 flex items-center gap-2">
+            {formatDateLong(agendaDate)}
+            <OwnerTooltip tooltip={TT_AGENDA} position="right" />
+          </p>
 
           {/* Courts × Hours matrix grid */}
           {courts.length === 0 ? (

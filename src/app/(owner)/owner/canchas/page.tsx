@@ -21,6 +21,21 @@ import { useAuth } from "@/lib/hooks/useAuth";
 import { useActiveComplex } from "@/lib/context/ActiveComplexContext";
 import type { Court, CourtInsert, Complex, Deporte, EstadoCancha } from "@/types/database";
 import CourtScheduleEditor from "@/components/CourtScheduleEditor";
+import OwnerTooltip from "@/components/OwnerTooltip";
+import type { TooltipDef } from "@/lib/hooks/useOwnerTooltips";
+
+const TT_CANCHA_NUEVA: TooltipDef = {
+  id: "canchas_nueva",
+  text: "Agregá cada cancha con su deporte y precio por hora. Las canchas activas aparecen en tu perfil público para que los jugadores puedan reservarlas.",
+};
+const TT_CANCHA_EXPRESS: TooltipDef = {
+  id: "canchas_express",
+  text: "El descuento express ofrece precio reducido en horarios sin reservar. Aparece destacado para jugadores que buscan cancha en el momento.",
+};
+const TT_CANCHA_PRECIO: TooltipDef = {
+  id: "canchas_precio",
+  text: "El precio por hora se muestra en la app y se usa para calcular el total de cada reserva automáticamente.",
+};
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -747,20 +762,22 @@ function CourtCard({
           </button>
 
           {/* Express discount toggle */}
-          <button
-            onClick={handleToggleExpress}
-            disabled={togglingExpress || !court.activa}
-            title={court.activa ? "Activar/desactivar descuento express" : "La cancha debe estar activa"}
-            className="flex items-center gap-1.5 text-xs font-bold transition-colors disabled:opacity-40 px-2 py-1 rounded-lg"
-            style={{
-              background: court.descuento_express ? "rgba(251,191,36,0.15)" : "rgba(255,255,255,0.04)",
-              border: `1px solid ${court.descuento_express ? "rgba(251,191,36,0.4)" : "rgba(255,255,255,0.08)"}`,
-              color: court.descuento_express ? "#FBBf24" : "rgba(255,255,255,0.35)",
-            }}
-          >
-            <Zap size={13} />
-            {court.descuento_express ? `Express ${court.descuento_pct}%` : "Express"}
-          </button>
+          <OwnerTooltip tooltip={TT_CANCHA_EXPRESS} position="top">
+            <button
+              onClick={handleToggleExpress}
+              disabled={togglingExpress || !court.activa}
+              title={court.activa ? "Activar/desactivar descuento express" : "La cancha debe estar activa"}
+              className="flex items-center gap-1.5 text-xs font-bold transition-colors disabled:opacity-40 px-2 py-1 rounded-lg"
+              style={{
+                background: court.descuento_express ? "rgba(251,191,36,0.15)" : "rgba(255,255,255,0.04)",
+                border: `1px solid ${court.descuento_express ? "rgba(251,191,36,0.4)" : "rgba(255,255,255,0.08)"}`,
+                color: court.descuento_express ? "#FBBf24" : "rgba(255,255,255,0.35)",
+              }}
+            >
+              <Zap size={13} />
+              {court.descuento_express ? `Express ${court.descuento_pct}%` : "Express"}
+            </button>
+          </OwnerTooltip>
         </div>
 
         {/* Edit / Delete / Horario */}
@@ -1131,15 +1148,17 @@ function PageHeader({
           </p>
         </div>
 
-        <button
-          onClick={onNewCourt}
-          disabled={complexes.length === 0}
-          className="flex items-center gap-2 px-5 py-3 rounded-xl font-black text-sm uppercase tracking-wider transition-opacity hover:opacity-80 disabled:opacity-40 disabled:cursor-not-allowed flex-shrink-0"
-          style={{ background: "rgba(200,255,0,0.9)", color: "#1A120B" }}
-        >
-          <Plus size={18} />
-          Nueva cancha
-        </button>
+        <OwnerTooltip tooltip={TT_CANCHA_NUEVA} position="left">
+          <button
+            onClick={onNewCourt}
+            disabled={complexes.length === 0}
+            className="flex items-center gap-2 px-5 py-3 rounded-xl font-black text-sm uppercase tracking-wider transition-opacity hover:opacity-80 disabled:opacity-40 disabled:cursor-not-allowed flex-shrink-0"
+            style={{ background: "rgba(200,255,0,0.9)", color: "#1A120B" }}
+          >
+            <Plus size={18} />
+            Nueva cancha
+          </button>
+        </OwnerTooltip>
       </div>
 
       {/* Complex selector tabs (only if > 1 complex) */}

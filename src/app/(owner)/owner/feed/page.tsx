@@ -7,6 +7,21 @@ import { useAuth } from "@/lib/hooks/useAuth";
 import { useActiveComplex } from "@/lib/context/ActiveComplexContext";
 import { supabase, supabaseMut } from "@/lib/supabase";
 import { Newspaper, Plus, Eye, EyeOff, Trash2, Edit2, RefreshCw, Check, X, Loader } from "lucide-react";
+import OwnerTooltip from "@/components/OwnerTooltip";
+import type { TooltipDef } from "@/lib/hooks/useOwnerTooltips";
+
+const TT_FEED_NUEVO: TooltipDef = {
+  id: "feed_nuevo",
+  text: "Publicá promos, novedades y eventos para que tus jugadores los vean desde la app. Los posts duran máximo 3 días.",
+};
+const TT_FEED_DURACION: TooltipDef = {
+  id: "feed_duracion",
+  text: "0 = sin límite de tiempo. 1-3 = el post se oculta automáticamente después de esos días. Ideal para promos por tiempo limitado.",
+};
+const TT_FEED_VISIBILIDAD: TooltipDef = {
+  id: "feed_visibilidad",
+  text: "El ojo activa o desactiva la visibilidad del post sin borrarlo. Útil para guardar borradores o pausar promos.",
+};
 
 interface Post {
   id: string;
@@ -165,11 +180,13 @@ export default function OwnerFeedPage() {
           className="px-3 py-2 text-xs text-rodeo-cream/60 disabled:opacity-40">
           <RefreshCw size={13} className={loading ? "animate-spin" : ""} />
         </button>
-        <button onClick={() => { setShowForm(v => !v); setEditingId(null); setForm(EMPTY_FORM); }}
-          style={{ background: "rgba(200,255,0,0.9)", borderRadius: "10px" }}
-          className="flex items-center gap-1.5 px-4 py-2 text-xs font-black text-rodeo-dark hover:bg-rodeo-lime transition-all">
-          <Plus size={14} /> Nuevo
-        </button>
+        <OwnerTooltip tooltip={TT_FEED_NUEVO} position="left">
+          <button onClick={() => { setShowForm(v => !v); setEditingId(null); setForm(EMPTY_FORM); }}
+            style={{ background: "rgba(200,255,0,0.9)", borderRadius: "10px" }}
+            className="flex items-center gap-1.5 px-4 py-2 text-xs font-black text-rodeo-dark hover:bg-rodeo-lime transition-all">
+            <Plus size={14} /> Nuevo
+          </button>
+        </OwnerTooltip>
       </div>
 
       <AnimatePresence>
@@ -192,7 +209,9 @@ export default function OwnerFeedPage() {
                   </select>
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-[11px] font-bold text-rodeo-cream/40 uppercase tracking-widest">Dura (días)</label>
+                  <label className="text-[11px] font-bold text-rodeo-cream/40 uppercase tracking-widest flex items-center gap-1.5">
+                    Dura (días) <OwnerTooltip tooltip={TT_FEED_DURACION} position="top" />
+                  </label>
                   <input type="number" min={0} max={3} value={form.dias_duracion}
                     onChange={e => setForm(f => ({ ...f, dias_duracion: Math.min(3, Math.max(0, parseInt(e.target.value) || 0)) }))}
                     style={inputStyle} className="w-full px-3 py-2.5 text-sm" placeholder="1-3 días (0 = sin límite)"/>
