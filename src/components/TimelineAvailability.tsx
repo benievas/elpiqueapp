@@ -45,12 +45,10 @@ export default function TimelineAvailability({
             ))}
           </div>
         ) : null}
-        <motion.div
+        <div
           style={{ display: loading ? "none" : undefined }}
           ref={scrollRef}
           className="flex gap-1 min-w-max px-4 py-2 bg-white/2 rounded-liquid border border-white/10"
-          drag="x"
-          dragElastic={0.2}
         >
           {horas.map((hora) => {
             const disponible = disponibilidad[hora];
@@ -98,7 +96,7 @@ export default function TimelineAvailability({
               </motion.button>
             );
           })}
-        </motion.div>
+        </div>
       </div>
 
       {/* Legend */}

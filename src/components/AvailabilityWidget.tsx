@@ -21,18 +21,32 @@ interface AvailabilityWidgetProps {
   complejo: {
     nombre: string;
     whatsapp: string;
+    horario_abierto?: string;
+    horario_cierre?: string;
+    dias_abiertos?: string[];
   };
   complexId: string;
   canchas: Court[];
 }
 
-function obtenerProximosDiasDisponibles(): string[] {
+const DIAS_ES: Record<string, number> = {
+  domingo: 0, lunes: 1, martes: 2, miercoles: 3, miércoles: 3,
+  jueves: 4, viernes: 5, sabado: 6, sábado: 6,
+};
+
+function obtenerProximosDiasDisponibles(diasAbiertos?: string[]): string[] {
   const dias = [];
   const hoy = new Date();
-  for (let i = 0; i < 14; i++) {
+  for (let i = 0; i < 21; i++) {
     const fecha = new Date(hoy);
     fecha.setDate(fecha.getDate() + i);
+    if (diasAbiertos && diasAbiertos.length > 0) {
+      const diaSemana = fecha.getDay();
+      const habilitado = diasAbiertos.some(d => DIAS_ES[d.toLowerCase()] === diaSemana);
+      if (!habilitado) continue;
+    }
     dias.push(fecha.toISOString().split("T")[0]);
+    if (dias.length >= 14) break;
   }
   return dias;
 }
@@ -123,7 +137,11 @@ export default function AvailabilityWidget({
   canchas,
 }: AvailabilityWidgetProps) {
   const { user, isAuthenticated } = useAuth();
-  const proximosDias = useMemo(() => obtenerProximosDiasDisponibles(), []);
+  const proximosDias = useMemo(
+    () => obtenerProximosDiasDisponibles(complejo.dias_abiertos),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [complejo.dias_abiertos?.join(",")]
+  );
   const [fechaSeleccionada, setFechaSeleccionada] = useState(proximosDias[0]);
   const [canchaSeleccionada, setCanchaSeleccionada] = useState<number>(
     canchas[0]?.id || 1
@@ -147,9 +165,23 @@ export default function AvailabilityWidget({
     setHoraSeleccionada(null);
     setDuracion(1);
     const data = await fetchDisponibilidadReal(cancha.realId, fechaSeleccionada);
+
+    // --- Filtros de horario ---
+    const openH = parseInt((complejo.horario_abierto || "06:00").split(":")[0]);
+    const closeH = parseInt((complejo.horario_cierre || "23:00").split(":")[0]);
+    const todayStr = new Date().toISOString().split("T")[0];
+    const isToday = fechaSeleccionada === todayStr;
+    const currentHour = new Date().getHours();
+
+    Object.keys(data).forEach(hora => {
+      const h = parseInt(hora.split(":")[0]);
+      if (h < openH || h >= closeH) data[hora] = false;           // fuera de horario del complejo
+      if (isToday && h <= currentHour) data[hora] = false;        // horas pasadas/actuales hoy
+    });
+
     setDisponibilidad(data);
     setLoadingSlots(false);
-  }, [cancha?.realId, fechaSeleccionada]);
+  }, [cancha?.realId, fechaSeleccionada, complejo.horario_abierto, complejo.horario_cierre]);
 
   useEffect(() => {
     cargarDisponibilidad();
