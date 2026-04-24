@@ -30,6 +30,12 @@ const PLANS = {
 };
 
 export async function POST(req: NextRequest) {
+  const accessToken = process.env.MP_ACCESS_TOKEN;
+  if (!accessToken) {
+    console.error("MP_ACCESS_TOKEN no configurado");
+    return NextResponse.json({ error: "Servicio de pago no configurado" }, { status: 503 });
+  }
+
   const mp = getMPClient();
   const supabaseAdmin = getSupabaseAdmin();
   try {
@@ -53,21 +59,20 @@ export async function POST(req: NextRequest) {
     const externalRef = `owner-sub_${userId}_${plan}_${Date.now()}`;
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://elpiqueapp.com";
 
-    // Crear registro de pago pendiente en Supabase
-    const { data: payment, error: paymentError } = await supabaseAdmin
-      .from("payments")
-      .insert({
-        user_id: userId,
-        type: "owner_sub",
-        amount: planData.unit_price,
-        status: "pending",
-        mp_external_ref: externalRef,
-      })
-      .select()
-      .single();
-
-    if (paymentError) {
-      console.error("Error creando registro de pago:", paymentError);
+    // Intentar crear registro de pago — no bloquea si falla (tabla puede no existir)
+    try {
+      await supabaseAdmin
+        .from("payments")
+        .insert({
+          user_id: userId,
+          complex_id: complexId || null,
+          type: "owner_sub",
+          amount: planData.unit_price,
+          status: "pending",
+          mp_external_ref: externalRef,
+        });
+    } catch (paymentErr) {
+      console.warn("No se pudo registrar el pago en BD (no bloqueante):", paymentErr);
     }
 
     const preference = new Preference(mp);
@@ -102,14 +107,6 @@ export async function POST(req: NextRequest) {
         statement_descriptor: "ELPIQUEAPP",
       },
     });
-
-    // Actualizar el pago con el preference_id de MP
-    if (payment && result.id) {
-      await supabaseAdmin
-        .from("payments")
-        .update({ mp_preference_id: result.id })
-        .eq("id", payment.id);
-    }
 
     return NextResponse.json({
       preferenceId: result.id,

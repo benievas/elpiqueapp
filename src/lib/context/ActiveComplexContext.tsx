@@ -64,6 +64,10 @@ export function ActiveComplexProvider({ children }: { children: ReactNode }) {
   const setActiveComplexId = (id: string) => {
     setActiveComplexIdState(id);
     if (lsKey) localStorage.setItem(lsKey, id);
+    // If the selected complex isn't in our list yet, refresh
+    if (!complexes.find(c => c.id === id)) {
+      fetchComplexes();
+    }
   };
 
   const active = complexes.find(c => c.id === activeComplexId) ?? null;

@@ -335,49 +335,117 @@ export default function TorneoPublicoPage() {
 
         {/* BRACKET / PARTIDOS */}
         {matches.length > 0 && (
-          <div className="space-y-4">
+          <div className="space-y-5">
             <h2 style={{ fontFamily: "'Barlow Condensed', system-ui, sans-serif", fontWeight: 900, fontSize: "28px", textTransform: "uppercase", letterSpacing: "-0.02em" }} className="text-white">
               <span className="section-slash">/</span>Resultados
             </h2>
 
-            <div className="overflow-x-auto">
-              <div className="flex gap-4 min-w-max pb-4">
-                {rondas.map(ronda => (
-                  <div key={ronda} className="min-w-[280px] space-y-3">
-                    <p className="text-[11px] font-black text-rodeo-lime uppercase tracking-widest">Ronda {ronda}</p>
-                    <div className="space-y-2">
-                      {matches.filter(m => m.ronda === ronda).map(m => {
+            {/* Mobile: vertical stacked | Desktop: horizontal bracket */}
+            <div className="flex flex-col md:flex-row md:gap-5 md:overflow-x-auto md:pb-4 gap-5">
+              {rondas.map((ronda, idx) => {
+                const rondaMatches = matches.filter(m => m.ronda === ronda);
+                const label = getRondaLabel(ronda, rondas);
+                const isFinal = idx === rondas.length - 1;
+                const isSemi = idx === rondas.length - 2 && rondas.length >= 3;
+                return (
+                  <div key={ronda} className="md:min-w-[280px] md:flex-shrink-0 space-y-3">
+                    {/* Round header */}
+                    <div className="flex items-center gap-2">
+                      <div className={`h-px flex-1 ${isFinal ? "bg-rodeo-lime/40" : isSemi ? "bg-blue-400/30" : "bg-white/10"}`}/>
+                      <span className={`text-[11px] font-black uppercase tracking-widest px-3 py-1 rounded-full whitespace-nowrap ${
+                        isFinal ? "bg-rodeo-lime/15 text-rodeo-lime" :
+                        isSemi ? "bg-blue-400/10 text-blue-400" :
+                        "bg-white/5 text-rodeo-cream/50"
+                      }`}>
+                        {label}
+                      </span>
+                      <div className={`h-px flex-1 ${isFinal ? "bg-rodeo-lime/40" : isSemi ? "bg-blue-400/30" : "bg-white/10"}`}/>
+                    </div>
+
+                    {/* Match cards */}
+                    <div className="space-y-3">
+                      {rondaMatches.map(m => {
                         const finalizado = m.estado === "finalizado";
                         const enJuego = m.estado === "en_juego";
                         const flash = liveFlash === m.id;
                         const ganadorA = finalizado && m.puntaje_a != null && m.puntaje_b != null && m.puntaje_a > m.puntaje_b;
                         const ganadorB = finalizado && m.puntaje_a != null && m.puntaje_b != null && m.puntaje_b > m.puntaje_a;
+                        const scoreA = m.puntaje_a ?? null;
+                        const scoreB = m.puntaje_b ?? null;
+
                         return (
                           <motion.div key={m.id}
-                            animate={flash ? { scale: [1, 1.03, 1], boxShadow: ["0 0 0 rgba(200,255,0,0)", "0 0 20px rgba(200,255,0,0.5)", "0 0 0 rgba(200,255,0,0)"] } : {}}
-                            transition={{ duration: 1.2 }}
-                            style={{ background:"rgba(255,255,255,0.04)", border:`1px solid ${enJuego ? "rgba(96,165,250,0.4)" : "rgba(255,255,255,0.08)"}`, borderRadius:"12px" }}
-                            className="p-3 space-y-1.5">
+                            animate={flash ? {
+                              scale: [1, 1.02, 1],
+                              boxShadow: ["0 0 0 rgba(200,255,0,0)", "0 0 24px rgba(200,255,0,0.4)", "0 0 0 rgba(200,255,0,0)"]
+                            } : {}}
+                            transition={{ duration: 1.3 }}
+                            style={{
+                              background: enJuego ? "rgba(96,165,250,0.05)" : "rgba(255,255,255,0.04)",
+                              border: `1px solid ${enJuego ? "rgba(96,165,250,0.35)" : isFinal ? "rgba(200,255,0,0.15)" : "rgba(255,255,255,0.08)"}`,
+                              borderRadius: "16px",
+                              overflow: "hidden",
+                            }}>
+
+                            {/* Live badge */}
                             {enJuego && (
-                              <div className="flex items-center gap-1 text-[10px] font-black text-blue-400">
-                                <span className="relative flex h-1.5 w-1.5"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"/><span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-blue-400"/></span>
-                                EN VIVO
+                              <div className="px-4 pt-2.5 pb-1 flex items-center gap-1.5">
+                                <span className="relative flex h-2 w-2">
+                                  <span className="animate-ping absolute h-full w-full rounded-full bg-blue-400 opacity-75"/>
+                                  <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-400"/>
+                                </span>
+                                <span className="text-[10px] font-black text-blue-400 tracking-widest">EN VIVO</span>
                               </div>
                             )}
-                            <TeamRow name={getTeamName(m.team_a_id)} score={m.puntaje_a} winner={ganadorA}/>
-                            <TeamRow name={getTeamName(m.team_b_id)} score={m.puntaje_b} winner={ganadorB}/>
+
+                            {/* Team A row */}
+                            <div className={`px-4 py-3 flex items-center justify-between gap-3 ${ganadorA ? "bg-[rgba(200,255,0,0.08)]" : ""}`}>
+                              <div className="flex items-center gap-2 flex-1 min-w-0">
+                                {ganadorA && <Trophy size={11} className="text-rodeo-lime flex-shrink-0"/>}
+                                <p className={`text-sm font-bold truncate ${ganadorA ? "text-rodeo-lime" : "text-white"}`}>
+                                  {getTeamName(m.team_a_id)}
+                                </p>
+                              </div>
+                              <span className={`text-2xl font-black tabular-nums w-9 text-right leading-none ${ganadorA ? "text-rodeo-lime" : "text-rodeo-cream/60"}`}>
+                                {scoreA !== null ? scoreA : <span className="text-base text-rodeo-cream/25">—</span>}
+                              </span>
+                            </div>
+
+                            {/* VS separator */}
+                            <div className="mx-4 flex items-center gap-2">
+                              <div className="flex-1 border-t border-white/8"/>
+                              <span className="text-[9px] font-black text-rodeo-cream/20 tracking-widest">VS</span>
+                              <div className="flex-1 border-t border-white/8"/>
+                            </div>
+
+                            {/* Team B row */}
+                            <div className={`px-4 py-3 flex items-center justify-between gap-3 ${ganadorB ? "bg-[rgba(200,255,0,0.08)]" : ""}`}>
+                              <div className="flex items-center gap-2 flex-1 min-w-0">
+                                {ganadorB && <Trophy size={11} className="text-rodeo-lime flex-shrink-0"/>}
+                                <p className={`text-sm font-bold truncate ${ganadorB ? "text-rodeo-lime" : "text-white"}`}>
+                                  {getTeamName(m.team_b_id)}
+                                </p>
+                              </div>
+                              <span className={`text-2xl font-black tabular-nums w-9 text-right leading-none ${ganadorB ? "text-rodeo-lime" : "text-rodeo-cream/60"}`}>
+                                {scoreB !== null ? scoreB : <span className="text-base text-rodeo-cream/25">—</span>}
+                              </span>
+                            </div>
+
+                            {/* Sets */}
                             {m.sets && m.sets.length > 0 && (
-                              <p className="text-[10px] font-bold tabular-nums text-rodeo-cream/50 pt-1 border-t border-white/5">
-                                {m.sets.map((s) => `${s.a}-${s.b}`).join(" · ")}
-                              </p>
+                              <div className="px-4 pb-2.5 pt-1 border-t border-white/5">
+                                <p className="text-[10px] font-bold tabular-nums text-rodeo-cream/35">
+                                  Sets: {m.sets.map(s => `${s.a}-${s.b}`).join(" · ")}
+                                </p>
+                              </div>
                             )}
                           </motion.div>
                         );
                       })}
                     </div>
                   </div>
-                ))}
-              </div>
+                );
+              })}
             </div>
           </div>
         )}
@@ -556,13 +624,11 @@ function InfoCard({ label, value, icon }: { label: string; value: string; icon?:
   );
 }
 
-function TeamRow({ name, score, winner }: { name: string; score: number | null; winner: boolean }) {
-  return (
-    <div className="flex items-center justify-between gap-2">
-      <p className={`text-sm truncate flex-1 ${winner ? "text-rodeo-lime font-black" : "text-white"}`}>{name}</p>
-      <p className={`text-sm font-black tabular-nums ${winner ? "text-rodeo-lime" : "text-rodeo-cream/70"}`}>
-        {score != null ? score : "—"}
-      </p>
-    </div>
-  );
+function getRondaLabel(ronda: number, rondas: number[]): string {
+  const idx = rondas.indexOf(ronda);
+  const fromEnd = rondas.length - 1 - idx;
+  if (fromEnd === 0) return "Final";
+  if (fromEnd === 1 && rondas.length >= 3) return "Semifinal";
+  if (fromEnd === 2 && rondas.length >= 4) return "Cuartos de Final";
+  return `Ronda ${ronda}`;
 }

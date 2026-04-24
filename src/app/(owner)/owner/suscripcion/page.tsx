@@ -20,13 +20,15 @@ import { supabase } from "@/lib/supabase";
 
 const FEATURES = [
   "Panel de gestión completo",
-  "Configuración de canchas y horarios",
-  "Sistema de disponibilidad en tiempo real",
-  "Generación de link y QR para compartir",
-  "Publicaciones y promociones",
-  "Gestión de torneos",
+  "Canchas, horarios y disponibilidad en tiempo real",
+  "Sistema de reservas online",
+  "Caja POS con historial de movimientos",
+  "Publicaciones y promociones con imágenes",
+  "Gestión de torneos con bracket automático",
+  "Partidos sociales / Armá tu partido",
+  "Link y QR para compartir tu complejo",
   "Estadísticas y reportes",
-  "Soporte prioritario",
+  "Soporte prioritario por WhatsApp",
 ];
 
 type SubscriptionStatus = {
@@ -310,19 +312,21 @@ export default function SuscripcionPage() {
         </div>
       </motion.div>
 
-      {/* Nota de 1 mes gratis */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 0.25 }}
-        className="flex items-start gap-3 px-4 py-3 bg-rodeo-lime/5 border border-rodeo-lime/20 rounded-[16px]"
-      >
-        <Star size={18} className="text-rodeo-lime mt-0.5 flex-shrink-0" />
-        <p className="text-sm text-rodeo-cream/70">
-          <span className="text-white font-bold">1 mes de prueba gratuito</span> al registrar
-          tu complejo. Sin tarjeta de crédito necesaria para empezar.
-        </p>
-      </motion.div>
+      {/* Nota de 1 mes gratis — solo para nuevos usuarios sin trial previo */}
+      {(!subscription || subscription.status === "none") && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.25 }}
+          className="flex items-start gap-3 px-4 py-3 bg-rodeo-lime/5 border border-rodeo-lime/20 rounded-[16px]"
+        >
+          <Star size={18} className="text-rodeo-lime mt-0.5 flex-shrink-0" />
+          <p className="text-sm text-rodeo-cream/70">
+            <span className="text-white font-bold">1 mes de prueba gratuito</span> al registrar
+            tu complejo. Sin tarjeta de crédito necesaria para empezar.
+          </p>
+        </motion.div>
+      )}
 
       {/* Nota por complejo */}
       <div className="flex items-start gap-3 px-4 py-3 bg-white/5 border border-white/10 rounded-[16px]">

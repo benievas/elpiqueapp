@@ -4,10 +4,10 @@ export const dynamic = 'force-dynamic';
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { supabase, supabaseMut } from "@/lib/supabase";
-import { ChevronLeft, Trophy, Users, Calendar, Loader, Plus, X, Check, Trash2, Play, Flag, ExternalLink, RefreshCw } from "lucide-react";
+import { ChevronLeft, Trophy, Users, Calendar, Loader, Plus, X, Check, Trash2, Play, Flag, ExternalLink, RefreshCw, Pencil, Save } from "lucide-react";
 
 interface Torneo {
   id: string;
@@ -16,6 +16,7 @@ interface Torneo {
   deporte: string;
   tipo: string;
   descripcion: string | null;
+  imagen_url: string | null;
   fecha_inicio: string;
   fecha_fin: string | null;
   cupos_totales: number;
@@ -67,6 +68,9 @@ export default function OwnerTorneoDetailPage() {
   const [addingTeam, setAddingTeam] = useState(false);
   const [savingMatch, setSavingMatch] = useState<string | null>(null);
   const [changingEstado, setChangingEstado] = useState(false);
+  const [showEdit, setShowEdit] = useState(false);
+  const [editForm, setEditForm] = useState({ nombre: "", descripcion: "", fecha_inicio: "", fecha_fin: "", cupos_totales: 0, precio_inscripcion: 0, imagen_url: "" });
+  const [savingEdit, setSavingEdit] = useState(false);
 
   useEffect(() => { if (slug) load(); }, [slug]);
 
@@ -143,17 +147,23 @@ export default function OwnerTorneoDetailPage() {
   async function agregarRonda() {
     if (!torneo) return;
     const ultimaRonda = Math.max(0, ...matches.map(m => m.ronda));
-    const ganadoresUltima = matches
-      .filter(m => m.ronda === ultimaRonda && m.estado === "finalizado")
+    const matchesUltima = matches.filter(m => m.ronda === ultimaRonda);
+    const sinFinalizar = matchesUltima.filter(m => m.estado !== "finalizado");
+    if (sinFinalizar.length > 0) {
+      alert(`Hay ${sinFinalizar.length} partido${sinFinalizar.length > 1 ? "s" : ""} sin finalizar en la ronda ${ultimaRonda}. Finalizalos primero.`);
+      return;
+    }
+    const ganadoresUltima = matchesUltima
       .map(m => {
         if (m.puntaje_a != null && m.puntaje_b != null) {
+          if (m.puntaje_a === m.puntaje_b) return m.team_a_id; // empate → avanza equipo A
           return m.puntaje_a > m.puntaje_b ? m.team_a_id : m.team_b_id;
         }
         return null;
       })
       .filter(Boolean) as string[];
 
-    if (ganadoresUltima.length < 2) { alert("No hay suficientes ganadores en la última ronda."); return; }
+    if (ganadoresUltima.length < 2) { alert("Solo queda un ganador. El torneo puede darse por finalizado."); return; }
 
     const rows = [];
     for (let i = 0; i < ganadoresUltima.length; i += 2) {
@@ -169,13 +179,52 @@ export default function OwnerTorneoDetailPage() {
     await load();
   }
 
+  function abrirEdit() {
+    if (!torneo) return;
+    setEditForm({
+      nombre: torneo.nombre,
+      descripcion: torneo.descripcion || "",
+      fecha_inicio: torneo.fecha_inicio.slice(0, 10),
+      fecha_fin: torneo.fecha_fin?.slice(0, 10) || "",
+      cupos_totales: torneo.cupos_totales,
+      precio_inscripcion: torneo.precio_inscripcion,
+      imagen_url: torneo.imagen_url || "",
+    });
+    setShowEdit(true);
+  }
+
+  async function guardarEdicion() {
+    if (!torneo) return;
+    setSavingEdit(true);
+    const { error } = await supabaseMut.from("tournaments").update({
+      nombre: editForm.nombre.trim(),
+      descripcion: editForm.descripcion.trim() || null,
+      fecha_inicio: editForm.fecha_inicio,
+      fecha_fin: editForm.fecha_fin || null,
+      cupos_totales: editForm.cupos_totales,
+      precio_inscripcion: editForm.precio_inscripcion,
+      imagen_url: editForm.imagen_url.trim() || null,
+    }).eq("id", torneo.id);
+    if (error) {
+      alert(`Error al guardar: ${error.message}`);
+    } else {
+      setShowEdit(false);
+      await load();
+    }
+    setSavingEdit(false);
+  }
+
   async function guardarMatch(m: Match, puntaje_a: number, puntaje_b: number, finalizar: boolean, sets?: Set[] | null) {
     setSavingMatch(m.id);
     const estado = finalizar ? "finalizado" : "en_juego";
-    await supabaseMut.from("tournament_matches").update({
+    const { error } = await supabaseMut.from("tournament_matches").update({
       puntaje_a, puntaje_b, sets: sets ?? null, estado,
     }).eq("id", m.id);
-    setMatches(prev => prev.map(x => x.id === m.id ? { ...x, puntaje_a, puntaje_b, sets: sets ?? null, estado } : x));
+    if (error) {
+      alert(`Error al guardar: ${error.message}`);
+    } else {
+      setMatches(prev => prev.map(x => x.id === m.id ? { ...x, puntaje_a, puntaje_b, sets: sets ?? null, estado } : x));
+    }
     setSavingMatch(null);
   }
 
@@ -198,6 +247,11 @@ export default function OwnerTorneoDetailPage() {
           </div>
           <h1 style={{ fontFamily: "'Barlow Condensed', system-ui, sans-serif", fontWeight: 900, fontSize: "32px", letterSpacing: "-0.02em", textTransform: "uppercase", lineHeight: 0.95 }} className="text-white mt-1">{torneo.nombre}</h1>
         </div>
+        <button onClick={abrirEdit}
+          className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-rodeo-cream/60 hover:text-rodeo-lime"
+          style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "10px" }}>
+          <Pencil size={13} /> Editar
+        </button>
         <a href={`/torneos/${torneo.slug}`} target="_blank" rel="noopener noreferrer"
           className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-rodeo-cream/60 hover:text-rodeo-lime"
           style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "10px" }}>
@@ -310,6 +364,102 @@ export default function OwnerTorneoDetailPage() {
           </div>
         </div>
       )}
+
+      {/* MODAL EDITAR TORNEO */}
+      <AnimatePresence>
+        {showEdit && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            onClick={() => !savingEdit && setShowEdit(false)}
+            className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 20 }}
+              onClick={e => e.stopPropagation()}
+              style={{ background: "#1A120B", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "20px" }}
+              className="w-full max-w-lg p-6 my-8 space-y-5">
+              <div className="flex items-center justify-between">
+                <p className="text-base font-black text-white uppercase tracking-tight">Editar torneo</p>
+                <button onClick={() => setShowEdit(false)} className="p-1.5 hover:bg-white/5 rounded-lg text-rodeo-cream/50"><X size={16}/></button>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-[11px] font-black text-rodeo-cream/50 uppercase tracking-wide mb-1.5">Nombre</label>
+                  <input value={editForm.nombre} onChange={e => setEditForm(f => ({ ...f, nombre: e.target.value }))}
+                    style={{ background:"rgba(255,255,255,0.05)", border:"1px solid rgba(255,255,255,0.12)", borderRadius:"10px", color:"#E1D4C2" }}
+                    className="w-full px-3 py-2.5 text-sm placeholder:text-rodeo-cream/25 outline-none focus:border-rodeo-lime/40" />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-black text-rodeo-cream/50 uppercase tracking-wide mb-1.5">Descripción</label>
+                  <textarea value={editForm.descripcion} onChange={e => setEditForm(f => ({ ...f, descripcion: e.target.value }))}
+                    rows={3}
+                    style={{ background:"rgba(255,255,255,0.05)", border:"1px solid rgba(255,255,255,0.12)", borderRadius:"10px", color:"#E1D4C2" }}
+                    className="w-full px-3 py-2.5 text-sm placeholder:text-rodeo-cream/25 outline-none focus:border-rodeo-lime/40 resize-none" />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[11px] font-black text-rodeo-cream/50 uppercase tracking-wide mb-1.5">Fecha inicio</label>
+                    <input type="date" value={editForm.fecha_inicio} onChange={e => setEditForm(f => ({ ...f, fecha_inicio: e.target.value }))}
+                      style={{ background:"rgba(255,255,255,0.05)", border:"1px solid rgba(255,255,255,0.12)", borderRadius:"10px", color:"#E1D4C2" }}
+                      className="w-full px-3 py-2.5 text-sm outline-none focus:border-rodeo-lime/40" />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-black text-rodeo-cream/50 uppercase tracking-wide mb-1.5">Fecha fin</label>
+                    <input type="date" value={editForm.fecha_fin} onChange={e => setEditForm(f => ({ ...f, fecha_fin: e.target.value }))}
+                      style={{ background:"rgba(255,255,255,0.05)", border:"1px solid rgba(255,255,255,0.12)", borderRadius:"10px", color:"#E1D4C2" }}
+                      className="w-full px-3 py-2.5 text-sm outline-none focus:border-rodeo-lime/40" />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[11px] font-black text-rodeo-cream/50 uppercase tracking-wide mb-1.5">Cupos totales</label>
+                    <input type="number" min={1} value={editForm.cupos_totales}
+                      onChange={e => setEditForm(f => ({ ...f, cupos_totales: parseInt(e.target.value) || 0 }))}
+                      style={{ background:"rgba(255,255,255,0.05)", border:"1px solid rgba(255,255,255,0.12)", borderRadius:"10px", color:"#E1D4C2" }}
+                      className="w-full px-3 py-2.5 text-sm outline-none focus:border-rodeo-lime/40" />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-black text-rodeo-cream/50 uppercase tracking-wide mb-1.5">Precio inscripción</label>
+                    <input type="number" min={0}
+                      value={editForm.precio_inscripcion === 0 ? "" : editForm.precio_inscripcion}
+                      onChange={e => setEditForm(f => ({ ...f, precio_inscripcion: e.target.value === "" ? 0 : Math.max(0, parseInt(e.target.value) || 0) }))}
+                      placeholder="0 = Gratis"
+                      style={{ background:"rgba(255,255,255,0.05)", border:"1px solid rgba(255,255,255,0.12)", borderRadius:"10px", color:"#E1D4C2" }}
+                      className="w-full px-3 py-2.5 text-sm placeholder:text-rodeo-cream/30 outline-none focus:border-rodeo-lime/40" />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-black text-rodeo-cream/50 uppercase tracking-wide mb-1.5">URL de imagen (opcional)</label>
+                  <input value={editForm.imagen_url} onChange={e => setEditForm(f => ({ ...f, imagen_url: e.target.value }))}
+                    placeholder="https://..."
+                    style={{ background:"rgba(255,255,255,0.05)", border:"1px solid rgba(255,255,255,0.12)", borderRadius:"10px", color:"#E1D4C2" }}
+                    className="w-full px-3 py-2.5 text-sm placeholder:text-rodeo-cream/25 outline-none focus:border-rodeo-lime/40" />
+                </div>
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <button onClick={() => setShowEdit(false)} disabled={savingEdit}
+                  style={{ background:"rgba(255,255,255,0.06)", border:"1px solid rgba(255,255,255,0.12)", borderRadius:"10px" }}
+                  className="flex-1 px-4 py-2.5 text-sm font-bold text-rodeo-cream/70 disabled:opacity-50">
+                  Cancelar
+                </button>
+                <button onClick={guardarEdicion} disabled={savingEdit || !editForm.nombre.trim()}
+                  style={{ background:"rgba(200,255,0,0.9)", borderRadius:"10px" }}
+                  className="flex-1 px-4 py-2.5 text-sm font-black text-rodeo-dark disabled:opacity-50 flex items-center justify-center gap-2">
+                  {savingEdit ? <Loader size={14} className="animate-spin"/> : <Save size={14}/>}
+                  {savingEdit ? "Guardando..." : "Guardar cambios"}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
@@ -373,7 +523,7 @@ function MatchRow({ m, teamA, teamB, saving, onSave, editable, useSets }: {
               className="p-1.5 rounded bg-blue-400/10 hover:bg-blue-400/20 text-blue-400" title="Guardar parcial">
               {saving ? <Loader size={11} className="animate-spin"/> : <Play size={11}/>}
             </button>
-            <button onClick={() => computarYGuardar(true)} disabled={saving || !a || !b}
+            <button onClick={() => computarYGuardar(true)} disabled={saving}
               className="p-1.5 rounded bg-green-400/10 hover:bg-green-400/20 text-green-400 disabled:opacity-40" title="Finalizar">
               <Check size={11}/>
             </button>

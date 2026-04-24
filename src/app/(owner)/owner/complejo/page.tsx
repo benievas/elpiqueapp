@@ -199,6 +199,13 @@ export default function OwnerComplejoPage() {
 
   const toggleDeporte = (d: string) => setForm(f => ({ ...f, deportes: f.deportes.includes(d) ? f.deportes.filter(x=>x!==d) : [...f.deportes, d] }));
   const toggleServicio = (s: string) => setForm(f => ({ ...f, servicios: f.servicios.includes(s) ? f.servicios.filter(x=>x!==s) : [...f.servicios, s] }));
+  const [customServicio, setCustomServicio] = useState("");
+  const addCustomServicio = () => {
+    const s = customServicio.trim();
+    if (!s || form.servicios.includes(s)) return;
+    setForm(f => ({ ...f, servicios: [...f.servicios, s] }));
+    setCustomServicio("");
+  };
 
   if (authLoading || loading) return <div className="flex justify-center py-12"><Loader className="animate-spin text-rodeo-lime" size={32}/></div>;
 
@@ -398,6 +405,23 @@ export default function OwnerComplejoPage() {
                         const active = form.servicios.includes(s);
                         return <button key={s} type="button" onClick={()=>toggleServicio(s)} style={{ background: active?"rgba(200,255,0,0.1)":"rgba(255,255,255,0.04)", border:`1px solid ${active?"rgba(200,255,0,0.25)":"rgba(255,255,255,0.08)"}`, borderRadius:"8px" }} className={`px-3 py-1.5 text-xs transition-all ${active?"text-rodeo-lime font-bold":"text-rodeo-cream/50"}`}>{s}</button>;
                       })}
+                      {/* Custom services added by the owner */}
+                      {form.servicios.filter(s => !SERVICIOS_OPC.includes(s)).map(s => (
+                        <button key={s} type="button" onClick={()=>toggleServicio(s)} style={{ background:"rgba(200,255,0,0.1)", border:"1px solid rgba(200,255,0,0.25)", borderRadius:"8px" }} className="px-3 py-1.5 text-xs text-rodeo-lime font-bold flex items-center gap-1">
+                          {s} <span className="text-rodeo-lime/50 text-[10px]">×</span>
+                        </button>
+                      ))}
+                    </div>
+                    {/* Add custom service */}
+                    <div className="flex gap-2 pt-1">
+                      <input value={customServicio} onChange={e=>setCustomServicio(e.target.value)}
+                        onKeyDown={e=>e.key==="Enter"&&(e.preventDefault(),addCustomServicio())}
+                        placeholder="Agregar servicio personalizado..."
+                        style={{ background:"rgba(255,255,255,0.04)", border:"1px solid rgba(255,255,255,0.08)", borderRadius:"8px", color:"#E1D4C2" }}
+                        className="flex-1 px-3 py-1.5 text-xs placeholder:text-rodeo-cream/25 outline-none focus:border-rodeo-lime/30" />
+                      <button type="button" onClick={addCustomServicio} disabled={!customServicio.trim()}
+                        style={{ background:"rgba(200,255,0,0.15)", border:"1px solid rgba(200,255,0,0.2)", borderRadius:"8px" }}
+                        className="px-3 py-1.5 text-xs font-bold text-rodeo-lime disabled:opacity-30">+ Agregar</button>
                     </div>
                   </div>
 
