@@ -87,8 +87,11 @@ export default function HomeConfigPage() {
   const [uploadingImg, setUploadingImg] = useState(false);
   const [uploadingVid, setUploadingVid] = useState(false);
   const [errorText, setErrorText] = useState("");
+  const [globalBgVideo, setGlobalBgVideo] = useState("");
+  const [uploadingGlobalVid, setUploadingGlobalVid] = useState(false);
+  const [savingGlobalVid, setSavingGlobalVid] = useState(false);
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); loadGlobalBg(); }, []);
 
   async function load() {
     setLoading(true);
@@ -106,6 +109,34 @@ export default function HomeConfigPage() {
       }
     } catch { setSlides(SLIDES_DEFAULT); }
     finally { setLoading(false); }
+  }
+
+  async function loadGlobalBg() {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data } = await (supabase as any).from("app_config").select("value").eq("key", "site_bg_video").single();
+      if (data?.value) setGlobalBgVideo(String(data.value));
+    } catch { /* no config yet */ }
+  }
+
+  async function saveGlobalBg() {
+    setSavingGlobalVid(true);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (supabaseMut as any).from("app_config").upsert({ key: "site_bg_video", value: globalBgVideo, updated_at: new Date().toISOString() });
+    setSavingGlobalVid(false);
+  }
+
+  async function uploadGlobalVideo(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]; if (!file || !user) return;
+    if (file.size > 100 * 1024 * 1024) { setErrorText("El video no puede superar 100MB."); return; }
+    setUploadingGlobalVid(true); setErrorText("");
+    const ext = file.name.split(".").pop()?.toLowerCase() || "mp4";
+    const path = `site-bg/${Date.now()}.${ext}`;
+    const { error } = await supabaseMut.storage.from("app-media").upload(path, file, { cacheControl: "3600", upsert: true });
+    if (error) { setErrorText("Error al subir: " + error.message); setUploadingGlobalVid(false); return; }
+    const { data } = supabaseMut.storage.from("app-media").getPublicUrl(path);
+    setGlobalBgVideo(data.publicUrl);
+    setUploadingGlobalVid(false);
   }
 
   async function saveAll(newSlides: Slide[]) {
@@ -428,6 +459,51 @@ export default function HomeConfigPage() {
           <RefreshCw size={11} className="animate-spin" /> Guardando cambios...
         </p>
       )}
+
+      {/* Video de fondo global del sitio */}
+      <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "16px" }} className="p-5 space-y-4 mt-4">
+        <div>
+          <p className="text-sm font-black text-white uppercase tracking-wide flex items-center gap-2">
+            <Video size={14} className="text-rodeo-lime" /> Fondo global del sitio
+          </p>
+          <p className="text-[11px] text-rodeo-cream/40 mt-1">
+            Video de fondo para las páginas públicas (home, explorar, etc.). Si está vacío, se usa el fondo verde sólido original. El video se muestra semitransparente detrás del contenido.
+          </p>
+        </div>
+
+        {globalBgVideo ? (
+          <div className="relative rounded-xl overflow-hidden" style={{ border: "1px solid rgba(255,255,255,0.12)" }}>
+            <video src={globalBgVideo} className="w-full h-36 object-cover" muted loop />
+            <div className="absolute inset-0 flex items-center justify-center bg-black/40">
+              <Video size={20} className="text-white/60" />
+            </div>
+            <button type="button" onClick={() => setGlobalBgVideo("")}
+              style={{ background: "rgba(0,0,0,0.75)", borderRadius: "8px" }}
+              className="absolute top-2 right-2 p-1.5 text-white hover:bg-red-500/80">
+              <X size={14} />
+            </button>
+          </div>
+        ) : (
+          <label style={{ background: "rgba(255,255,255,0.04)", border: "1px dashed rgba(255,255,255,0.18)", borderRadius: "12px" }}
+            className="flex items-center justify-center gap-2 py-5 cursor-pointer hover:bg-white/8">
+            {uploadingGlobalVid
+              ? <><Loader size={14} className="animate-spin text-rodeo-lime" /><span className="text-xs text-rodeo-cream/60">Subiendo video...</span></>
+              : <><Video size={14} className="text-rodeo-cream/30" /><span className="text-xs text-rodeo-cream/60">Click para subir video de fondo (.mp4, .webm, máx 100MB)</span></>}
+            <input type="file" accept="video/mp4,video/webm" className="hidden" onChange={uploadGlobalVideo} disabled={uploadingGlobalVid} />
+          </label>
+        )}
+        <div className="space-y-1.5">
+          <p className="text-[10px] text-rodeo-cream/30">O pegá una URL directamente:</p>
+          <input value={globalBgVideo} onChange={e => setGlobalBgVideo(e.target.value)}
+            placeholder="https://... (MP4 o WebM)" style={inputStyle} className="w-full px-3 py-2.5 text-xs placeholder:text-rodeo-cream/20" />
+        </div>
+        <button onClick={saveGlobalBg} disabled={savingGlobalVid || uploadingGlobalVid}
+          style={{ background: "rgba(200,255,0,0.9)", borderRadius: "10px" }}
+          className="flex items-center gap-2 px-5 py-2.5 text-sm font-black text-rodeo-dark disabled:opacity-40">
+          {savingGlobalVid ? <RefreshCw size={13} className="animate-spin" /> : <Check size={13} />}
+          {globalBgVideo ? "Guardar fondo" : "Guardar (sin fondo = verde original)"}
+        </button>
+      </div>
     </div>
   );
 }

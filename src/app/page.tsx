@@ -994,7 +994,7 @@ export default function Home() {
           <img src="/assets/logo-main.png" alt="ElPiqueApp" className="h-20 w-auto" style={{ filter: "drop-shadow(0 0 8px rgba(200,255,0,0.2))" }} />
           <p className="text-xs text-rodeo-cream/30 tracking-widest uppercase text-center">Reserva canchas deportivas en Catamarca · 24/7 disponible</p>
           <nav className="flex flex-wrap justify-center gap-x-6 gap-y-2">
-            {[{ href: "/explorar", label: "Explorar" }, { href: "/mapa", label: "Mapa" }, { href: "/torneos", label: "Torneos" }, { href: "/perfil", label: "Mi Perfil" }, { href: "/owner", label: "Panel Dueño" }].map((link) => (
+            {[{ href: "/explorar", label: "Explorar" }, { href: "/mapa", label: "Mapa" }, { href: "/torneos", label: "Torneos" }, { href: "/perfil", label: "Mi Perfil" }, { href: "/owner", label: "Panel Dueño" }, { href: "/contacto", label: "Contacto" }].map((link) => (
               <Link key={link.href} href={link.href} className="text-xs text-rodeo-cream/30 hover:text-rodeo-cream/70 transition-colors">{link.label}</Link>
             ))}
           </nav>

@@ -92,6 +92,7 @@ export default function PartidosPage() {
   const [phoneModal, setPhoneModal] = useState<{ partido: Partido } | null>(null);
   const [phoneInput, setPhoneInput] = useState("");
   const [phoneLoading, setPhoneLoading] = useState(false);
+  const [editingPartido, setEditingPartido] = useState<Partido | null>(null);
   const [form, setForm] = useState<FormState>({
     deporte: "futbol", fecha: today, hora: "18:00", slots: 10, descripcion: "", complex_id: "", fecha_confirmada: true,
   });
@@ -304,6 +305,41 @@ export default function PartidosPage() {
     fetchPartidos(ciudadCorta);
   };
 
+  const handleOpenEdit = (partido: Partido) => {
+    setForm({
+      deporte: partido.deporte,
+      fecha: partido.fecha,
+      hora: partido.hora_inicio,
+      slots: partido.slots_totales,
+      descripcion: partido.descripcion ?? "",
+      complex_id: partido.complex_id ?? "",
+      fecha_confirmada: partido.fecha_confirmada,
+    });
+    setEditingPartido(partido);
+    setModalOpen(true);
+  };
+
+  const handleUpdate = async () => {
+    if (!editingPartido) return;
+    setSaving(true); setCreateError(null);
+    const { error } = await supabaseMut.from("partidos").update({
+      deporte: form.deporte,
+      fecha: form.fecha,
+      hora_inicio: form.hora,
+      slots_totales: Math.max(form.slots, editingPartido.slots_ocupados),
+      descripcion: form.descripcion.trim() || null,
+      complex_id: form.complex_id || null,
+      fecha_confirmada: form.fecha_confirmada,
+    }).eq("id", editingPartido.id);
+    setSaving(false);
+    if (error) { setCreateError(error.message); return; }
+    setModalOpen(false);
+    setEditingPartido(null);
+    setForm({ deporte: "futbol", fecha: today, hora: "18:00", slots: 10, descripcion: "", complex_id: "", fecha_confirmada: true });
+    showToast("Partido actualizado");
+    fetchPartidos(ciudadCorta);
+  };
+
   const fmtFecha = (fecha: string) =>
     new Date(fecha + "T12:00:00").toLocaleDateString("es-AR", { weekday: "short", day: "numeric", month: "short" });
 
@@ -466,12 +502,18 @@ export default function PartidosPage() {
                     <div className="flex flex-col items-end gap-2 shrink-0">
                       {isCreador ? (
                         <div className="flex flex-col gap-1.5 items-end">
+                          <button
+                            onClick={() => handleOpenEdit(partido)}
+                            className="flex items-center gap-1 px-2.5 py-1.5 rounded-[8px] text-xs font-bold transition-all"
+                            style={{ background: "rgba(200,255,0,0.08)", border: "1px solid rgba(200,255,0,0.2)", color: "#C8FF00" }}>
+                            <Pencil size={11} /> Editar
+                          </button>
                           {!isFull && partido.slots_ocupados >= 2 && (
                             <button
                               onClick={() => handleConfirmarConLosQueEstan(partido)}
                               disabled={cancelling === partido.id}
                               className="flex items-center gap-1 px-2.5 py-1.5 rounded-[8px] text-xs font-bold transition-all disabled:opacity-50"
-                              style={{ background: "rgba(200,255,0,0.1)", border: "1px solid rgba(200,255,0,0.3)", color: "#C8FF00" }}>
+                              style={{ background: "rgba(96,165,250,0.1)", border: "1px solid rgba(96,165,250,0.3)", color: "#60A5FA" }}>
                               {cancelling === partido.id ? <Loader size={11} className="animate-spin" /> : <PlayCircle size={11} />}
                               Arrancar igual
                             </button>
@@ -696,7 +738,7 @@ export default function PartidosPage() {
         {modalOpen && (
           <>
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              className="fixed inset-0 z-50 bg-black/60 backdrop-blur-md" onClick={() => setModalOpen(false)} />
+              className="fixed inset-0 z-50 bg-black/60 backdrop-blur-md" onClick={() => { setModalOpen(false); setEditingPartido(null); }} />
             <motion.div
               initial={{ opacity: 0, y: 60, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 40 }} transition={{ type: "spring", stiffness: 400, damping: 30 }}
@@ -706,10 +748,10 @@ export default function PartidosPage() {
                 <div className="p-6 border-b border-white/8 flex items-center justify-between sticky top-0 z-10"
                   style={{ background: "rgba(13,31,16,0.95)", backdropFilter: "blur(12px)" }}>
                   <div>
-                    <h3 className="text-lg font-black text-white">Nuevo partido</h3>
-                    <p className="text-xs text-rodeo-cream/50 mt-0.5">Publicá y esperá que se completen los cupos</p>
+                    <h3 className="text-lg font-black text-white">{editingPartido ? "Editar partido" : "Nuevo partido"}</h3>
+                    <p className="text-xs text-rodeo-cream/50 mt-0.5">{editingPartido ? "Modificá los datos del partido" : "Publicá y esperá que se completen los cupos"}</p>
                   </div>
-                  <button onClick={() => setModalOpen(false)}
+                  <button onClick={() => { setModalOpen(false); setEditingPartido(null); }}
                     style={{ background: "rgba(255,255,255,0.08)", borderRadius: "10px" }}
                     className="w-9 h-9 flex items-center justify-center hover:bg-white/15 transition-all">
                     <X size={16} className="text-white" />
@@ -808,11 +850,11 @@ export default function PartidosPage() {
                     <label className="text-xs font-bold uppercase tracking-widest text-rodeo-cream/50 block mb-1.5">
                       Jugadores necesarios: <span style={{ color: DEPORTE_COLOR[form.deporte] }}>{form.slots}</span>
                     </label>
-                    <input type="range" min={2} max={22} value={form.slots}
+                    <input type="range" min={2} max={30} value={form.slots}
                       onChange={e => setForm(f => ({ ...f, slots: Number(e.target.value) }))}
                       className="w-full accent-rodeo-lime" />
                     <div className="flex justify-between text-[10px] text-rodeo-cream/30 mt-1">
-                      <span>2 mín</span><span>22 máx</span>
+                      <span>2 mín</span><span>30 máx</span>
                     </div>
                   </div>
 
@@ -829,12 +871,12 @@ export default function PartidosPage() {
                     <p className="text-[10px] text-rodeo-cream/25 mt-1 text-right">{form.descripcion.length}/200</p>
                   </div>
 
-                  <motion.button onClick={handleCreate} disabled={saving}
+                  <motion.button onClick={editingPartido ? handleUpdate : handleCreate} disabled={saving}
                     whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
                     className="w-full py-3.5 rounded-[14px] font-black text-sm flex items-center justify-center gap-2 disabled:opacity-50"
                     style={{ background: "#C8FF00", color: "#1A120B" }}>
                     {saving ? <Loader size={16} className="animate-spin" /> : <Plus size={16} />}
-                    {saving ? "Publicando..." : "Publicar partido"}
+                    {saving ? (editingPartido ? "Guardando..." : "Publicando...") : (editingPartido ? "Guardar cambios" : "Publicar partido")}
                   </motion.button>
 
                   <p className="text-center text-[10px] text-rodeo-cream/25">

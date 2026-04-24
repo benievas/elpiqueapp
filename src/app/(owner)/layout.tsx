@@ -35,7 +35,7 @@ function OwnerLayoutInner({ children }: { children: React.ReactNode }) {
   const { complexes, activeComplexId, activeComplexName, setActiveComplexId, loading: complexLoading } = useActiveComplex();
   const trialComplexId = complexLoading ? null : (activeComplexId ?? undefined);
   const trial = useTrialStatus(trialComplexId);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [trialBannerOpen, setTrialBannerOpen] = useState(() => {
     if (typeof window !== "undefined") {
       return localStorage.getItem("hideTrialBanner") !== "true";
@@ -46,6 +46,19 @@ function OwnerLayoutInner({ children }: { children: React.ReactNode }) {
   const [showSignOut, setShowSignOut] = useState(false);
   const [showComplexSelector, setShowComplexSelector] = useState(false);
   const [initialized, setInitialized] = useState(false);
+  // Track if we're on desktop to show sidebar by default
+  const [isDesktop, setIsDesktop] = useState(false);
+
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 768px)");
+    const update = (e: MediaQueryListEvent | MediaQueryList) => {
+      setIsDesktop(e.matches);
+      setSidebarOpen(e.matches);
+    };
+    update(mq);
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
+  }, []);
 
   const hideBanner = () => {
     setTrialBannerOpen(false);
@@ -99,6 +112,12 @@ function OwnerLayoutInner({ children }: { children: React.ReactNode }) {
   const handleSignOut = async () => { await signOut(); router.push("/"); };
   const multiComplex = complexes.length > 1;
 
+  const closeSidebar = () => { if (!isDesktop) setSidebarOpen(false); };
+
+  const currentLabel = OWNER_MENU.find(m =>
+    m.href === "/owner" ? pathname === "/owner" : pathname?.startsWith(m.href)
+  )?.label ?? "Panel";
+
   return (
     <div className="flex flex-col min-h-screen bg-gradient-to-b from-rodeo-dark via-rodeo-brown to-rodeo-dark">
 
@@ -106,17 +125,17 @@ function OwnerLayoutInner({ children }: { children: React.ReactNode }) {
       <AnimatePresence>
         {showGraciaBanner && trialBannerOpen && (
           <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }}
-            className="bg-red-500/20 border-b border-red-500/30 px-6 py-3 flex items-center justify-between gap-4 z-50">
-            <div className="flex items-center gap-3">
+            className="bg-red-500/20 border-b border-red-500/30 px-4 md:px-6 py-3 flex items-center justify-between gap-4 z-50">
+            <div className="flex items-center gap-3 min-w-0">
               <AlertTriangle size={16} className="text-red-400 shrink-0" />
-              <p className="text-sm text-red-300">
+              <p className="text-xs md:text-sm text-red-300 truncate">
                 <span className="font-black">Tu prueba venció.</span>{" "}
-                Te quedan <span className="font-black">{trial.diasGracia} día{trial.diasGracia !== 1 ? "s" : ""} de prórroga</span> para elegir un plan.
+                <span className="hidden sm:inline">Te quedan </span><span className="font-black">{trial.diasGracia}d de prórroga</span>.
               </p>
             </div>
             <div className="flex items-center gap-2 shrink-0">
               <Link href="/owner/suscripcion" className="flex items-center gap-1.5 px-3 py-1.5 rounded-[10px] bg-red-500 text-white text-xs font-black hover:bg-red-600 transition-colors">
-                <Zap size={12} /> Ver planes
+                <Zap size={12} /> Planes
               </Link>
               <button onClick={hideBanner} className="text-red-400/50 hover:text-red-400 transition-colors"><X size={16} /></button>
             </div>
@@ -128,17 +147,17 @@ function OwnerLayoutInner({ children }: { children: React.ReactNode }) {
       <AnimatePresence>
         {showTrialBanner && trialBannerOpen && (
           <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }}
-            className="bg-yellow-400/10 border-b border-yellow-400/20 px-6 py-3 flex items-center justify-between gap-4 z-50">
-            <div className="flex items-center gap-3">
+            className="bg-yellow-400/10 border-b border-yellow-400/20 px-4 md:px-6 py-3 flex items-center justify-between gap-4 z-50">
+            <div className="flex items-center gap-3 min-w-0">
               <Crown size={16} className="text-yellow-400 shrink-0" />
-              <p className="text-sm text-yellow-200">
-                Tu prueba vence en <span className="font-black">{trial.diasRestantes} día{trial.diasRestantes !== 1 ? "s" : ""}</span>.{" "}
-                Elegí un plan para no perder el acceso.
+              <p className="text-xs md:text-sm text-yellow-200 truncate">
+                Trial vence en <span className="font-black">{trial.diasRestantes}d</span>.{" "}
+                <span className="hidden sm:inline">Elegí un plan para no perder el acceso.</span>
               </p>
             </div>
             <div className="flex items-center gap-2 shrink-0">
               <Link href="/owner/suscripcion" className="flex items-center gap-1.5 px-3 py-1.5 rounded-[10px] bg-yellow-400 text-rodeo-dark text-xs font-black hover:brightness-110 transition-all">
-                <Zap size={12} /> Suscribirme
+                <Zap size={12} /> Plan
               </Link>
               <button onClick={hideBanner} className="text-yellow-400/50 hover:text-yellow-400 transition-colors"><X size={16} /></button>
             </div>
@@ -146,11 +165,34 @@ function OwnerLayoutInner({ children }: { children: React.ReactNode }) {
         )}
       </AnimatePresence>
 
-      <div className="flex flex-1">
-        {/* Sidebar */}
+      {/* Mobile top bar */}
+      <div className="md:hidden sticky top-0 z-30 flex items-center justify-between px-4 py-3 bg-rodeo-dark/90 backdrop-blur-md border-b border-white/10">
+        <button onClick={() => setSidebarOpen(true)} className="p-2 -ml-1 hover:bg-white/8 rounded-lg transition-colors">
+          <Menu size={20} className="text-rodeo-cream" />
+        </button>
+        <span className="text-sm font-black text-white uppercase tracking-wide">{currentLabel}</span>
+        <div className="w-9" />
+      </div>
+
+      <div className="flex flex-1 relative overflow-hidden">
+        {/* Backdrop on mobile */}
+        <AnimatePresence>
+          {sidebarOpen && !isDesktop && (
+            <motion.div
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="fixed inset-0 z-40 bg-black/60 md:hidden"
+              onClick={() => setSidebarOpen(false)}
+            />
+          )}
+        </AnimatePresence>
+
+        {/* Sidebar — overlay on mobile, inline on desktop */}
         <motion.aside
-          initial={{ x: -300 }} animate={{ x: 0 }}
-          className={`${sidebarOpen ? "w-64" : "w-20"} transition-all duration-300 border-r border-white/10 bg-white/2 backdrop-blur-xl flex flex-col shrink-0`}
+          initial={false}
+          animate={{ x: sidebarOpen ? 0 : (isDesktop ? 0 : -280) }}
+          transition={{ type: "spring", stiffness: 380, damping: 34 }}
+          className="fixed md:relative inset-y-0 left-0 z-50 md:z-auto flex flex-col border-r border-white/10 bg-rodeo-dark md:bg-white/2 backdrop-blur-xl shrink-0 overflow-hidden"
+          style={{ width: isDesktop ? (sidebarOpen ? 256 : 80) : 256, minHeight: "100vh" }}
         >
           {/* Header */}
           <div className="p-4 border-b border-white/10 flex items-center justify-between gap-2" style={{ minHeight: 72 }}>
@@ -159,7 +201,6 @@ function OwnerLayoutInner({ children }: { children: React.ReactNode }) {
                 <p className="text-[10px] text-rodeo-cream/50 font-bold uppercase tracking-wider mb-1">
                   {isAdmin ? "Administrador" : "Propietario"}
                 </p>
-                {/* Complex selector */}
                 {multiComplex ? (
                   <div>
                     <button
@@ -227,7 +268,7 @@ function OwnerLayoutInner({ children }: { children: React.ReactNode }) {
             {OWNER_MENU.map((item) => {
               const isActive = item.href === "/owner" ? pathname === "/owner" : pathname?.startsWith(item.href);
               return (
-                <Link key={item.href} href={item.href}>
+                <Link key={item.href} href={item.href} onClick={closeSidebar}>
                   <motion.div
                     whileHover={{ x: sidebarOpen ? 3 : 0 }}
                     className={`p-3 rounded-[12px] transition-all flex items-center gap-3 cursor-pointer ${
@@ -261,8 +302,8 @@ function OwnerLayoutInner({ children }: { children: React.ReactNode }) {
         </motion.aside>
 
         {/* Content */}
-        <main className="flex-1 overflow-y-auto">
-          <div className="p-6 md:p-10 max-w-7xl mx-auto">{children}</div>
+        <main className="flex-1 overflow-y-auto min-w-0">
+          <div className="p-4 md:p-6 lg:p-10 max-w-7xl mx-auto">{children}</div>
         </main>
       </div>
 

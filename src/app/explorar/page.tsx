@@ -67,6 +67,7 @@ export default function ExplorarPage() {
   const [busqueda, setBusqueda] = useState("");
   const [deporte, setDeporte] = useState("Todos");
   const [vista, setVista] = useState<"lista" | "mapa">("lista");
+  const [selectedMapId, setSelectedMapId] = useState<string | null>(null);
 
   useEffect(() => {
     if (cityLoading) return;
@@ -245,24 +246,71 @@ export default function ExplorarPage() {
               No encontramos complejos que coincidan
             </p>
           ) : vista === "mapa" ? (
-            <div style={{ borderRadius: 16, overflow: "hidden", border: "1px solid rgba(255,255,255,0.08)", height: "65vh", minHeight: 320 }}>
-              <MapaLeaflet
-                complejos={filtrados.filter(c => c.lat && c.lng).map(c => ({
-                  id: c.id,
-                  nombre: c.nombre,
-                  deporte: DEPORTE_MAP[c.deporte_principal] || c.deporte_principal,
-                  descripcion: c.direccion,
-                  horario: "",
-                  telefono: "",
-                  abierto: true,
-                  distancia: "",
-                  rating: c.rating_promedio ?? 0,
-                  lat: c.lat as number,
-                  lng: c.lng as number,
-                  slug: c.slug,
-                  ciudad: c.ciudad,
-                }))}
-              />
+            <div className="relative">
+              <div style={{ borderRadius: 16, overflow: "hidden", border: "1px solid rgba(255,255,255,0.08)", height: "65vh", minHeight: 320 }}>
+                <MapaLeaflet
+                  complejos={filtrados.filter(c => c.lat && c.lng).map(c => ({
+                    id: c.id,
+                    nombre: c.nombre,
+                    deporte: DEPORTE_MAP[c.deporte_principal] || c.deporte_principal,
+                    descripcion: c.direccion,
+                    horario: "",
+                    telefono: "",
+                    abierto: true,
+                    distancia: "",
+                    rating: c.rating_promedio ?? 0,
+                    lat: c.lat as number,
+                    lng: c.lng as number,
+                    slug: c.slug,
+                    ciudad: c.ciudad,
+                  }))}
+                  selectedId={selectedMapId}
+                  onSelectComplejo={(c) => setSelectedMapId(prev => prev === c.id ? null : c.id)}
+                />
+              </div>
+              {/* Info panel: aparece al seleccionar un marcador */}
+              {selectedMapId && (() => {
+                const c = filtrados.find(f => f.id === selectedMapId);
+                if (!c) return null;
+                const allDeportes = [...new Set([c.deporte_principal, ...(c.deportes || [])])].filter(Boolean);
+                const img = c.imagen_principal || FALLBACK_IMGS[c.deporte_principal] || FALLBACK_IMGS.futbol;
+                return (
+                  <motion.div
+                    initial={{ opacity: 0, y: 16 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: 16 }}
+                    style={{ background: "rgba(13,26,10,0.97)", border: "1px solid rgba(200,255,0,0.25)", borderRadius: 16, backdropFilter: "blur(20px)" }}
+                    className="absolute bottom-3 left-3 right-3 z-10 p-4 flex gap-3 items-center shadow-2xl"
+                  >
+                    <div className="relative w-16 h-16 shrink-0 rounded-[10px] overflow-hidden">
+                      <Image src={img} alt={c.nombre} fill className="object-cover" sizes="64px" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h4 style={{ fontFamily: "'Barlow Condensed', system-ui, sans-serif", fontWeight: 900, fontSize: 16, textTransform: "uppercase", lineHeight: 1.1 }} className="text-white truncate">{c.nombre}</h4>
+                      <div className="flex gap-1 flex-wrap mt-1">
+                        {allDeportes.slice(0, 3).map(d => (
+                          <span key={d} className="text-[10px] font-bold px-1.5 py-0.5 rounded-[5px]" style={{ background: "rgba(200,255,0,0.15)", color: "#C8FF00" }}>{DEPORTE_MAP[d] || d}</span>
+                        ))}
+                      </div>
+                      <div className="flex items-center gap-1 text-xs text-rodeo-cream/50 mt-1">
+                        <MapPin size={10} /><span className="truncate">{c.direccion}</span>
+                      </div>
+                    </div>
+                    <div className="flex flex-col gap-2 shrink-0">
+                      <Link href={`/complejo/${c.slug}`}
+                        style={{ background: "#C8FF00", borderRadius: 9 }}
+                        className="px-3 py-2 text-xs font-black text-rodeo-dark whitespace-nowrap">
+                        Ver canchas →
+                      </Link>
+                      <button onClick={() => setSelectedMapId(null)}
+                        style={{ background: "rgba(255,255,255,0.08)", borderRadius: 9, border: "1px solid rgba(255,255,255,0.1)" }}
+                        className="px-3 py-1.5 text-xs text-rodeo-cream/60">
+                        Cerrar
+                      </button>
+                    </div>
+                  </motion.div>
+                );
+              })()}
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

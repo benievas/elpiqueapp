@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import DeviceDetection from "@/components/DeviceDetection";
 import BottomNav from "@/components/BottomNav";
+import SiteBgVideo from "@/components/SiteBgVideo";
 import { CityProvider } from "@/lib/context/CityContext";
 import QueryProvider from "@/components/providers/QueryProvider";
 
@@ -116,6 +117,7 @@ export default function RootLayout({
       <body suppressHydrationWarning className="antialiased min-h-screen" style={{ background: "linear-gradient(160deg, #040D07 0%, #081810 40%, #050F09 70%, #030A06 100%)" }}>
         <QueryProvider>
           <CityProvider>
+            <SiteBgVideo />
             <DeviceDetection />
             {children}
             <BottomNav />
