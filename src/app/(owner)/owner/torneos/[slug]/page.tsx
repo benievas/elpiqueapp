@@ -7,7 +7,7 @@ import { useParams, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { supabase, supabaseMut } from "@/lib/supabase";
-import { ChevronLeft, Trophy, Users, Calendar, Loader, Plus, X, Check, Trash2, Play, Flag, ExternalLink, RefreshCw, Pencil, Save } from "lucide-react";
+import { ChevronLeft, Trophy, Users, Calendar, Loader, Plus, X, Check, Trash2, Play, Flag, ExternalLink, RefreshCw, Pencil, Save, Upload } from "lucide-react";
 
 interface Torneo {
   id: string;
@@ -71,6 +71,7 @@ export default function OwnerTorneoDetailPage() {
   const [showEdit, setShowEdit] = useState(false);
   const [editForm, setEditForm] = useState({ nombre: "", descripcion: "", fecha_inicio: "", fecha_fin: "", cupos_totales: 0, precio_inscripcion: 0, imagen_url: "" });
   const [savingEdit, setSavingEdit] = useState(false);
+  const [uploadingImg, setUploadingImg] = useState(false);
 
   useEffect(() => { if (slug) load(); }, [slug]);
 
@@ -198,6 +199,22 @@ export default function OwnerTorneoDetailPage() {
       imagen_url: torneo.imagen_url || "",
     });
     setShowEdit(true);
+  }
+
+  async function handleEditImgUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+    if (file.size > 5 * 1024 * 1024) return;
+    setUploadingImg(true);
+    try {
+      const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
+      const path = `tournament-images/${user.id}/${Date.now()}.${ext}`;
+      const { error } = await supabaseMut.storage.from("app-media").upload(path, file, { cacheControl: "3600", upsert: false });
+      if (error) throw error;
+      const { data } = supabaseMut.storage.from("app-media").getPublicUrl(path);
+      setEditForm(f => ({ ...f, imagen_url: data.publicUrl }));
+    } catch (e) { console.error(e); }
+    finally { setUploadingImg(false); }
   }
 
   async function guardarEdicion() {
@@ -442,11 +459,25 @@ export default function OwnerTorneoDetailPage() {
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-black text-rodeo-cream/50 uppercase tracking-wide mb-1.5">URL de imagen (opcional)</label>
-                  <input value={editForm.imagen_url} onChange={e => setEditForm(f => ({ ...f, imagen_url: e.target.value }))}
-                    placeholder="https://..."
-                    style={{ background:"rgba(255,255,255,0.05)", border:"1px solid rgba(255,255,255,0.12)", borderRadius:"10px", color:"#E1D4C2" }}
-                    className="w-full px-3 py-2.5 text-sm placeholder:text-rodeo-cream/25 outline-none focus:border-rodeo-lime/40" />
+                  <label className="block text-[11px] font-black text-rodeo-cream/50 uppercase tracking-wide mb-1.5">Imagen (opcional)</label>
+                  {editForm.imagen_url ? (
+                    <div className="relative rounded-[10px] overflow-hidden" style={{ border: "1px solid rgba(255,255,255,0.12)" }}>
+                      <img src={editForm.imagen_url} alt="" className="w-full h-36 object-cover" />
+                      <button type="button" onClick={() => setEditForm(f => ({ ...f, imagen_url: "" }))}
+                        className="absolute top-2 right-2 p-1.5 rounded-lg text-white hover:bg-red-500/80 transition-colors"
+                        style={{ background: "rgba(0,0,0,0.65)" }}>
+                        <X size={13} />
+                      </button>
+                    </div>
+                  ) : (
+                    <label style={{ background:"rgba(255,255,255,0.04)", border:"1px dashed rgba(255,255,255,0.18)", borderRadius:"10px" }}
+                      className="flex items-center justify-center gap-2 py-5 cursor-pointer hover:bg-white/8 transition-colors">
+                      {uploadingImg
+                        ? <><Loader size={14} className="animate-spin text-rodeo-lime"/><span className="text-xs text-rodeo-cream/60">Subiendo...</span></>
+                        : <><Upload size={14} className="text-rodeo-cream/40"/><span className="text-xs text-rodeo-cream/50">Subir imagen (máx 5MB)</span></>}
+                      <input type="file" accept="image/*" className="hidden" onChange={handleEditImgUpload} disabled={uploadingImg} />
+                    </label>
+                  )}
                 </div>
               </div>
 

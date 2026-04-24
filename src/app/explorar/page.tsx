@@ -2,14 +2,20 @@
 export const dynamic = 'force-dynamic';
 
 import { useState, useEffect, useMemo } from "react";
+import dynamic from "next/dynamic";
 import { motion } from "framer-motion";
-import { ChevronLeft, Search, X, Star, MapPin, Users, Loader } from "lucide-react";
+import { ChevronLeft, Search, X, Star, MapPin, Users, Loader, List } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import { Skeleton } from "@/components/ui/Skeleton";
 import CityBanner from "@/components/CityBanner";
 import { useCityContext } from "@/lib/context/CityContext";
 import { supabase } from "@/lib/supabase";
+
+const MapaLeaflet = dynamic(() => import("@/components/MapaLeaflet"), {
+  ssr: false,
+  loading: () => <div className="flex items-center justify-center h-[60vh]"><Loader size={24} className="animate-spin text-rodeo-lime" /></div>,
+});
 
 type Complejo = {
   id: string;
@@ -23,6 +29,8 @@ type Complejo = {
   imagen_principal: string | null;
   slug: string;
   activo: boolean;
+  lat: number | null;
+  lng: number | null;
   _canchas_count?: number;
 };
 
@@ -58,6 +66,7 @@ export default function ExplorarPage() {
   const [fetchError, setFetchError] = useState(false);
   const [busqueda, setBusqueda] = useState("");
   const [deporte, setDeporte] = useState("Todos");
+  const [vista, setVista] = useState<"lista" | "mapa">("lista");
 
   useEffect(() => {
     if (cityLoading) return;
@@ -71,7 +80,7 @@ export default function ExplorarPage() {
     try {
       const { data, error } = await supabase
         .from("complexes")
-        .select("id, nombre, deporte_principal, deportes, direccion, ciudad, rating_promedio, total_reviews, imagen_principal, slug, activo")
+        .select("id, nombre, deporte_principal, deportes, direccion, ciudad, rating_promedio, total_reviews, imagen_principal, slug, activo, lat, lng")
         .eq("activo", true)
         .eq("ciudad", ciudadCorta)
         .order("nombre");
@@ -156,21 +165,35 @@ export default function ExplorarPage() {
             )}
           </div>
 
-          {/* FILTROS */}
-          <div className="flex gap-2 flex-wrap">
-            {DEPORTES.map((d) => (
-              <button
-                key={d}
-                onClick={() => setDeporte(d)}
-                style={deporte === d
-                  ? { background: "#C8FF00", color: "#040D07", borderRadius: "10px" }
-                  : { background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "10px" }
-                }
-                className="px-3 py-1.5 text-xs font-bold transition-all text-rodeo-cream"
-              >
-                {d}
-              </button>
-            ))}
+          {/* FILTROS + toggle vista */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <div className="flex gap-2 flex-wrap flex-1">
+              {DEPORTES.map((d) => (
+                <button
+                  key={d}
+                  onClick={() => setDeporte(d)}
+                  style={deporte === d
+                    ? { background: "#C8FF00", color: "#040D07", borderRadius: "10px" }
+                    : { background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "10px" }
+                  }
+                  className="px-3 py-1.5 text-xs font-bold transition-all text-rodeo-cream"
+                >
+                  {d}
+                </button>
+              ))}
+            </div>
+            {/* Toggle Lista / Mapa */}
+            <div className="flex shrink-0" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, padding: 3 }}>
+              {([["lista", List, "Lista"], ["mapa", MapPin, "Mapa"]] as const).map(([v, Icon, label]) => (
+                <button key={v} onClick={() => setVista(v)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold transition-all"
+                  style={vista === v
+                    ? { background: "rgba(200,255,0,0.2)", border: "1px solid rgba(200,255,0,0.35)", borderRadius: 7, color: "#C8FF00" }
+                    : { borderRadius: 7, color: "rgba(225,212,194,0.4)", border: "1px solid transparent" }}>
+                  <Icon size={13} /> {label}
+                </button>
+              ))}
+            </div>
           </div>
 
           {/* RESULTADO */}
@@ -221,10 +244,31 @@ export default function ExplorarPage() {
             <p className="text-center text-rodeo-cream/50 text-sm py-8">
               No encontramos complejos que coincidan
             </p>
+          ) : vista === "mapa" ? (
+            <div style={{ borderRadius: 16, overflow: "hidden", border: "1px solid rgba(255,255,255,0.08)" }}>
+              <MapaLeaflet
+                complejos={filtrados.filter(c => c.lat && c.lng).map(c => ({
+                  id: c.id,
+                  nombre: c.nombre,
+                  deporte: DEPORTE_MAP[c.deporte_principal] || c.deporte_principal,
+                  descripcion: c.direccion,
+                  horario: "",
+                  telefono: "",
+                  abierto: true,
+                  distancia: "",
+                  rating: c.rating_promedio ?? 0,
+                  lat: c.lat as number,
+                  lng: c.lng as number,
+                  slug: c.slug,
+                  ciudad: c.ciudad,
+                }))}
+              />
+            </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {filtrados.map((complejo, i) => {
-                const deporteLabel = DEPORTE_MAP[complejo.deporte_principal] || complejo.deporte_principal;
+                const allDeportes = [...new Set([complejo.deporte_principal, ...(complejo.deportes || [])])].filter(Boolean);
+                const deporteLabel = DEPORTE_MAP[allDeportes[0]] || allDeportes[0];
                 const img = complejo.imagen_principal || FALLBACK_IMGS[complejo.deporte_principal] || FALLBACK_IMGS.futbol;
                 const rating = complejo.rating_promedio ?? 0;
                 return (
@@ -242,11 +286,13 @@ export default function ExplorarPage() {
                       <div className="h-44 overflow-hidden relative">
                         <Image src={img} alt={complejo.nombre} fill className="object-cover group-hover:scale-110 transition-transform duration-500" sizes="(max-width: 768px) 100vw, 50vw" />
                         <div className="absolute inset-0 bg-gradient-to-t from-rodeo-dark via-transparent to-transparent" />
-                        <div className="absolute top-3 right-3">
-                          <span style={{ background: "rgba(200,255,0,0.2)", border: "1px solid rgba(200,255,0,0.4)", borderRadius: "8px" }}
-                            className="inline-block px-2.5 py-1 text-rodeo-lime text-[11px] font-bold">
-                            {deporteLabel}
-                          </span>
+                        <div className="absolute top-3 right-3 flex flex-col gap-1 items-end">
+                          {allDeportes.slice(0, 3).map(d => (
+                            <span key={d} style={{ background: "rgba(200,255,0,0.2)", border: "1px solid rgba(200,255,0,0.4)", borderRadius: "8px" }}
+                              className="inline-block px-2.5 py-1 text-rodeo-lime text-[11px] font-bold">
+                              {DEPORTE_MAP[d] || d}
+                            </span>
+                          ))}
                         </div>
                         <div className="absolute bottom-3 left-3">
                           <span style={{ background: "rgba(34,197,94,0.2)", border: "1px solid rgba(74,222,128,0.3)", borderRadius: "8px" }}

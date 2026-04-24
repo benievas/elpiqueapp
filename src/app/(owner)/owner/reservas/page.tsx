@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   ClipboardList, Clock, CheckCircle2, XCircle, AlertCircle,
   MessageCircle, User, Phone, DollarSign, Calendar, Plus, Trash2,
-  Building2, ChevronLeft, ChevronRight, List as ListIcon, LayoutGrid,
+  Building2, ChevronLeft, ChevronRight, List as ListIcon, LayoutGrid, Pencil,
 } from "lucide-react";
 import { supabase, supabaseMut } from "@/lib/supabase";
 import { useAuth } from "@/lib/hooks/useAuth";
@@ -80,6 +80,23 @@ function buildWhatsAppLink(phone: string, jugador: string, fecha: string, hora: 
   const clean = phone.replace(/\D/g, "");
   const text = encodeURIComponent(`Hola ${jugador}, tu reserva de ${cancha} el ${fecha} a las ${hora} está confirmada. ¡Nos vemos! 👋`);
   return `https://wa.me/549${clean}?text=${text}`;
+}
+
+function extractJugadorName(res: ReservationWithDetails): string {
+  if (res.notas_usuario?.startsWith("Reserva manual · ")) {
+    const parts = res.notas_usuario.split(" · ");
+    if (parts[1]) return parts[1];
+  }
+  return res.jugador?.nombre_completo || res.jugador?.email || "Jugador";
+}
+
+function extractJugadorPhone(res: ReservationWithDetails): string | null {
+  if (res.notas_usuario?.startsWith("Reserva manual · ")) {
+    const parts = res.notas_usuario.split(" · ");
+    const telPart = parts.find(p => p.startsWith("Tel: "));
+    if (telPart) return telPart.replace("Tel: ", "");
+  }
+  return res.jugador?.telefono ?? null;
 }
 
 // ─── NewReservationModal ──────────────────────────────────────────────────────
@@ -228,6 +245,143 @@ function NewReservationModal({ courts, userId, defaultCourtId, defaultFecha, def
   );
 }
 
+// ─── EditReservationModal ─────────────────────────────────────────────────────
+
+interface EditModalProps {
+  reservation: ReservationWithDetails;
+  courts: CourtOption[];
+  onClose: () => void;
+  onSaved: (updated: ReservationWithDetails) => void;
+}
+
+function EditReservationModal({ reservation: res, courts, onClose, onSaved }: EditModalProps) {
+  const initName = extractJugadorName(res);
+  const initPhone = extractJugadorPhone(res) ?? "";
+  const initNotas = (() => {
+    if (!res.notas_usuario?.startsWith("Reserva manual · ")) return res.notas_usuario ?? "";
+    const parts = res.notas_usuario.split(" · ");
+    return parts.slice(parts.findIndex(p => p.startsWith("Tel: ")) + 1).join(" · ") || (parts.length > 2 && !parts[2].startsWith("Tel:") ? parts.slice(2).join(" · ") : "");
+  })();
+
+  const [courtId, setCourtId] = useState(res.court_id);
+  const [fecha, setFecha] = useState(res.fecha);
+  const [horaInicio, setHoraInicio] = useState(res.hora_inicio);
+  const [horaFin, setHoraFin] = useState(res.hora_fin);
+  const [jugadorNombre, setJugadorNombre] = useState(initName === "Jugador" ? "" : initName);
+  const [jugadorTelefono, setJugadorTelefono] = useState(initPhone);
+  const [precioTotal, setPrecioTotal] = useState(res.precio_total);
+  const [estado, setEstado] = useState<EstadoReserva>(res.estado);
+  const [notas, setNotas] = useState(initNotas);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+
+  const selectedCourt = courts.find(c => c.id === courtId) ?? null;
+
+  async function handleSave() {
+    if (!fecha || !horaInicio || !horaFin || !jugadorNombre.trim()) {
+      setSaveError("Completá fecha, horario y nombre del jugador."); return;
+    }
+    setSaving(true); setSaveError(null);
+    const notasComposed = ["Reserva manual", jugadorNombre.trim(),
+      jugadorTelefono.trim() ? `Tel: ${jugadorTelefono.trim()}` : null,
+      notas.trim() || null].filter(Boolean).join(" · ");
+
+    const { data, error } = await supabaseMut.from("reservations")
+      .update({ court_id: courtId, fecha, hora_inicio: horaInicio, hora_fin: horaFin, precio_total: precioTotal, estado, notas_usuario: notasComposed })
+      .eq("id", res.id)
+      .select(`*, court:courts(nombre, deporte), jugador:profiles!user_id(nombre_completo, email, telefono)`)
+      .single();
+    if (error) { setSaveError(error.message); setSaving(false); return; }
+    onSaved(data as unknown as ReservationWithDetails);
+    onClose();
+  }
+
+  const input = { background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: "10px", color: "#E1D4C2", outline: "none" } as React.CSSProperties;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center p-4"
+      style={{ background: "rgba(0,0,0,0.7)", backdropFilter: "blur(6px)" }}
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <motion.div initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 40 }}
+        style={{ background: "linear-gradient(145deg,rgba(41,28,14,0.97),rgba(26,18,11,0.99))", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "24px", width: "100%", maxWidth: "480px", maxHeight: "90vh", overflowY: "auto" }}
+        className="p-6 space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-black text-white uppercase flex items-center gap-2">
+            <Pencil size={16} className="text-rodeo-lime" /> Editar reserva
+          </h2>
+          <button onClick={onClose} className="text-rodeo-cream/40 hover:text-white text-xl font-bold">×</button>
+        </div>
+
+        <div className="space-y-1.5">
+          <label className="text-[11px] font-bold text-rodeo-cream/50 uppercase tracking-widest">Cancha</label>
+          <select value={courtId} onChange={e => setCourtId(e.target.value)} style={input} className="w-full px-3 py-2.5 text-sm">
+            {courts.map(c => <option key={c.id} value={c.id} style={{ background: "#291C0E" }}>{c.nombre} — {c.deporte}</option>)}
+          </select>
+        </div>
+
+        <div className="space-y-1.5">
+          <label className="text-[11px] font-bold text-rodeo-cream/50 uppercase tracking-widest">Fecha</label>
+          <input type="date" value={fecha} onChange={e => setFecha(e.target.value)} style={input} className="w-full px-3 py-2.5 text-sm" />
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          {([["Hora inicio", horaInicio, setHoraInicio], ["Hora fin", horaFin, setHoraFin]] as const).map(([lbl, val, set]) => (
+            <div key={lbl} className="space-y-1.5">
+              <label className="text-[11px] font-bold text-rodeo-cream/50 uppercase tracking-widest">{lbl}</label>
+              <select value={val} onChange={e => (set as any)(e.target.value)} style={input} className="w-full px-3 py-2.5 text-sm">
+                {HORA_OPTIONS.map(h => <option key={h} value={h} style={{ background: "#291C0E" }}>{h}</option>)}
+              </select>
+            </div>
+          ))}
+        </div>
+
+        <div className="space-y-1.5">
+          <label className="text-[11px] font-bold text-rodeo-cream/50 uppercase tracking-widest">Nombre del jugador *</label>
+          <input type="text" placeholder="Ej: Juan García" value={jugadorNombre} onChange={e => setJugadorNombre(e.target.value)} style={input} className="w-full px-3 py-2.5 text-sm placeholder:text-rodeo-cream/25" />
+        </div>
+
+        <div className="space-y-1.5">
+          <label className="text-[11px] font-bold text-rodeo-cream/50 uppercase tracking-widest">Teléfono (opcional)</label>
+          <input type="tel" placeholder="Ej: 3834123456" value={jugadorTelefono} onChange={e => setJugadorTelefono(e.target.value)} style={input} className="w-full px-3 py-2.5 text-sm placeholder:text-rodeo-cream/25" />
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-1.5">
+            <label className="text-[11px] font-bold text-rodeo-cream/50 uppercase tracking-widest">Precio (ARS)</label>
+            <input type="number" min={0} value={precioTotal} onChange={e => setPrecioTotal(Number(e.target.value))} style={input} className="w-full px-3 py-2.5 text-sm" />
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-[11px] font-bold text-rodeo-cream/50 uppercase tracking-widest">Estado</label>
+            <select value={estado} onChange={e => setEstado(e.target.value as EstadoReserva)} style={input} className="w-full px-3 py-2.5 text-sm">
+              {(["pendiente", "confirmada", "completada", "cancelada"] as EstadoReserva[]).map(s => (
+                <option key={s} value={s} style={{ background: "#291C0E" }}>{STATUS_META[s].label}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        <div className="space-y-1.5">
+          <label className="text-[11px] font-bold text-rodeo-cream/50 uppercase tracking-widest">Notas (opcional)</label>
+          <textarea rows={2} placeholder="Observaciones..." value={notas} onChange={e => setNotas(e.target.value)} style={{ ...input, resize: "none" } as React.CSSProperties} className="w-full px-3 py-2.5 text-sm placeholder:text-rodeo-cream/25" />
+        </div>
+
+        {saveError && <p className="text-xs text-red-400 font-bold">{saveError}</p>}
+
+        <div className="flex gap-3 pt-1">
+          <button onClick={onClose} style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "12px" }}
+            className="flex-1 py-3 text-sm font-bold text-rodeo-cream/60 hover:text-white transition-all">Cancelar</button>
+          <button onClick={handleSave} disabled={saving}
+            style={{ background: saving ? "rgba(200,255,0,0.5)" : "rgba(200,255,0,0.9)", borderRadius: "12px" }}
+            className="flex-1 py-3 text-sm font-black text-rodeo-dark hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2">
+            {saving ? <div className="w-4 h-4 border-2 border-rodeo-dark/30 border-t-rodeo-dark rounded-full animate-spin" /> : <Pencil size={14} />}
+            Guardar cambios
+          </button>
+        </div>
+      </motion.div>
+    </div>
+  );
+}
+
 // ─── DeleteButton ──────────────────────────────────────────────────────────────
 
 function DeleteButton({ busy, disabled, onDelete }: { busy: boolean; disabled: boolean; onDelete: () => void }) {
@@ -270,6 +424,7 @@ export default function ReservasPage() {
   const [showModal, setShowModal] = useState(false);
   const [modalDefaults, setModalDefaults] = useState<{ courtId?: string; fecha?: string; hora?: string }>({});
   const [selectedRes, setSelectedRes] = useState<ReservationWithDetails | null>(null);
+  const [editingRes, setEditingRes] = useState<ReservationWithDetails | null>(null);
 
   const openModal = (defaults = {}) => { setModalDefaults(defaults); setShowModal(true); };
 
@@ -574,7 +729,7 @@ export default function ReservasPage() {
                               const meta = STATUS_META[res.estado];
                               const left = resLeft(res.hora_inicio);
                               const width = resWidth(res.hora_inicio, res.hora_fin);
-                              const jugadorNombre = res.jugador?.nombre_completo || res.jugador?.email || "Jugador";
+                              const jugadorNombre = extractJugadorName(res);
                               return (
                                 <button key={res.id} onClick={() => setSelectedRes(res)}
                                   style={{ position: "absolute", left, top: 5, width, height: ROW_H - 10, background: meta.bg, border: `1.5px solid ${meta.border}`, borderRadius: "10px", zIndex: 2, overflow: "hidden" }}
@@ -597,7 +752,8 @@ export default function ReservasPage() {
                   {selectedRes && (() => {
                     const res = selectedRes;
                     const meta = STATUS_META[res.estado];
-                    const jugadorNombre = res.jugador?.nombre_completo || res.jugador?.email || "Jugador";
+                    const jugadorNombre = extractJugadorName(res);
+                    const jugadorPhone = extractJugadorPhone(res);
                     const courtName = courts.find(c => c.id === res.court_id)?.nombre ?? "Cancha";
                     return (
                       <motion.div key={res.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 8 }}
@@ -615,8 +771,13 @@ export default function ReservasPage() {
                           <button onClick={() => setSelectedRes(null)} className="text-rodeo-cream/30 hover:text-white transition-colors text-lg font-bold shrink-0">×</button>
                         </div>
                         <div className="flex gap-2 flex-wrap">
-                          {res.jugador?.telefono && (
-                            <a href={buildWhatsAppLink(res.jugador.telefono, jugadorNombre, formatDateShort(res.fecha), res.hora_inicio, courtName)}
+                          <button onClick={() => { setEditingRes(res); setSelectedRes(null); }}
+                            style={{ background: "rgba(200,255,0,0.1)", border: "1px solid rgba(200,255,0,0.25)", borderRadius: "10px" }}
+                            className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-rodeo-lime hover:bg-rodeo-lime/20 transition-all">
+                            <Pencil size={13} /> Editar
+                          </button>
+                          {jugadorPhone && (
+                            <a href={buildWhatsAppLink(jugadorPhone, jugadorNombre, formatDateShort(res.fecha), res.hora_inicio, courtName)}
                               target="_blank" rel="noopener noreferrer"
                               style={{ background: "rgba(37,211,102,0.12)", border: "1px solid rgba(37,211,102,0.25)", borderRadius: "10px" }}
                               className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-green-400 hover:bg-green-500/20 transition-all">
@@ -715,12 +876,12 @@ export default function ReservasPage() {
                 <AnimatePresence initial={false}>
                   {listaFiltered.map((r, i) => {
                     const meta = STATUS_META[r.estado];
-                    const jugadorNombre = r.jugador?.nombre_completo || r.jugador?.email || "Jugador";
                     const canchaLabel = r.court?.nombre ?? "Cancha eliminada";
                     const deporteLabel = r.court?.deporte ? (DEPORTE_LABELS[r.court.deporte] ?? r.court.deporte) : null;
                     const isToday = r.fecha === today;
                     const isFuture = r.fecha > today;
-
+                    const jugadorNombre = extractJugadorName(r);
+                    const jugadorPhone = extractJugadorPhone(r);
                     return (
                       <motion.div key={r.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, x: 20, height: 0, marginBottom: 0 }} transition={{ delay: i * 0.02 }}
@@ -732,35 +893,39 @@ export default function ReservasPage() {
                           <div className="flex flex-wrap items-start justify-between gap-3">
                             <div className="space-y-1.5 min-w-0">
                               <div className="flex items-center gap-2 flex-wrap">
-                                <p className="font-black text-white text-base leading-none">{canchaLabel}</p>
+                                <p className="font-black text-white text-base leading-none">{jugadorNombre}</p>
                                 {deporteLabel && <span style={{ background: "rgba(200,255,0,0.1)", border: "1px solid rgba(200,255,0,0.2)", borderRadius: "999px" }} className="text-[10px] font-bold text-rodeo-lime px-2 py-0.5 uppercase">{deporteLabel}</span>}
                                 {isToday && <span style={{ background: "rgba(255,179,0,0.1)", border: "1px solid rgba(255,179,0,0.25)", borderRadius: "999px" }} className="text-[10px] font-bold text-amber-400 px-2 py-0.5">Hoy</span>}
                                 {isFuture && !isToday && <span style={{ background: "rgba(167,139,250,0.1)", border: "1px solid rgba(167,139,250,0.25)", borderRadius: "999px" }} className="text-[10px] font-bold text-purple-400 px-2 py-0.5">{formatDateShort(r.fecha)}</span>}
                               </div>
                               <div className="flex items-center gap-2 text-rodeo-cream/60">
-                                <Calendar size={12} /><span className="text-xs font-bold capitalize">{formatDateShort(r.fecha)}</span>
+                                <Building2 size={12} /><span className="text-xs font-bold">{canchaLabel}</span>
+                                <Calendar size={12} className="ml-1" /><span className="text-xs font-bold capitalize">{formatDateShort(r.fecha)}</span>
                                 <Clock size={12} className="ml-1" /><span className="text-xs font-bold">{r.hora_inicio} – {r.hora_fin}</span>
                               </div>
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <div className="flex items-center gap-1.5 text-rodeo-cream/60">
-                                  <User size={12} /><span className="text-xs font-bold text-rodeo-cream/80">{jugadorNombre}</span>
-                                </div>
-                                {r.jugador?.telefono && <div className="flex items-center gap-1 text-rodeo-cream/40"><Phone size={11} /><span className="text-xs">{r.jugador.telefono}</span></div>}
-                              </div>
-                              {r.notas_usuario && <p className="text-xs text-rodeo-cream/40 italic truncate max-w-xs">&ldquo;{r.notas_usuario}&rdquo;</p>}
+                              {jugadorPhone && (
+                                <div className="flex items-center gap-1 text-rodeo-cream/40"><Phone size={11} /><span className="text-xs">{jugadorPhone}</span></div>
+                              )}
                             </div>
 
                             <div className="flex flex-col items-end gap-2 shrink-0">
                               <p className="text-xl font-black text-white leading-none">{formatMoney(r.precio_total)}</p>
                               <span style={{ background: meta.bg, border: `1px solid ${meta.border}`, borderRadius: "999px", color: meta.color }} className="text-[10px] font-black uppercase tracking-widest px-2.5 py-1">{meta.label}</span>
-                              {r.jugador?.telefono && (
-                                <a href={buildWhatsAppLink(r.jugador.telefono, jugadorNombre, formatDateShort(r.fecha), r.hora_inicio, canchaLabel)}
-                                  target="_blank" rel="noopener noreferrer"
-                                  style={{ background: "rgba(37,211,102,0.12)", border: "1px solid rgba(37,211,102,0.25)", borderRadius: "8px" }}
-                                  className="flex items-center gap-1.5 px-2.5 py-1.5 text-[11px] font-bold text-green-400 hover:bg-green-500/20 transition-all">
-                                  <MessageCircle size={12} /> WhatsApp
-                                </a>
-                              )}
+                              <div className="flex gap-1.5">
+                                <button onClick={() => setEditingRes(r)}
+                                  style={{ background: "rgba(200,255,0,0.08)", border: "1px solid rgba(200,255,0,0.2)", borderRadius: "8px" }}
+                                  className="flex items-center gap-1 px-2 py-1.5 text-[11px] font-bold text-rodeo-lime hover:bg-rodeo-lime/15 transition-all">
+                                  <Pencil size={11} /> Editar
+                                </button>
+                                {jugadorPhone && (
+                                  <a href={buildWhatsAppLink(jugadorPhone, jugadorNombre, formatDateShort(r.fecha), r.hora_inicio, canchaLabel)}
+                                    target="_blank" rel="noopener noreferrer"
+                                    style={{ background: "rgba(37,211,102,0.12)", border: "1px solid rgba(37,211,102,0.25)", borderRadius: "8px" }}
+                                    className="flex items-center gap-1.5 px-2.5 py-1.5 text-[11px] font-bold text-green-400 hover:bg-green-500/20 transition-all">
+                                    <MessageCircle size={12} /> WhatsApp
+                                  </a>
+                                )}
+                              </div>
                             </div>
                           </div>
 
@@ -812,13 +977,18 @@ export default function ReservasPage() {
         </motion.div>
       )}
 
-      {/* Modal */}
+      {/* Modals */}
       <AnimatePresence>
         {showModal && courts.length > 0 && user && (
           <NewReservationModal courts={courts} userId={user.id}
             defaultCourtId={modalDefaults.courtId} defaultFecha={modalDefaults.fecha} defaultHora={modalDefaults.hora}
             onClose={() => setShowModal(false)}
             onSaved={(r) => { setReservations((p) => [r, ...p]); setShowModal(false); }} />
+        )}
+        {editingRes && courts.length > 0 && (
+          <EditReservationModal reservation={editingRes} courts={courts}
+            onClose={() => setEditingRes(null)}
+            onSaved={(updated) => { setReservations(p => p.map(r => r.id === updated.id ? updated : r)); setEditingRes(null); }} />
         )}
       </AnimatePresence>
     </div>

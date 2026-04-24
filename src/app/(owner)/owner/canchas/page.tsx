@@ -918,15 +918,23 @@ export default function CanchasPage() {
     setEditingCourt(null);
   };
 
+  const syncComplexDeportes = async (complexId: string, updatedCourts: Court[]) => {
+    const deportes = [...new Set(updatedCourts.filter(c => c.complex_id === complexId && c.activa).map(c => c.deporte))];
+    await supabaseMut.from("complexes").update({ deportes }).eq("id", complexId);
+  };
+
   const handleSaved = (saved: Court) => {
     setCourts((prev) => {
       const idx = prev.findIndex((c) => c.id === saved.id);
+      let updated: Court[];
       if (idx >= 0) {
-        const updated = [...prev];
+        updated = [...prev];
         updated[idx] = saved;
-        return updated;
+      } else {
+        updated = [...prev, saved];
       }
-      return [...prev, saved];
+      syncComplexDeportes(saved.complex_id, updated);
+      return updated;
     });
   };
 
@@ -967,14 +975,16 @@ export default function CanchasPage() {
   };
 
   const handleDelete = async (courtId: string) => {
-    // Optimistic removal
-    setCourts((prev) => prev.filter((c) => c.id !== courtId));
+    const toDelete = courts.find(c => c.id === courtId);
+    const remaining = courts.filter((c) => c.id !== courtId);
+    setCourts(remaining);
 
     const { error } = await supabaseMut.from("courts").delete().eq("id", courtId);
 
     if (error) {
-      // Revert — refetch
       if (user) fetchData(user.id);
+    } else if (toDelete) {
+      syncComplexDeportes(toDelete.complex_id, remaining);
     }
   };
 

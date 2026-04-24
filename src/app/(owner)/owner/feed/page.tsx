@@ -36,7 +36,7 @@ const EMPTY_FORM = {
   contenido: "",
   tipo: "noticia",
   imagen_principal: "",
-  dias_duracion: 30,
+  dias_duracion: 1,
 };
 
 export default function OwnerFeedPage() {
@@ -88,8 +88,9 @@ export default function OwnerFeedPage() {
     if (!form.titulo.trim() || !form.contenido.trim() || !user || !activeComplexId) return;
     setSaving(true); setError("");
     try {
-      const fechaExp = form.dias_duracion > 0
-        ? new Date(Date.now() + form.dias_duracion * 24 * 60 * 60 * 1000).toISOString()
+      const dias = Math.min(3, form.dias_duracion);
+      const fechaExp = dias > 0
+        ? new Date(Date.now() + dias * 24 * 60 * 60 * 1000).toISOString()
         : null;
       const payload = {
         titulo: form.titulo.trim(),
@@ -192,9 +193,9 @@ export default function OwnerFeedPage() {
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-[11px] font-bold text-rodeo-cream/40 uppercase tracking-widest">Dura (días)</label>
-                  <input type="number" min={0} max={365} value={form.dias_duracion}
-                    onChange={e => setForm(f => ({ ...f, dias_duracion: parseInt(e.target.value) || 0 }))}
-                    style={inputStyle} className="w-full px-3 py-2.5 text-sm" placeholder="30 (0 = sin límite)"/>
+                  <input type="number" min={0} max={3} value={form.dias_duracion}
+                    onChange={e => setForm(f => ({ ...f, dias_duracion: Math.min(3, Math.max(0, parseInt(e.target.value) || 0)) }))}
+                    style={inputStyle} className="w-full px-3 py-2.5 text-sm" placeholder="1-3 días (0 = sin límite)"/>
                 </div>
               </div>
 
