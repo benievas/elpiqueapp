@@ -57,6 +57,7 @@ interface Partido {
   creador_nombre: string | null;
   complex_id: string | null;
   complejo_nombre: string | null;
+  fecha_confirmada: boolean;
   jugadores?: Jugador[];
 }
 
@@ -67,6 +68,7 @@ interface FormState {
   slots: number;
   descripcion: string;
   complex_id: string;
+  fecha_confirmada: boolean;
 }
 
 const today = new Date().toISOString().split("T")[0];
@@ -87,8 +89,11 @@ export default function PartidosPage() {
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [toast, setToast] = useState<{ msg: string; type: "ok" | "err" } | null>(null);
   const [filtroDeporte, setFiltroDeporte] = useState("todos");
+  const [phoneModal, setPhoneModal] = useState<{ partido: Partido } | null>(null);
+  const [phoneInput, setPhoneInput] = useState("");
+  const [phoneLoading, setPhoneLoading] = useState(false);
   const [form, setForm] = useState<FormState>({
-    deporte: "futbol", fecha: today, hora: "18:00", slots: 10, descripcion: "", complex_id: "",
+    deporte: "futbol", fecha: today, hora: "18:00", slots: 10, descripcion: "", complex_id: "", fecha_confirmada: true,
   });
 
   const showToast = (msg: string, type: "ok" | "err" = "ok") => {
@@ -112,7 +117,7 @@ export default function PartidosPage() {
 
     const { data, error } = await supabase
       .from("partidos")
-      .select("id, deporte, fecha, hora_inicio, ciudad, descripcion, slots_totales, slots_ocupados, estado, creador_id, complex_id")
+      .select("id, deporte, fecha, hora_inicio, ciudad, descripcion, slots_totales, slots_ocupados, estado, creador_id, complex_id, fecha_confirmada")
       .eq("ciudad", ciudad)
       .in("estado", ["abierto", "completo"])
       .gte("fecha", today)
@@ -162,6 +167,7 @@ export default function PartidosPage() {
       ...p,
       creador_nombre: perfilMap[p.creador_id] ?? null,
       complejo_nombre: p.complex_id ? (complejoMap[p.complex_id] ?? null) : null,
+      fecha_confirmada: p.fecha_confirmada !== false,
       jugadores: jugadoresMap[p.id] ?? [],
     })));
     setLoading(false);
@@ -200,6 +206,7 @@ export default function PartidosPage() {
         slots_totales: form.slots,
         slots_ocupados: 1,
         complex_id: form.complex_id || null,
+        fecha_confirmada: form.fecha_confirmada,
       })
       .select("id")
       .single();
@@ -225,24 +232,40 @@ export default function PartidosPage() {
     fetchPartidos(ciudadCorta);
   };
 
-  const handleJoin = async (partido: Partido) => {
-    if (!user?.id) return;
+  const doJoin = async (partido: Partido, telefono: string | null) => {
     setJoinLoading(partido.id);
-
     const { error: pjErr } = await supabaseMut.from("partido_jugadores").insert({
       partido_id: partido.id,
-      user_id: user.id,
+      user_id: user!.id,
       nombre_display: profile?.nombre_completo ?? null,
-      telefono: profile?.telefono ?? null,
+      telefono,
     });
-
     if (pjErr) { showToast(pjErr.message, "err"); setJoinLoading(null); return; }
-
-    // El trigger sync_partido_slots actualiza slots_ocupados y estado automáticamente
     showToast("¡Te uniste al partido!");
     setMisPartidos(prev => new Set([...prev, partido.id]));
     setJoinLoading(null);
     fetchPartidos(ciudadCorta);
+  };
+
+  const handleJoin = async (partido: Partido) => {
+    if (!user?.id) return;
+    if (!profile?.telefono) {
+      setPhoneInput("");
+      setPhoneModal({ partido });
+      return;
+    }
+    doJoin(partido, profile.telefono);
+  };
+
+  const handleJoinWithPhone = async () => {
+    if (!phoneModal || !user?.id) return;
+    const tel = phoneInput.trim().replace(/\D/g, "");
+    if (!tel || tel.length < 8) { showToast("Ingresá un número válido", "err"); return; }
+    setPhoneLoading(true);
+    await supabaseMut.from("profiles").update({ telefono: tel }).eq("id", user.id);
+    setPhoneModal(null);
+    setPhoneLoading(false);
+    doJoin(phoneModal.partido, tel);
   };
 
   const handleLeave = async (partido: Partido) => {
@@ -424,13 +447,15 @@ export default function PartidosPage() {
                         )}
                       </div>
                       <div className="flex items-center gap-3 text-xs text-rodeo-cream/50 flex-wrap">
-                        <span className="flex items-center gap-1"><Calendar size={11} />{fmtFecha(partido.fecha)}</span>
+                        {partido.fecha_confirmada
+                          ? <span className="flex items-center gap-1"><Calendar size={11} />{fmtFecha(partido.fecha)}</span>
+                          : <span className="flex items-center gap-1 text-amber-400/80"><Calendar size={11} />A confirmar fecha</span>
+                        }
                         <span className="flex items-center gap-1"><Clock size={11} />{fmtHora(partido.hora_inicio)}</span>
-                        {partido.complejo_nombre ? (
-                          <span className="flex items-center gap-1 text-rodeo-lime/70"><Building2 size={11} />{partido.complejo_nombre}</span>
-                        ) : (
-                          <span className="flex items-center gap-1"><MapPin size={11} />{partido.ciudad}</span>
-                        )}
+                        {partido.complejo_nombre
+                          ? <span className="flex items-center gap-1 text-rodeo-lime/70"><Building2 size={11} />{partido.complejo_nombre}</span>
+                          : <span className="flex items-center gap-1 text-amber-400/80"><MapPin size={11} />A confirmar lugar</span>
+                        }
                       </div>
                       {partido.descripcion && (
                         <p className="text-xs text-rodeo-cream/40 mt-1.5 leading-relaxed line-clamp-2">{partido.descripcion}</p>
@@ -606,6 +631,51 @@ export default function PartidosPage() {
         )}
       </div>
 
+      {/* Modal teléfono */}
+      <AnimatePresence>
+        {phoneModal && (
+          <>
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="fixed inset-0 z-50 bg-black/60 backdrop-blur-md" onClick={() => setPhoneModal(null)} />
+            <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="fixed inset-0 z-50 flex items-center justify-center px-4">
+              <div style={{ background: "linear-gradient(160deg,#0D1F10,#0A1A0D)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 20, width: "100%", maxWidth: 360 }}
+                className="p-6 space-y-4">
+                <div>
+                  <p className="text-base font-black text-white">¡Casi listo!</p>
+                  <p className="text-xs text-rodeo-cream/50 mt-1">Para que el creador del partido pueda coordinarte por WhatsApp necesitamos tu número.</p>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-bold uppercase tracking-widest text-rodeo-cream/40">Tu número de WhatsApp</label>
+                  <input
+                    type="tel" placeholder="Ej: 3834123456" value={phoneInput}
+                    onChange={e => setPhoneInput(e.target.value)}
+                    style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 10, color: "white", padding: "10px 14px", width: "100%", fontSize: 15 }}
+                    className="focus:outline-none focus:border-rodeo-lime/40"
+                    autoFocus
+                  />
+                  <p className="text-[10px] text-rodeo-cream/30">Solo se comparte con el organizador del partido</p>
+                </div>
+                <div className="flex gap-2">
+                  <button onClick={() => setPhoneModal(null)}
+                    style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10 }}
+                    className="flex-1 py-2.5 text-sm font-bold text-rodeo-cream/50">
+                    Cancelar
+                  </button>
+                  <button onClick={handleJoinWithPhone} disabled={phoneLoading}
+                    style={{ background: "#C8FF00", borderRadius: 10 }}
+                    className="flex-1 py-2.5 text-sm font-black text-rodeo-dark disabled:opacity-50 flex items-center justify-center gap-2">
+                    {phoneLoading ? <Loader size={14} className="animate-spin" /> : <Phone size={14} />}
+                    Unirme
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
       {/* Toast */}
       <AnimatePresence>
         {toast && (
@@ -706,21 +776,31 @@ export default function PartidosPage() {
                   )}
 
                   {/* Fecha y hora */}
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="text-xs font-bold uppercase tracking-widest text-rodeo-cream/50 block mb-1.5">Fecha</label>
-                      <input type="date" value={form.fecha} min={today}
-                        onChange={e => setForm(f => ({ ...f, fecha: e.target.value }))}
-                        style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: "10px", color: "white", padding: "10px 12px", width: "100%", fontSize: "14px" }}
-                        className="focus:outline-none focus:border-rodeo-lime/40 transition-all" />
+                  <div className="space-y-2">
+                    <div className="grid grid-cols-2 gap-3" style={{ opacity: form.fecha_confirmada ? 1 : 0.4, pointerEvents: form.fecha_confirmada ? "auto" : "none" }}>
+                      <div>
+                        <label className="text-xs font-bold uppercase tracking-widest text-rodeo-cream/50 block mb-1.5">Fecha</label>
+                        <input type="date" value={form.fecha} min={today}
+                          onChange={e => setForm(f => ({ ...f, fecha: e.target.value }))}
+                          style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: "10px", color: "white", padding: "10px 12px", width: "100%", fontSize: "14px" }}
+                          className="focus:outline-none focus:border-rodeo-lime/40 transition-all" />
+                      </div>
+                      <div>
+                        <label className="text-xs font-bold uppercase tracking-widest text-rodeo-cream/50 block mb-1.5">Hora</label>
+                        <input type="time" value={form.hora}
+                          onChange={e => setForm(f => ({ ...f, hora: e.target.value }))}
+                          style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: "10px", color: "white", padding: "10px 12px", width: "100%", fontSize: "14px" }}
+                          className="focus:outline-none focus:border-rodeo-lime/40 transition-all" />
+                      </div>
                     </div>
-                    <div>
-                      <label className="text-xs font-bold uppercase tracking-widest text-rodeo-cream/50 block mb-1.5">Hora</label>
-                      <input type="time" value={form.hora}
-                        onChange={e => setForm(f => ({ ...f, hora: e.target.value }))}
-                        style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: "10px", color: "white", padding: "10px 12px", width: "100%", fontSize: "14px" }}
-                        className="focus:outline-none focus:border-rodeo-lime/40 transition-all" />
-                    </div>
+                    <button onClick={() => setForm(f => ({ ...f, fecha_confirmada: !f.fecha_confirmada }))}
+                      className="flex items-center gap-2 text-xs font-bold transition-all"
+                      style={{ color: form.fecha_confirmada ? "rgba(225,212,194,0.4)" : "#FBBF24" }}>
+                      <div style={{ width: 16, height: 16, borderRadius: 4, border: `2px solid ${form.fecha_confirmada ? "rgba(255,255,255,0.2)" : "#FBBF24"}`, background: form.fecha_confirmada ? "transparent" : "rgba(251,191,36,0.15)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                        {!form.fecha_confirmada && <span style={{ fontSize: 9, color: "#FBBF24" }}>✓</span>}
+                      </div>
+                      Fecha a confirmar con los jugadores
+                    </button>
                   </div>
 
                   {/* Cupos */}
