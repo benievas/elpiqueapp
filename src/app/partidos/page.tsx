@@ -227,7 +227,7 @@ export default function PartidosPage() {
     setMisPartidos(prev => new Set([...prev, data.id]));
     setModalOpen(false);
     setSaving(false);
-    setForm({ deporte: "futbol", fecha: today, hora: "18:00", slots: 10, descripcion: "", complex_id: "" });
+    setForm({ deporte: "futbol", fecha: today, hora: "18:00", slots: 10, descripcion: "", complex_id: "", fecha_confirmada: true });
     showToast("¡Partido publicado!");
     fetchPartidos(ciudadCorta);
   };
