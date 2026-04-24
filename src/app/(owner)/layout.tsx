@@ -159,38 +159,39 @@ function OwnerLayoutInner({ children }: { children: React.ReactNode }) {
                 <p className="text-[10px] text-rodeo-cream/50 font-bold uppercase tracking-wider mb-1">
                   {isAdmin ? "Administrador" : "Propietario"}
                 </p>
-                {/* Complex selector — solo si tiene 2+ complejos */}
+                {/* Complex selector */}
                 {multiComplex ? (
-                  <div className="relative">
+                  <div>
                     <button
                       onClick={() => setShowComplexSelector(v => !v)}
-                      className="w-full flex items-center gap-2 text-sm font-black text-white hover:text-rodeo-lime transition-colors truncate"
+                      className="w-full flex items-center gap-2 text-sm font-black text-white hover:text-rodeo-lime transition-colors"
                     >
                       <Building2 size={14} className="text-rodeo-lime shrink-0" />
                       <span className="truncate flex-1 text-left">{activeComplexName || "Seleccionar"}</span>
-                      <ChevronDown size={13} className={`shrink-0 transition-transform ${showComplexSelector ? "rotate-180" : ""}`} />
+                      <ChevronDown size={13} className={`shrink-0 transition-transform duration-200 ${showComplexSelector ? "rotate-180" : ""}`} />
                     </button>
                     <AnimatePresence>
                       {showComplexSelector && (
                         <motion.div
-                          initial={{ opacity: 0, y: -6, scale: 0.96 }}
-                          animate={{ opacity: 1, y: 0, scale: 1 }}
-                          exit={{ opacity: 0, y: -6, scale: 0.96 }}
-                          transition={{ duration: 0.15 }}
-                          className="absolute left-0 top-full mt-2 w-full z-50 rounded-[12px] overflow-hidden"
-                          style={{ background: "rgba(20,30,20,0.98)", border: "1px solid rgba(200,255,0,0.2)", boxShadow: "0 8px 32px rgba(0,0,0,0.5)" }}
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: "auto" }}
+                          exit={{ opacity: 0, height: 0 }}
+                          transition={{ duration: 0.18 }}
+                          className="overflow-hidden mt-2"
                         >
-                          {complexes.map(c => (
-                            <button
-                              key={c.id}
-                              onClick={() => { setActiveComplexId(c.id); setShowComplexSelector(false); }}
-                              className={`w-full flex items-center gap-2.5 px-3 py-2.5 text-xs font-bold transition-colors text-left hover:bg-rodeo-lime/10 ${c.id === activeComplexId ? "text-rodeo-lime" : "text-rodeo-cream/70"}`}
-                            >
-                              <Building2 size={12} className="shrink-0" />
-                              <span className="truncate">{c.nombre}</span>
-                              {c.id === activeComplexId && <span className="ml-auto text-[10px] text-rodeo-lime/60">●</span>}
-                            </button>
-                          ))}
+                          <div className="rounded-[10px] overflow-hidden" style={{ background: "rgba(200,255,0,0.06)", border: "1px solid rgba(200,255,0,0.2)" }}>
+                            {complexes.map(c => (
+                              <button
+                                key={c.id}
+                                onClick={() => { setActiveComplexId(c.id); setShowComplexSelector(false); }}
+                                className={`w-full flex items-center gap-2.5 px-3 py-2.5 text-xs font-bold transition-colors text-left hover:bg-rodeo-lime/10 ${c.id === activeComplexId ? "text-rodeo-lime bg-rodeo-lime/5" : "text-rodeo-cream/70"}`}
+                              >
+                                <Building2 size={11} className="shrink-0" />
+                                <span className="truncate flex-1">{c.nombre}</span>
+                                {c.id === activeComplexId && <span className="text-[10px] text-rodeo-lime">●</span>}
+                              </button>
+                            ))}
+                          </div>
                         </motion.div>
                       )}
                     </AnimatePresence>
