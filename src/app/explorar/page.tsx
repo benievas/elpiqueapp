@@ -246,7 +246,7 @@ export default function ExplorarPage() {
               No encontramos complejos que coincidan
             </p>
           ) : vista === "mapa" ? (
-            <div className="relative">
+            <div className="space-y-2">
               <div style={{ borderRadius: 16, overflow: "hidden", border: "1px solid rgba(255,255,255,0.08)", height: "65vh", minHeight: 320 }}>
                 <MapaLeaflet
                   complejos={filtrados.filter(c => c.lat && c.lng).map(c => ({
@@ -268,19 +268,16 @@ export default function ExplorarPage() {
                   onSelectComplejo={(c) => setSelectedMapId(prev => prev === c.id ? null : c.id)}
                 />
               </div>
-              {/* Info panel: aparece al seleccionar un marcador */}
+              {/* Info panel: aparece debajo del mapa al seleccionar un marcador */}
               {selectedMapId && (() => {
                 const c = filtrados.find(f => f.id === selectedMapId);
                 if (!c) return null;
                 const allDeportes = [...new Set([c.deporte_principal, ...(c.deportes || [])])].filter(Boolean);
                 const img = c.imagen_principal || FALLBACK_IMGS[c.deporte_principal] || FALLBACK_IMGS.futbol;
                 return (
-                  <motion.div
-                    initial={{ opacity: 0, y: 16 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: 16 }}
-                    style={{ background: "rgba(13,26,10,0.97)", border: "1px solid rgba(200,255,0,0.25)", borderRadius: 16, backdropFilter: "blur(20px)" }}
-                    className="absolute bottom-3 left-3 right-3 z-10 p-4 flex gap-3 items-center shadow-2xl"
+                  <div
+                    style={{ background: "rgba(13,26,10,0.98)", border: "1px solid rgba(200,255,0,0.3)", borderRadius: 16 }}
+                    className="p-4 flex gap-3 items-center shadow-2xl"
                   >
                     <div className="relative w-16 h-16 shrink-0 rounded-[10px] overflow-hidden">
                       <Image src={img} alt={c.nombre} fill className="object-cover" sizes="64px" />
@@ -308,7 +305,7 @@ export default function ExplorarPage() {
                         Cerrar
                       </button>
                     </div>
-                  </motion.div>
+                  </div>
                 );
               })()}
             </div>

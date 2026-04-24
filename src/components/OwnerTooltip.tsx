@@ -17,9 +17,10 @@ export default function OwnerTooltip({ tooltip, position = 'bottom', children }:
   const [manualOpen, setManualOpen] = useState(false);
 
   if (!ready) return <>{children}</>;
-  if (isDismissed(tooltip.id)) return <>{children}</>;
 
-  const isOpen = autoShow || manualOpen;
+  // autoShow only fires during the first N days AND if not dismissed this session
+  const showAuto = autoShow && !isDismissed(tooltip.id);
+  const isOpen = showAuto || manualOpen;
 
   const bubblePos: Record<string, React.CSSProperties> = {
     top:    { bottom: '100%', left: '50%', transform: 'translateX(-50%)', marginBottom: 8 },
@@ -33,17 +34,17 @@ export default function OwnerTooltip({ tooltip, position = 'bottom', children }:
       {children}
       <span className="relative inline-flex">
         {/* Pulsing ring — only during auto-show period */}
-        {autoShow && (
+        {showAuto && (
           <span className="absolute inset-0 rounded-full animate-ping opacity-50"
             style={{ background: 'rgba(200,255,0,0.4)' }} />
         )}
         <button
           onClick={() => setManualOpen(v => !v)}
           className="relative flex items-center justify-center w-4 h-4 rounded-full transition-colors"
-          style={{ background: autoShow ? 'rgba(200,255,0,0.2)' : 'rgba(255,255,255,0.1)' }}
+          style={{ background: showAuto ? 'rgba(200,255,0,0.2)' : 'rgba(255,255,255,0.1)' }}
           title="Ayuda"
         >
-          <HelpCircle size={12} className={autoShow ? 'text-rodeo-lime' : 'text-rodeo-cream/40'} />
+          <HelpCircle size={12} className={showAuto ? 'text-rodeo-lime' : 'text-rodeo-cream/40'} />
         </button>
       </span>
 
@@ -81,9 +82,9 @@ export default function OwnerTooltip({ tooltip, position = 'bottom', children }:
                 {tooltip.linkLabel || 'Ver más →'}
               </a>
             )}
-            {autoShow && (
+            {showAuto && (
               <p className="text-[10px] text-rodeo-cream/30 mt-2 border-t border-white/8 pt-2">
-                Los tooltips desaparecen solos después de 5 días.
+                El ícono <strong className="text-rodeo-cream/50">?</strong> siempre queda disponible para consultar.
               </p>
             )}
           </motion.div>
