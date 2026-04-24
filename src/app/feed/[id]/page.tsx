@@ -63,6 +63,7 @@ export default function FeedPostPage() {
   const [commentText, setCommentText] = useState("");
   const [sendingComment, setSendingComment] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => { if (id) load(); }, [id, user?.id]);
 
@@ -176,20 +177,13 @@ export default function FeedPostPage() {
   async function compartir() {
     if (!post) return;
     const url = typeof window !== "undefined" ? window.location.href : "";
-    const shareData = {
-      title: post.titulo,
-      text: post.contenido.slice(0, 140),
-      url,
-    };
+    const shareData = { title: post.titulo, text: post.contenido.slice(0, 140), url };
     if (typeof navigator !== "undefined" && (navigator as Navigator & { share?: (d: ShareData) => Promise<void> }).share) {
       try { await (navigator as Navigator & { share: (d: ShareData) => Promise<void> }).share(shareData); return; } catch { /* user cancelled */ }
     }
-    try {
-      await navigator.clipboard.writeText(url);
-      alert("Enlace copiado al portapapeles");
-    } catch {
-      alert(url);
-    }
+    try { await navigator.clipboard.writeText(url); } catch { /* silent */ }
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2500);
   }
 
   if (loading) {
@@ -221,9 +215,9 @@ export default function FeedPostPage() {
           <ChevronLeft className="text-rodeo-cream" size={20} />
         </Link>
         <button onClick={compartir}
-          style={{ background: "rgba(200,255,0,0.12)", border: "1px solid rgba(200,255,0,0.25)", borderRadius: "12px" }}
+          style={{ background: copied ? "rgba(200,255,0,0.25)" : "rgba(200,255,0,0.12)", border: "1px solid rgba(200,255,0,0.25)", borderRadius: "12px" }}
           className="flex items-center gap-2 px-4 py-2 hover:bg-rodeo-lime/20 transition-all text-rodeo-lime text-xs font-bold">
-          <Share2 size={14}/> Compartir
+          <Share2 size={14}/> {copied ? "¡Enlace copiado!" : "Compartir"}
         </button>
       </header>
 
@@ -292,8 +286,9 @@ export default function FeedPostPage() {
               {comments.length > 0 ? comments.length : "Comentar"}
             </a>
           </div>
-          <button onClick={compartir} className="p-2 hover:bg-white/5 rounded-lg transition-colors">
-            <Share2 size={18} className="text-rodeo-cream/60"/>
+          <button onClick={compartir} className="p-2 hover:bg-white/5 rounded-lg transition-colors relative" title={copied ? "¡Copiado!" : "Compartir"}>
+            <Share2 size={18} className={copied ? "text-rodeo-lime" : "text-rodeo-cream/60"}/>
+            {copied && <span className="absolute -top-7 left-1/2 -translate-x-1/2 text-[10px] font-bold text-rodeo-lime whitespace-nowrap bg-black/80 px-2 py-0.5 rounded-full">¡Copiado!</span>}
           </button>
         </div>
 

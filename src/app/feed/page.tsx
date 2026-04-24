@@ -32,6 +32,7 @@ export default function FeedPage() {
   const [likedPosts, setLikedPosts] = useState<Set<string>>(new Set());
   const [likeCounts, setLikeCounts] = useState<Record<string, number>>({});
   const [commentCounts, setCommentCounts] = useState<Record<string, number>>({});
+  const [copiedId, setCopiedId] = useState<string | null>(null);
   const { ciudadCorta: city } = useCityContext();
   const { user } = useAuth();
 
@@ -266,8 +267,9 @@ export default function FeedPage() {
                 if (nav.share) {
                   try { await nav.share(shareData); return; } catch { /* cancelled */ }
                 }
-                try { await navigator.clipboard.writeText(url); alert("Enlace copiado"); }
-                catch { alert(url); }
+                try { await navigator.clipboard.writeText(url); } catch { /* silent */ }
+                setCopiedId(post.id);
+                setTimeout(() => setCopiedId(id => id === post.id ? null : id), 2500);
               };
 
               const toggleLike = (e: React.MouseEvent) => {
@@ -347,8 +349,9 @@ export default function FeedPage() {
                           {commentCounts[post.id] > 0 ? commentCounts[post.id] : "Comentar"}
                         </span>
                       </div>
-                      <button onClick={compartir} className="p-2 hover:bg-white/10 rounded-lg transition-colors" title="Compartir">
-                        <Share2 size={18} className="text-rodeo-cream/60 hover:text-rodeo-lime" />
+                      <button onClick={compartir} className="p-2 hover:bg-white/10 rounded-lg transition-colors relative" title={copiedId === post.id ? "¡Copiado!" : "Compartir"}>
+                        <Share2 size={18} className={copiedId === post.id ? "text-rodeo-lime" : "text-rodeo-cream/60"} />
+                        {copiedId === post.id && <span className="absolute -top-7 left-1/2 -translate-x-1/2 text-[10px] font-bold text-rodeo-lime whitespace-nowrap bg-black/80 px-2 py-0.5 rounded-full">¡Copiado!</span>}
                       </button>
                     </div>
                   </div>
