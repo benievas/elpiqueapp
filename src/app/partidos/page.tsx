@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Users, Plus, X, Calendar, Clock, MapPin,
   ChevronLeft, Loader, Zap, ChevronDown, AlertCircle, CheckCircle2,
-  Trash2, Building2, PlayCircle, Phone, Copy, MessageCircle,
+  Trash2, Building2, PlayCircle, Phone, Copy, MessageCircle, Pencil,
 } from "lucide-react";
 import Link from "next/link";
 import { supabase, supabaseMut } from "@/lib/supabase";
