@@ -123,6 +123,13 @@ export default function OwnerTorneoDetailPage() {
     if (nuevoEstado === "en_curso" && matches.length === 0 && teams.length >= 2) {
       await generarPrimeraRonda();
     }
+    if (nuevoEstado === "finalizado") {
+      // Mark all unfinished matches as finalizado so they don't show as EN VIVO
+      const pendingIds = matches.filter(m => m.estado !== "finalizado").map(m => m.id);
+      if (pendingIds.length > 0) {
+        await supabaseMut.from("tournament_matches").update({ estado: "finalizado" }).in("id", pendingIds);
+      }
+    }
     await supabaseMut.from("tournaments").update({ estado: nuevoEstado }).eq("id", torneo.id);
     await load();
     setChangingEstado(false);

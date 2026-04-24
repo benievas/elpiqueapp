@@ -8,12 +8,14 @@ import {
   BarChart3,
   CalendarDays,
   CheckCircle2,
+  Clock,
   DollarSign,
   Star,
   TrendingUp,
   Building2,
   MessageSquare,
   AlertCircle,
+  XCircle,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/hooks/useAuth";
@@ -32,10 +34,13 @@ interface ComplexSummary {
 interface ReservationRow {
   id: string;
   fecha: string;
+  hora_inicio: string;
   precio_total: number;
   estado: EstadoReserva;
   court_id: string;
 }
+
+type Period = "7d" | "30d" | "3m";
 
 interface CourtRow {
   id: string;
@@ -105,6 +110,7 @@ export default function StatsPage() {
   const [courts, setCourts] = useState<CourtRow[]>([]);
   const [reviews, setReviews] = useState<ReviewRow[]>([]);
   const [dataLoading, setDataLoading] = useState(true);
+  const [period, setPeriod] = useState<Period>("30d");
 
   // ── Fetch ──────────────────────────────────────────────────────────────────
 
@@ -114,63 +120,33 @@ export default function StatsPage() {
     const fetchAll = async () => {
       setDataLoading(true);
 
-      // 1. Complex summary
-      const { data: complejoData } = await supabase
-        .from("complexes")
-        .select("id, nombre, rating_promedio, total_reviews")
-        .eq("id", activeComplexId)
-        .maybeSingle();
+      const daysBack = period === "7d" ? 7 : period === "30d" ? 30 : 90;
+      const since = new Date();
+      since.setDate(since.getDate() - daysBack);
+      const fromDate = since.toISOString().split("T")[0];
 
-      const complejoList: ComplexSummary[] = complejoData ? [complejoData as ComplexSummary] : [];
-      setComplejos(complejoList);
+      const [complejoRes, resRes, courtRes, reviewRes] = await Promise.all([
+        supabase.from("complexes").select("id, nombre, rating_promedio, total_reviews").eq("id", activeComplexId).maybeSingle(),
+        supabase.from("reservations").select("id, fecha, hora_inicio, precio_total, estado, court_id").eq("complex_id", activeComplexId).gte("fecha", fromDate).order("fecha", { ascending: true }),
+        supabase.from("courts").select("id, nombre, deporte, precio_por_hora, activa").eq("complex_id", activeComplexId),
+        supabase.from("reviews").select("id, estrellas, texto, created_at, court:courts(nombre)").eq("complex_id", activeComplexId).order("created_at", { ascending: false }).limit(5),
+      ]);
 
-      // 2. Reservations — last 30 days
-      const thirtyDaysAgo = new Date();
-      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-      const fromDate = thirtyDaysAgo.toISOString().split("T")[0];
-
-      const { data: resData } = await supabase
-        .from("reservations")
-        .select("id, fecha, precio_total, estado, court_id")
-        .eq("complex_id", activeComplexId)
-        .gte("fecha", fromDate)
-        .order("fecha", { ascending: true });
-
-      setReservations((resData ?? []) as ReservationRow[]);
-
-      // 3. Courts
-      const { data: courtData } = await supabase
-        .from("courts")
-        .select("id, nombre, deporte, precio_por_hora, activa")
-        .eq("complex_id", activeComplexId);
-
-      setCourts((courtData ?? []) as CourtRow[]);
-
-      // 4. Reviews
-      const { data: reviewData } = await supabase
-        .from("reviews")
-        .select("id, estrellas, texto, created_at, court:courts(nombre)")
-        .eq("complex_id", activeComplexId)
-        .order("created_at", { ascending: false })
-        .limit(5);
-
-      // Supabase returns the joined field as an object or null
-      const mappedReviews: ReviewRow[] = ((reviewData as any[]) ?? []).map((r: any) => ({
+      setComplejos(complejoRes.data ? [complejoRes.data as ComplexSummary] : []);
+      setReservations((resRes.data ?? []) as ReservationRow[]);
+      setCourts((courtRes.data ?? []) as CourtRow[]);
+      setReviews(((reviewRes.data as any[]) ?? []).map((r: any) => ({
         id: r.id as string,
         estrellas: r.estrellas as number,
         texto: r.texto as string | null,
         created_at: r.created_at as string,
-        court: Array.isArray(r.court)
-          ? (r.court[0] as { nombre: string } | null) ?? null
-          : (r.court as { nombre: string } | null),
-      }));
-
-      setReviews(mappedReviews);
+        court: Array.isArray(r.court) ? (r.court[0] as { nombre: string } | null) ?? null : (r.court as { nombre: string } | null),
+      })));
       setDataLoading(false);
     };
 
     fetchAll();
-  }, [user, activeComplexId]);
+  }, [user, activeComplexId, period]);
 
   // ── Derived metrics ────────────────────────────────────────────────────────
 
@@ -198,12 +174,43 @@ export default function StatsPage() {
     return avg.toFixed(1);
   }, [complejos]);
 
+  // ── Extra metrics ──────────────────────────────────────────────────────────
+
+  const cancelacionRate = useMemo(() => {
+    if (reservations.length === 0) return null;
+    const canceladas = reservations.filter(r => r.estado === "cancelada").length;
+    return Math.round((canceladas / reservations.length) * 100);
+  }, [reservations]);
+
+  const horaPico = useMemo(() => {
+    const counts: Record<string, number> = {};
+    reservations.filter(r => CONFIRMED_STATES.includes(r.estado) && r.hora_inicio).forEach(r => {
+      const h = r.hora_inicio.slice(0, 5);
+      counts[h] = (counts[h] ?? 0) + 1;
+    });
+    const entries = Object.entries(counts);
+    if (!entries.length) return null;
+    return entries.sort((a, b) => b[1] - a[1])[0][0];
+  }, [reservations]);
+
+  const diaMasActivo = useMemo(() => {
+    const DIAS = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
+    const counts = [0, 0, 0, 0, 0, 0, 0];
+    reservations.filter(r => CONFIRMED_STATES.includes(r.estado)).forEach(r => {
+      const d = new Date(r.fecha + "T12:00:00").getDay();
+      counts[d]++;
+    });
+    const max = Math.max(...counts);
+    if (max === 0) return null;
+    return DIAS[counts.indexOf(max)];
+  }, [reservations]);
+
   // ── Bar chart: reservations per day ───────────────────────────────────────
 
   const chartData = useMemo(() => {
-    // Build an array of 30 days ending today
+    const daysBack = period === "7d" ? 7 : period === "30d" ? 30 : 90;
     const days: { date: string; label: string; confirmed: number; pending: number }[] = [];
-    for (let i = 29; i >= 0; i--) {
+    for (let i = daysBack - 1; i >= 0; i--) {
       const d = new Date();
       d.setDate(d.getDate() - i);
       const iso = d.toISOString().split("T")[0];
@@ -214,22 +221,15 @@ export default function StatsPage() {
     reservations.forEach((r) => {
       const slot = days.find((d) => d.date === r.fecha);
       if (!slot) return;
-      if (CONFIRMED_STATES.includes(r.estado)) {
-        slot.confirmed += 1;
-      } else {
-        slot.pending += 1;
-      }
+      if (CONFIRMED_STATES.includes(r.estado)) slot.confirmed += 1;
+      else slot.pending += 1;
     });
 
     return days;
-  }, [reservations]);
+  }, [reservations, period]);
 
   const maxBarCount = useMemo(
-    () =>
-      Math.max(
-        1,
-        ...chartData.map((d) => d.confirmed + d.pending)
-      ),
+    () => Math.max(1, ...chartData.map((d) => d.confirmed + d.pending)),
     [chartData]
   );
 
@@ -374,17 +374,18 @@ export default function StatsPage() {
           Estadísticas
         </h1>
         <div className="flex flex-wrap items-center gap-3 mt-1">
-          <span
-            style={{
-              background: "rgba(200,255,0,0.1)",
-              border: "1px solid rgba(200,255,0,0.25)",
-              borderRadius: "999px",
-            }}
-            className="inline-flex items-center gap-1.5 px-3 py-1 text-rodeo-lime text-xs font-bold"
-          >
-            <CalendarDays size={11} />
-            Últimos 30 días
-          </span>
+          {/* Period selector */}
+          <div style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "12px" }} className="flex p-1 gap-0.5">
+            {([["7d", "7 días"], ["30d", "30 días"], ["3m", "3 meses"]] as [Period, string][]).map(([p, lbl]) => (
+              <button key={p} onClick={() => setPeriod(p)}
+                className="flex items-center gap-1 px-3 py-1 rounded-[8px] text-xs font-bold transition-all"
+                style={period === p
+                  ? { background: "rgba(200,255,0,0.9)", color: "#1A120B" }
+                  : { color: "rgba(225,212,194,0.5)" }}>
+                {p === "30d" && <CalendarDays size={10} />} {lbl}
+              </button>
+            ))}
+          </div>
           <span className="text-xs text-rodeo-cream/40 capitalize">{currentDate}</span>
         </div>
       </motion.div>
@@ -432,6 +433,30 @@ export default function StatsPage() {
             positive={ratingPromedio !== null}
             valueColor="text-amber-400"
           />
+          {/* Hora pico */}
+          <KpiCard
+            icon={<Clock size={18} className="text-sky-400" />}
+            value={horaPico ?? "—"}
+            label="Hora pico"
+            positive={!!horaPico}
+            valueColor="text-sky-400"
+          />
+          {/* Día más activo */}
+          <KpiCard
+            icon={<CalendarDays size={18} className="text-purple-400" />}
+            value={diaMasActivo ?? "—"}
+            label="Día más activo"
+            positive={!!diaMasActivo}
+            valueColor="text-purple-400"
+          />
+          {/* Tasa cancelación */}
+          <KpiCard
+            icon={<XCircle size={18} className="text-red-400" />}
+            value={cancelacionRate !== null ? `${cancelacionRate}%` : "—"}
+            label="Tasa cancelación"
+            positive={cancelacionRate !== null && cancelacionRate < 15}
+            valueColor={cancelacionRate !== null && cancelacionRate > 30 ? "text-red-400" : "text-white"}
+          />
         </div>
       </motion.div>
 
@@ -444,7 +469,7 @@ export default function StatsPage() {
         transition={{ duration: 0.4 }}
       >
         <p className="text-xs font-bold tracking-widest uppercase text-rodeo-cream/40 mb-4">
-          Reservas por día — últimos 30 días
+          Reservas por día — período seleccionado
         </p>
         <div
           style={{
