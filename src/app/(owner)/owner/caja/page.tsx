@@ -359,6 +359,7 @@ export default function CajaPage() {
   const { activeComplexId } = useActiveComplex();
 
   const [activeTab, setActiveTab] = useState<"caja" | "historial">("caja");
+  const [histKey, setHistKey] = useState(0);
   const [session, setSession] = useState<CashSession | null>(null);
   const [movimientos, setMovimientos] = useState<CashMovement[]>([]);
   const [loading, setLoading] = useState(true);
@@ -445,7 +446,7 @@ export default function CajaPage() {
       fecha: new Date().toISOString(), notas: notas.trim() || null,
     });
     if (error) setMovError(error.message);
-    else { setMonto(""); setConcepto(""); setNotas(""); }
+    else { setMonto(""); setConcepto(""); setNotas(""); await fetchSession(); }
     setMovLoading(false);
   };
 
@@ -496,7 +497,7 @@ export default function CajaPage() {
       {/* Tabs */}
       <div style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "14px" }} className="flex gap-1 p-1">
         {([["caja", "Sesión actual"], ["historial", "Historial"]] as const).map(([key, lbl]) => (
-          <button key={key} onClick={() => setActiveTab(key)}
+          <button key={key} onClick={() => { setActiveTab(key); if (key === "historial") setHistKey(k => k + 1); }}
             className="flex-1 py-2.5 text-sm font-black rounded-[10px] transition-all"
             style={activeTab === key ? { background: "rgba(200,255,0,0.9)", color: "#1A120B" } : { color: "rgba(225,212,194,0.5)" }}>
             {lbl}
@@ -505,7 +506,7 @@ export default function CajaPage() {
       </div>
 
       {/* ── Historial ── */}
-      {activeTab === "historial" && activeComplexId && <HistorialTab complexId={activeComplexId} />}
+      {activeTab === "historial" && activeComplexId && <HistorialTab key={histKey} complexId={activeComplexId} />}
 
       {/* ── Caja ── */}
       {activeTab === "caja" && (
