@@ -169,11 +169,16 @@ export default function AdminDashboard() {
           {/* Accesos rápidos */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             {[
-              { href: "/admin/complejos", icon: Building2, label: "Gestionar complejos" },
-              { href: "/admin/duenos", icon: Users, label: "Ver propietarios" },
-              { href: "/admin/suscripciones", icon: CreditCard, label: "Suscripciones" },
-              { href: "/admin/feed", icon: TrendingUp, label: "Publicar en feed" },
-              { href: "/admin/home-config", icon: Layers, label: "Slides del home" },
+              { href: "/admin/complejos",    icon: Building2,  label: "Complejos"         },
+              { href: "/admin/jugadores",    icon: Users,      label: "Usuarios"           },
+              { href: "/admin/torneos",      icon: Layers,     label: "Torneos"            },
+              { href: "/admin/reservas",     icon: Calendar,   label: "Reservas"           },
+              { href: "/admin/resenas",      icon: TrendingUp, label: "Reseñas"            },
+              { href: "/admin/suscripciones",icon: CreditCard, label: "Suscripciones"      },
+              { href: "/admin/comprobantes", icon: CheckCircle2,label:"Comprobantes"       },
+              { href: "/admin/pagos",        icon: TrendingUp, label: "Historial de pagos" },
+              { href: "/admin/feed",         icon: TrendingUp, label: "Feed / Anuncios"    },
+              { href: "/admin/home-config",  icon: Layers,     label: "Slides del home"    },
             ].map((item) => (
               <Link key={item.href} href={item.href}>
                 <div style={{ background: "rgba(200,255,0,0.06)", border: "1px solid rgba(200,255,0,0.15)", borderRadius: "14px" }}

@@ -3,23 +3,31 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   Menu, X, LayoutDashboard, Building2, Users,
   CreditCard, BarChart3, Settings, LogOut, Newspaper, FileCheck,
+  Trophy, Calendar, Star, Banknote, UserCircle,
 } from "lucide-react";
 import { useAuth } from "@/lib/hooks/useAuth";
 
 const ADMIN_MENU = [
-  { icon: LayoutDashboard, label: "Dashboard",       href: "/admin" },
-  { icon: Building2,       label: "Complejos",       href: "/admin/complejos" },
-  { icon: Users,           label: "Propietarios",    href: "/admin/duenos" },
-  { icon: CreditCard,      label: "Suscripciones",   href: "/admin/suscripciones" },
-  { icon: FileCheck,       label: "Comprobantes",    href: "/admin/comprobantes" },
-  { icon: Newspaper,       label: "Feed / Anuncios", href: "/admin/feed" },
-  { icon: BarChart3,       label: "Reportes",        href: "/admin/reportes" },
-  { icon: Settings,        label: "Configuración",   href: "/admin/settings" },
+  { icon: LayoutDashboard, label: "Dashboard",       href: "/admin",               group: null       },
+  { icon: Building2,       label: "Complejos",       href: "/admin/complejos",     group: "Contenido" },
+  { icon: UserCircle,      label: "Usuarios",        href: "/admin/jugadores",     group: "Contenido" },
+  { icon: Users,           label: "Propietarios",    href: "/admin/duenos",        group: "Contenido" },
+  { icon: Trophy,          label: "Torneos",         href: "/admin/torneos",       group: "Contenido" },
+  { icon: Calendar,        label: "Reservas",        href: "/admin/reservas",      group: "Contenido" },
+  { icon: Star,            label: "Reseñas",         href: "/admin/resenas",       group: "Contenido" },
+  { icon: Newspaper,       label: "Feed / Anuncios", href: "/admin/feed",          group: "Contenido" },
+  { icon: CreditCard,      label: "Suscripciones",   href: "/admin/suscripciones", group: "Pagos"     },
+  { icon: FileCheck,       label: "Comprobantes",    href: "/admin/comprobantes",  group: "Pagos"     },
+  { icon: Banknote,        label: "Historial Pagos", href: "/admin/pagos",         group: "Pagos"     },
+  { icon: BarChart3,       label: "Reportes",        href: "/admin/reportes",      group: "Sistema"   },
+  { icon: Settings,        label: "Configuración",   href: "/admin/settings",      group: "Sistema"   },
 ];
+
+const GROUPS = [null, "Contenido", "Pagos", "Sistema"] as const;
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -67,7 +75,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     <div className="flex min-h-screen" style={{ background: "linear-gradient(160deg,#040D07 0%,#081810 40%,#050F09 70%,#030A06 100%)" }}>
       {/* Sidebar */}
       <motion.aside
-        animate={{ width: sidebarOpen ? 240 : 64 }}
+        animate={{ width: sidebarOpen ? 220 : 64 }}
         transition={{ duration: 0.25, ease: "easeInOut" }}
         className="shrink-0 border-r border-white/8 bg-white/2 backdrop-blur-xl flex flex-col overflow-hidden"
         style={{ minHeight: "100vh" }}
@@ -93,25 +101,35 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </div>
 
         {/* Nav */}
-        <nav className="flex-1 p-3 space-y-1">
-          {ADMIN_MENU.map((item) => {
-            const isActive = item.href === "/admin" ? pathname === "/admin" : pathname.startsWith(item.href);
+        <nav className="flex-1 p-2 space-y-0.5 overflow-y-auto">
+          {GROUPS.map(group => {
+            const items = ADMIN_MENU.filter(item => item.group === group);
             return (
-              <Link key={item.href} href={item.href}>
-                <motion.div whileHover={{ x: sidebarOpen ? 3 : 0 }}
-                  className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all cursor-pointer ${isActive
-                    ? "bg-rodeo-lime/15 border border-rodeo-lime/30 text-rodeo-lime"
-                    : "hover:bg-white/5 border border-transparent text-rodeo-cream/60 hover:text-rodeo-cream"}`}
-                  title={!sidebarOpen ? item.label : undefined}>
-                  <item.icon size={17} className="shrink-0" />
-                  {sidebarOpen && (
-                    <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.05 }}
-                      className="text-sm font-bold truncate">
-                      {item.label}
-                    </motion.span>
-                  )}
-                </motion.div>
-              </Link>
+              <div key={group ?? "root"}>
+                {group && sidebarOpen && (
+                  <p className="text-[9px] font-black uppercase tracking-widest text-rodeo-cream/20 px-3 pt-3 pb-1">{group}</p>
+                )}
+                {items.map((item) => {
+                  const isActive = item.href === "/admin" ? pathname === "/admin" : pathname.startsWith(item.href);
+                  return (
+                    <Link key={item.href} href={item.href}>
+                      <motion.div whileHover={{ x: sidebarOpen ? 2 : 0 }}
+                        className={`flex items-center gap-3 px-3 py-2 rounded-[10px] transition-all cursor-pointer ${isActive
+                          ? "bg-rodeo-lime/15 border border-rodeo-lime/30 text-rodeo-lime"
+                          : "hover:bg-white/5 border border-transparent text-rodeo-cream/55 hover:text-rodeo-cream"}`}
+                        title={!sidebarOpen ? item.label : undefined}>
+                        <item.icon size={16} className="shrink-0" />
+                        {sidebarOpen && (
+                          <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.05 }}
+                            className="text-xs font-bold truncate">
+                            {item.label}
+                          </motion.span>
+                        )}
+                      </motion.div>
+                    </Link>
+                  );
+                })}
+              </div>
             );
           })}
         </nav>
@@ -120,8 +138,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         <div className="p-3 border-t border-white/8">
           <button onClick={handleSignOut}
             className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-white/5 border border-transparent hover:border-white/8 transition-all text-rodeo-cream/50 hover:text-white">
-            <LogOut size={17} className="shrink-0" />
-            {sidebarOpen && <span className="text-sm font-bold">Cerrar sesión</span>}
+            <LogOut size={16} className="shrink-0" />
+            {sidebarOpen && <span className="text-xs font-bold">Cerrar sesión</span>}
           </button>
         </div>
       </motion.aside>
