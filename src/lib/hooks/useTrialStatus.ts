@@ -101,7 +101,8 @@ export function useTrialStatus(complexId?: string | null): TrialStatus {
       setStatus({ state: 'expirado', diasRestantes: 0, diasGracia: 0, endsAt: null, isBlocked: true });
       } catch (err) {
         console.error('Error fetching trial status:', err);
-        setStatus({ state: 'sin_plan', diasRestantes: 0, diasGracia: 0, endsAt: null, isBlocked: false });
+        // No cambiar estado en error de red — evita redirigir al owner por un fallo transitorio
+        // El estado previo se mantiene hasta que la próxima llamada tenga éxito
       }
     };
 

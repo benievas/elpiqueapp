@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Users, Plus, X, Calendar, Clock, MapPin,
   ChevronLeft, Loader, Zap, ChevronDown, AlertCircle, CheckCircle2,
-  Trash2, Building2, PlayCircle,
+  Trash2, Building2, PlayCircle, Phone, Copy, MessageCircle,
 } from "lucide-react";
 import Link from "next/link";
 import { supabase, supabaseMut } from "@/lib/supabase";
@@ -34,6 +34,7 @@ const DEPORTE_COLOR: Record<string, string> = {
 interface Jugador {
   user_id: string;
   nombre_display: string | null;
+  telefono: string | null;
 }
 
 interface Complejo {
@@ -150,10 +151,10 @@ export default function PartidosPage() {
     let jugadoresMap: Record<string, Jugador[]> = {};
     if (partidoIds.length) {
       const { data: jugadores } = await supabase
-        .from("partido_jugadores").select("partido_id, user_id, nombre_display").in("partido_id", partidoIds);
+        .from("partido_jugadores").select("partido_id, user_id, nombre_display, telefono").in("partido_id", partidoIds);
       for (const j of (jugadores ?? []) as any[]) {
         if (!jugadoresMap[j.partido_id]) jugadoresMap[j.partido_id] = [];
-        jugadoresMap[j.partido_id].push({ user_id: j.user_id, nombre_display: j.nombre_display });
+        jugadoresMap[j.partido_id].push({ user_id: j.user_id, nombre_display: j.nombre_display, telefono: j.telefono ?? null });
       }
     }
 
@@ -385,7 +386,7 @@ export default function PartidosPage() {
               const isFull = partido.estado === "completo";
               const isCreador = partido.creador_id === user?.id;
               const pct = Math.round((partido.slots_ocupados / partido.slots_totales) * 100);
-              const isExpanded = expandedId === partido.id;
+              const isExpanded = expandedId === partido.id || isFull;
 
               return (
                 <motion.div key={partido.id} layout initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
@@ -545,21 +546,59 @@ export default function PartidosPage() {
                     )}
                   </AnimatePresence>
 
-                  {/* WhatsApp CTA — estado completo y el usuario está adentro */}
-                  {partido.estado === "completo" && (isIn || isCreador) && (
-                    <a
-                      href={`https://wa.me/?text=${encodeURIComponent(
-                        `⚽ PARTIDO DE ${partido.deporte.toUpperCase()}\n` +
-                        `📅 ${fmtFecha(partido.fecha)} a las ${fmtHora(partido.hora_inicio)}\n` +
-                        (partido.complejo_nombre ? `📍 ${partido.complejo_nombre}, ${partido.ciudad}\n` : `📍 ${partido.ciudad}\n`) +
-                        `👥 Somos ${partido.slots_ocupados} jugadores. ¡Nos vemos!`
-                      )}`}
-                      target="_blank" rel="noopener noreferrer"
-                      className="flex items-center justify-center gap-2 py-2.5 rounded-[10px] font-black text-xs transition-all"
-                      style={{ background: "rgba(37,211,102,0.15)", border: "1px solid rgba(37,211,102,0.35)", color: "#25D366" }}>
-                      <Zap size={13} /> Compartir por WhatsApp
-                    </a>
-                  )}
+                  {/* Panel coordinación — estado completo */}
+                  {partido.estado === "completo" && (isIn || isCreador) && (() => {
+                    const deporteEmoji = DEPORTES.find(d => d.id === partido.deporte)?.emoji ?? "⚽";
+                    const lugar = partido.complejo_nombre ? `${partido.complejo_nombre}, ${partido.ciudad}` : partido.ciudad;
+                    const msgBase = `${deporteEmoji} PARTIDO DE ${partido.deporte.toUpperCase()}\n📅 ${fmtFecha(partido.fecha)} a las ${fmtHora(partido.hora_inicio)}\n📍 ${lugar}\n👥 Somos ${partido.slots_ocupados} jugadores. ¡Nos vemos!`;
+                    return (
+                      <div style={{ background: "rgba(37,211,102,0.06)", border: "1px solid rgba(37,211,102,0.2)", borderRadius: 12 }} className="p-3 space-y-3">
+                        <div className="flex items-center gap-2">
+                          <CheckCircle2 size={14} className="text-green-400 shrink-0" />
+                          <p className="text-xs font-black text-green-400">¡Partido armado! Coordiná con el grupo</p>
+                        </div>
+
+                        {/* Jugadores con teléfonos (visible para el creador) */}
+                        {isCreador && partido.jugadores && partido.jugadores.length > 0 && (
+                          <div className="space-y-1.5">
+                            <p className="text-[10px] font-bold uppercase tracking-widest text-rodeo-cream/30">Jugadores inscriptos</p>
+                            {partido.jugadores.map((j, i) => (
+                              <div key={j.user_id ?? i} className="flex items-center justify-between gap-2">
+                                <span className="text-xs text-rodeo-cream/70 truncate">
+                                  {j.nombre_display ?? "Jugador"}
+                                  {j.user_id === partido.creador_id && " 👑"}
+                                </span>
+                                {j.telefono && j.user_id !== user?.id && (
+                                  <a href={`https://wa.me/549${j.telefono.replace(/\D/g,"")}?text=${encodeURIComponent(msgBase)}`}
+                                    target="_blank" rel="noopener noreferrer"
+                                    style={{ background: "rgba(37,211,102,0.12)", border: "1px solid rgba(37,211,102,0.25)", borderRadius: 8 }}
+                                    className="flex items-center gap-1 px-2 py-1 text-[10px] font-bold text-green-400 shrink-0">
+                                    <MessageCircle size={10} /> WA
+                                  </a>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        {/* Botones de acción */}
+                        <div className="flex gap-2">
+                          <a href={`https://wa.me/?text=${encodeURIComponent(msgBase)}`}
+                            target="_blank" rel="noopener noreferrer"
+                            className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-[8px] font-black text-xs transition-all"
+                            style={{ background: "rgba(37,211,102,0.15)", border: "1px solid rgba(37,211,102,0.35)", color: "#25D366" }}>
+                            <Zap size={12} /> Compartir info
+                          </a>
+                          <button
+                            onClick={() => { navigator.clipboard?.writeText(msgBase); showToast("¡Copiado!"); }}
+                            className="flex items-center gap-1.5 px-3 py-2 rounded-[8px] text-xs font-bold transition-all"
+                            style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", color: "rgba(225,212,194,0.6)" }}>
+                            <Copy size={12} /> Copiar
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </motion.div>
               );
             })}

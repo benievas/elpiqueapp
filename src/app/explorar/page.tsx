@@ -245,7 +245,7 @@ export default function ExplorarPage() {
               No encontramos complejos que coincidan
             </p>
           ) : vista === "mapa" ? (
-            <div style={{ borderRadius: 16, overflow: "hidden", border: "1px solid rgba(255,255,255,0.08)" }}>
+            <div style={{ borderRadius: 16, overflow: "hidden", border: "1px solid rgba(255,255,255,0.08)", height: "65vh", minHeight: 320 }}>
               <MapaLeaflet
                 complejos={filtrados.filter(c => c.lat && c.lng).map(c => ({
                   id: c.id,

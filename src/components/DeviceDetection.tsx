@@ -68,17 +68,17 @@ export default function DeviceDetection() {
 
             {/* Botones */}
             <div className="flex items-center gap-2 shrink-0">
-              <a
-                href="#"
+              <span
                 style={{
-                  background: "linear-gradient(135deg, #C8FF00, #A8D800)",
+                  background: "rgba(200,255,0,0.12)",
+                  border: "1px solid rgba(200,255,0,0.25)",
                   borderRadius: "12px",
-                  boxShadow: "0 2px 8px rgba(200,255,0,0.4), inset 0 1px 0 rgba(255,255,255,0.3)",
+                  color: "#C8FF00",
                 }}
-                className="px-4 py-2 text-xs font-black text-rodeo-dark"
+                className="px-4 py-2 text-xs font-black"
               >
-                Instalar
-              </a>
+                Próximamente
+              </span>
               <button
                 onClick={() => setDismissed(true)}
                 style={{
