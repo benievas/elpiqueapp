@@ -7,7 +7,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { useActiveComplex } from "@/lib/context/ActiveComplexContext";
 import { supabase, supabaseMut } from "@/lib/supabase";
-import { Trophy, Plus, RefreshCw, Check, X, Calendar, Users, Loader, ArrowRight, ChevronLeft } from "lucide-react";
+import { Trophy, Plus, RefreshCw, Check, X, Calendar, Users, Loader, ArrowRight, Trash2 } from "lucide-react";
 
 interface Torneo {
   id: string;
@@ -66,6 +66,7 @@ export default function OwnerTorneosPage() {
   const [saving, setSaving] = useState(false);
   const [uploadingImg, setUploadingImg] = useState(false);
   const [error, setError] = useState("");
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   useEffect(() => { if (activeComplexId) load(); }, [activeComplexId]);
 
@@ -127,6 +128,16 @@ export default function OwnerTorneosPage() {
     } catch (e) {
       setError((e as { message?: string }).message || "Error al guardar.");
     } finally { setSaving(false); }
+  }
+
+  async function handleDelete(t: Torneo) {
+    if (!confirm(`¿Eliminar el torneo "${t.nombre}"? Se borrarán todos los equipos y partidos asociados.`)) return;
+    setDeletingId(t.id);
+    await supabaseMut.from("tournament_matches").delete().eq("tournament_id", t.id);
+    await supabaseMut.from("tournament_teams").delete().eq("tournament_id", t.id);
+    await supabaseMut.from("tournaments").delete().eq("id", t.id);
+    setTorneos(prev => prev.filter(x => x.id !== t.id));
+    setDeletingId(null);
   }
 
   const inputStyle = { background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: "10px", color: "#E1D4C2", outline: "none" } as React.CSSProperties;
@@ -201,8 +212,9 @@ export default function OwnerTorneosPage() {
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-[11px] font-bold text-rodeo-cream/40 uppercase tracking-widest">Inscripción (ARS)</label>
-                  <input type="number" min={0} value={form.precio_inscripcion}
-                    onChange={e => setForm(f => ({ ...f, precio_inscripcion: parseInt(e.target.value) || 0 }))}
+                  <input type="number" min={0}
+                    value={form.precio_inscripcion === 0 ? "" : form.precio_inscripcion}
+                    onChange={e => setForm(f => ({ ...f, precio_inscripcion: e.target.value === "" ? 0 : Math.max(0, parseInt(e.target.value) || 0) }))}
                     style={inputStyle} className="w-full px-3 py-2.5 text-sm" placeholder="0 = gratis" />
                 </div>
               </div>
@@ -256,10 +268,10 @@ export default function OwnerTorneosPage() {
           {torneos.map((t, i) => {
             const est = ESTADO_META[t.estado] ?? ESTADO_META.registracion;
             return (
-              <motion.div key={t.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.03 }}>
-                <Link href={`/owner/torneos/${t.slug}`}
-                  style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: "14px" }}
-                  className="flex items-center gap-4 px-5 py-4 hover:bg-white/5 transition-colors">
+              <motion.div key={t.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.03 }}
+                style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: "14px" }}
+                className="flex items-center gap-4 px-5 py-4 hover:bg-white/5 transition-colors">
+                <Link href={`/owner/torneos/${t.slug}`} className="flex items-center gap-4 flex-1 min-w-0">
                   <div className="w-12 h-12 rounded-xl overflow-hidden shrink-0" style={{ background: "rgba(200,255,0,0.1)", border: "1px solid rgba(200,255,0,0.2)" }}>
                     {t.imagen_url ? <img src={t.imagen_url} alt="" className="w-full h-full object-cover" /> : <Trophy size={20} className="text-rodeo-lime m-auto mt-3.5" />}
                   </div>
@@ -276,6 +288,10 @@ export default function OwnerTorneosPage() {
                   </span>
                   <ArrowRight size={14} className="text-rodeo-cream/30 shrink-0" />
                 </Link>
+                <button onClick={() => handleDelete(t)} disabled={deletingId === t.id}
+                  className="p-2 rounded-lg text-rodeo-cream/25 hover:text-red-400 hover:bg-red-500/10 transition-all disabled:opacity-50 shrink-0">
+                  {deletingId === t.id ? <Loader size={14} className="animate-spin text-red-400" /> : <Trash2 size={14} />}
+                </button>
               </motion.div>
             );
           })}

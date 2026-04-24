@@ -7,6 +7,7 @@ import { useParams, useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import { supabase, supabaseMut } from "@/lib/supabase";
 import { useAuth } from "@/lib/hooks/useAuth";
+import { Fragment } from "react";
 import { ChevronLeft, Trophy, Users, Calendar, Loader, Share2, MapPin, Radio, UserPlus, X, Plus, Check, QrCode } from "lucide-react";
 import QRShareModal from "@/components/QRShareModal";
 
@@ -340,8 +341,13 @@ export default function TorneoPublicoPage() {
               <span className="section-slash">/</span>Resultados
             </h2>
 
-            {/* Mobile: vertical stacked | Desktop: horizontal bracket */}
-            <div className="flex flex-col md:flex-row md:gap-5 md:overflow-x-auto md:pb-4 gap-5">
+            {/* Desktop: bracket con líneas de conexión */}
+            <div className="hidden md:block overflow-x-auto pb-4">
+              <BracketDesktop rondas={rondas} matches={matches} liveFlash={liveFlash} getTeamName={getTeamName} />
+            </div>
+
+            {/* Mobile: vertical stacked */}
+            <div className="flex flex-col md:hidden gap-5">
               {rondas.map((ronda, idx) => {
                 const rondaMatches = matches.filter(m => m.ronda === ronda);
                 const label = getRondaLabel(ronda, rondas);
@@ -620,6 +626,138 @@ function InfoCard({ label, value, icon }: { label: string; value: string; icon?:
         <p className="text-[10px] uppercase tracking-wide font-bold">{label}</p>
       </div>
       <p className="text-base font-black text-white">{value}</p>
+    </div>
+  );
+}
+
+const SLOT_H = 90; // px per base slot
+
+function BracketDesktop({ rondas, matches, liveFlash, getTeamName }: {
+  rondas: number[];
+  matches: Match[];
+  liveFlash: string | null;
+  getTeamName: (id: string | null) => string;
+}) {
+  const lastIdx = rondas.length - 1;
+  const finalMatches = matches.filter(m => m.ronda === rondas[lastIdx]);
+  const finalMatch = finalMatches[0];
+  const winnerTeam = finalMatch?.estado === "finalizado" && finalMatch.puntaje_a != null && finalMatch.puntaje_b != null
+    ? (finalMatch.puntaje_a >= finalMatch.puntaje_b ? getTeamName(finalMatch.team_a_id) : getTeamName(finalMatch.team_b_id))
+    : null;
+
+  return (
+    <div className="flex items-start gap-0" style={{ minWidth: rondas.length * 312 + (winnerTeam ? 180 : 0) }}>
+      {rondas.map((ronda, roundIdx) => {
+        const slotH = SLOT_H * Math.pow(2, roundIdx);
+        const isLast = roundIdx === lastIdx;
+        const roundMatches = matches.filter(m => m.ronda === ronda);
+        const label = getRondaLabel(ronda, rondas);
+        const isFinal = isLast;
+        const isSemi = roundIdx === lastIdx - 1 && rondas.length >= 3;
+
+        // Group into pairs for connector lines
+        const pairs: Match[][] = [];
+        for (let i = 0; i < roundMatches.length; i += 2) pairs.push(roundMatches.slice(i, i + 2));
+
+        return (
+          <Fragment key={ronda}>
+            {/* Round column */}
+            <div style={{ width: 288, flexShrink: 0 }}>
+              {/* Header */}
+              <div className="h-10 flex items-center justify-center mb-1">
+                <span className={`text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full ${
+                  isFinal ? "bg-rodeo-lime/15 text-rodeo-lime" :
+                  isSemi ? "bg-blue-400/10 text-blue-400" :
+                  "bg-white/5 text-rodeo-cream/40"
+                }`}>{label}</span>
+              </div>
+              {/* Match slots */}
+              {roundMatches.map(m => {
+                const finalizado = m.estado === "finalizado";
+                const enJuego = m.estado === "en_juego";
+                const flash = liveFlash === m.id;
+                const gA = finalizado && m.puntaje_a != null && m.puntaje_b != null && m.puntaje_a > m.puntaje_b;
+                const gB = finalizado && m.puntaje_a != null && m.puntaje_b != null && m.puntaje_b > m.puntaje_a;
+                return (
+                  <div key={m.id} style={{ height: slotH }} className="flex items-center px-2 py-1.5">
+                    <motion.div className="w-full overflow-hidden"
+                      animate={flash ? { scale: [1, 1.02, 1], boxShadow: ["0 0 0 rgba(200,255,0,0)", "0 0 20px rgba(200,255,0,0.45)", "0 0 0 rgba(200,255,0,0)"] } : {}}
+                      transition={{ duration: 1.3 }}
+                      style={{ background: enJuego ? "rgba(96,165,250,0.05)" : "rgba(255,255,255,0.04)", border: `1px solid ${isFinal ? "rgba(200,255,0,0.2)" : enJuego ? "rgba(96,165,250,0.3)" : "rgba(255,255,255,0.08)"}`, borderRadius: 12 }}>
+                      {enJuego && (
+                        <div className="px-3 pt-2 pb-0 flex items-center gap-1.5">
+                          <span className="relative flex h-1.5 w-1.5"><span className="animate-ping absolute h-full w-full rounded-full bg-blue-400 opacity-75"/><span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-blue-400"/></span>
+                          <span className="text-[9px] font-black text-blue-400 tracking-widest">EN VIVO</span>
+                        </div>
+                      )}
+                      {/* Team A */}
+                      <div className={`px-3 py-2 flex items-center justify-between gap-2 ${gA ? "bg-[rgba(200,255,0,0.08)]" : ""}`}>
+                        <p className={`text-xs font-bold truncate flex-1 ${gA ? "text-rodeo-lime" : "text-white/90"}`}>
+                          {gA && <Trophy size={9} className="inline mr-1 text-rodeo-lime" />}{getTeamName(m.team_a_id)}
+                        </p>
+                        <span className={`text-base font-black tabular-nums min-w-[20px] text-right ${gA ? "text-rodeo-lime" : "text-rodeo-cream/50"}`}>
+                          {m.puntaje_a ?? "—"}
+                        </span>
+                      </div>
+                      <div className="mx-3 border-t border-white/6" />
+                      {/* Team B */}
+                      <div className={`px-3 py-2 flex items-center justify-between gap-2 ${gB ? "bg-[rgba(200,255,0,0.08)]" : ""}`}>
+                        <p className={`text-xs font-bold truncate flex-1 ${gB ? "text-rodeo-lime" : "text-white/90"}`}>
+                          {gB && <Trophy size={9} className="inline mr-1 text-rodeo-lime" />}{getTeamName(m.team_b_id)}
+                        </p>
+                        <span className={`text-base font-black tabular-nums min-w-[20px] text-right ${gB ? "text-rodeo-lime" : "text-rodeo-cream/50"}`}>
+                          {m.puntaje_b ?? "—"}
+                        </span>
+                      </div>
+                    </motion.div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Connector column */}
+            {!isLast && (
+              <div style={{ width: 24, flexShrink: 0 }}>
+                <div style={{ height: 44 }} />
+                {pairs.map((_, pairIdx) => {
+                  const pairH = slotH * 2;
+                  return (
+                    <div key={pairIdx} style={{ height: pairH, position: "relative" }}>
+                      {/* Top arm */}
+                      <div style={{ position: "absolute", top: slotH / 2, left: 0, width: "60%", height: slotH / 2, borderTop: "1px solid rgba(255,255,255,0.13)", borderRight: "1px solid rgba(255,255,255,0.13)" }} />
+                      {/* Bottom arm */}
+                      <div style={{ position: "absolute", bottom: slotH / 2, left: 0, width: "60%", height: slotH / 2, borderBottom: "1px solid rgba(255,255,255,0.13)", borderRight: "1px solid rgba(255,255,255,0.13)" }} />
+                      {/* Middle horizontal */}
+                      <div style={{ position: "absolute", top: slotH - 0.5, left: "60%", right: 0, borderTop: "1px solid rgba(255,255,255,0.13)" }} />
+                    </div>
+                  );
+                })}
+                {/* Lone match (odd count) */}
+                {roundMatches.length % 2 === 1 && (
+                  <div style={{ height: slotH, position: "relative" }}>
+                    <div style={{ position: "absolute", top: "50%", left: 0, right: 0, borderTop: "1px solid rgba(255,255,255,0.13)" }} />
+                  </div>
+                )}
+              </div>
+            )}
+          </Fragment>
+        );
+      })}
+
+      {/* Winner trophy */}
+      {winnerTeam && (
+        <div style={{ width: 160, flexShrink: 0 }} className="flex flex-col">
+          <div style={{ height: 44 }} />
+          <div style={{ height: SLOT_H * Math.pow(2, rondas.length - 1) }} className="flex items-center justify-center px-2">
+            <div className="flex flex-col items-center gap-2 p-4 text-center w-full"
+              style={{ background: "rgba(200,255,0,0.08)", border: "1px solid rgba(200,255,0,0.35)", borderRadius: 14 }}>
+              <Trophy size={28} className="text-rodeo-lime" />
+              <p className="text-[9px] font-black text-rodeo-cream/40 uppercase tracking-widest">Campeón</p>
+              <p className="text-sm font-black text-rodeo-lime leading-tight text-center">{winnerTeam}</p>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -269,6 +269,7 @@ export default function ReservasPage() {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [modalDefaults, setModalDefaults] = useState<{ courtId?: string; fecha?: string; hora?: string }>({});
+  const [selectedRes, setSelectedRes] = useState<ReservationWithDetails | null>(null);
 
   const openModal = (defaults = {}) => { setModalDefaults(defaults); setShowModal(true); };
 
@@ -486,144 +487,174 @@ export default function ReservasPage() {
 
           <p className="text-sm font-bold text-rodeo-cream/60 capitalize px-1">{formatDateLong(agendaDate)}</p>
 
-          {/* Per-court grids */}
+          {/* Courts × Hours matrix grid */}
           {courts.length === 0 ? (
             <div style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: "16px" }} className="p-12 text-center">
               <Building2 size={32} className="text-rodeo-cream/15 mx-auto mb-3" />
               <p className="text-rodeo-cream/40 text-sm">No tenés canchas activas configuradas</p>
             </div>
-          ) : (
-            <div className="space-y-4">
-              {courts.map((court) => {
-                const dayRes = reservations.filter((r) => r.court_id === court.id && r.fecha === agendaDate && r.estado !== "cancelada");
-                const totalIngresos = dayRes.filter(r => r.estado === "confirmada" || r.estado === "completada").reduce((s, r) => s + r.precio_total, 0);
+          ) : (() => {
+            const CELL_W = 76;
+            const LEFT_W = 152;
+            const ROW_H = 68;
+            const GRID_HOURS = Array.from({ length: 17 }, (_, i) => i + 7); // 7..23
 
-                return (
-                  <motion.div key={court.id} layout
-                    style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "20px" }}
-                    className="overflow-hidden">
+            function toMinutes(t: string) {
+              const [h, m] = t.split(":").map(Number);
+              return h * 60 + m;
+            }
+            function hourLeft(h: number) { return (h - 7) * CELL_W; }
+            function resLeft(inicio: string) { return ((toMinutes(inicio) - 7 * 60) / 60) * CELL_W; }
+            function resWidth(inicio: string, fin: string) { return ((toMinutes(fin) - toMinutes(inicio)) / 60) * CELL_W - 3; }
 
-                    {/* Court header */}
-                    <div style={{ background: "rgba(255,255,255,0.04)", borderBottom: "1px solid rgba(255,255,255,0.07)" }}
-                      className="flex items-center justify-between px-5 py-3">
-                      <div className="flex items-center gap-3">
-                        <div style={{ background: "rgba(200,255,0,0.1)", border: "1px solid rgba(200,255,0,0.2)", borderRadius: "10px" }}
-                          className="w-9 h-9 flex items-center justify-center shrink-0">
-                          <Building2 size={16} className="text-rodeo-lime" />
-                        </div>
-                        <div>
-                          <p className="font-black text-white text-sm">{court.nombre}</p>
-                          <p className="text-[11px] text-rodeo-lime/70 font-bold uppercase tracking-wide">
-                            {DEPORTE_LABELS[court.deporte] ?? court.deporte} · ${court.precio_por_hora.toLocaleString()}/h
-                          </p>
-                        </div>
+            const totalGridW = GRID_HOURS.length * CELL_W;
+            return (
+              <div style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "20px", overflow: "hidden" }}>
+                {/* Scrollable wrapper */}
+                <div className="overflow-x-auto">
+                  <div style={{ minWidth: LEFT_W + totalGridW + 1 }}>
+
+                    {/* Header row: hours */}
+                    <div className="flex" style={{ background: "rgba(255,255,255,0.04)", borderBottom: "1px solid rgba(255,255,255,0.08)", position: "sticky", top: 0, zIndex: 10 }}>
+                      <div style={{ width: LEFT_W, minWidth: LEFT_W, background: "rgba(255,255,255,0.02)", borderRight: "1px solid rgba(255,255,255,0.08)" }}
+                        className="flex items-center px-4 py-2.5">
+                        <span className="text-[10px] font-black text-rodeo-cream/30 uppercase tracking-widest">Cancha</span>
                       </div>
-                      <div className="flex items-center gap-3 text-right">
-                        <div>
-                          <p className="text-[10px] text-rodeo-cream/40 font-bold uppercase tracking-wider">Reservas</p>
-                          <p className="text-lg font-black text-white leading-none">{dayRes.length}</p>
-                        </div>
-                        {totalIngresos > 0 && (
-                          <div>
-                            <p className="text-[10px] text-rodeo-cream/40 font-bold uppercase tracking-wider">Ingresos</p>
-                            <p className="text-sm font-black text-rodeo-lime leading-none">{formatMoney(totalIngresos)}</p>
+                      <div style={{ position: "relative", width: totalGridW, height: 36 }}>
+                        {GRID_HOURS.map((h) => (
+                          <div key={h} style={{ position: "absolute", left: hourLeft(h), width: CELL_W, top: 0, height: "100%", borderLeft: "1px solid rgba(255,255,255,0.06)" }}
+                            className="flex items-center justify-center">
+                            <span className="text-[11px] font-bold text-rodeo-cream/35">{String(h).padStart(2, "0")}:00</span>
                           </div>
-                        )}
-                        <button onClick={() => openModal({ courtId: court.id, fecha: agendaDate })}
-                          style={{ background: "rgba(200,255,0,0.1)", border: "1px solid rgba(200,255,0,0.25)", borderRadius: "10px" }}
-                          className="flex items-center gap-1 px-3 py-2 text-xs font-black text-rodeo-lime hover:bg-rodeo-lime/20 transition-all">
-                          <Plus size={12} /> Reservar
-                        </button>
+                        ))}
                       </div>
                     </div>
 
-                    {/* Hour timeline */}
-                    <div className="p-4 space-y-1.5">
-                      {HORAS_AGENDA.map((hora) => {
-                        const res: ReservationWithDetails | undefined = dayRes.find((r) => r.hora_inicio <= hora && r.hora_fin > hora);
-                        const isFirst = res && res.hora_inicio === hora;
-                        const isContinuation = res && res.hora_inicio !== hora;
+                    {/* Court rows */}
+                    {courts.map((court, ci) => {
+                      const dayRes = reservations.filter((r) => r.court_id === court.id && r.fecha === agendaDate && r.estado !== "cancelada");
+                      return (
+                        <div key={court.id} className="flex"
+                          style={{ borderBottom: ci < courts.length - 1 ? "1px solid rgba(255,255,255,0.06)" : undefined }}>
 
-                        if (isContinuation) return null; // rendered by the first slot
+                          {/* Sticky court name */}
+                          <div style={{ width: LEFT_W, minWidth: LEFT_W, background: "rgba(26,18,11,0.95)", borderRight: "1px solid rgba(255,255,255,0.08)", position: "sticky", left: 0, zIndex: 5 }}
+                            className="flex flex-col justify-center px-4 py-3 gap-0.5">
+                            <p className="text-sm font-black text-white leading-tight truncate">{court.nombre}</p>
+                            <p className="text-[10px] font-bold text-rodeo-lime/60 uppercase tracking-wide truncate">
+                              {DEPORTE_LABELS[court.deporte] ?? court.deporte}
+                            </p>
+                            <button onClick={() => openModal({ courtId: court.id, fecha: agendaDate })}
+                              className="mt-1 flex items-center gap-1 text-[10px] font-black text-rodeo-lime/50 hover:text-rodeo-lime transition-colors w-fit">
+                              <Plus size={10} /> Agregar
+                            </button>
+                          </div>
 
-                        if (res && isFirst) {
-                          // Calculate how many hours this reservation spans
-                          const [hs] = res.hora_inicio.split(":").map(Number);
-                          const [he] = res.hora_fin.split(":").map(Number);
-                          const spanHours = he - hs;
-                          const meta = STATUS_META[res.estado];
-                          const jugadorNombre = res.jugador?.nombre_completo || res.jugador?.email || "Jugador";
-
-                          return (
-                            <div key={hora}
-                              style={{ background: meta.bg, border: `1px solid ${meta.border}`, borderRadius: "12px", gridRow: `span ${spanHours}` }}
-                              className="flex items-center justify-between px-4 py-3 gap-3">
-                              <div className="flex items-center gap-3 min-w-0">
-                                <div className="text-center shrink-0">
-                                  <p className="text-xs font-black" style={{ color: meta.color }}>{res.hora_inicio}</p>
-                                  <p className="text-[10px] text-rodeo-cream/40">→ {res.hora_fin}</p>
+                          {/* Hour cells */}
+                          <div style={{ position: "relative", width: totalGridW, height: ROW_H }}>
+                            {/* Clickable empty hour cells */}
+                            {GRID_HOURS.map((h) => {
+                              const hStr = `${String(h).padStart(2, "0")}:00`;
+                              const blocked = dayRes.some((r) => toMinutes(r.hora_inicio) <= h * 60 && toMinutes(r.hora_fin) > h * 60);
+                              return (
+                                <div key={h} onClick={() => !blocked && openModal({ courtId: court.id, fecha: agendaDate, hora: hStr })}
+                                  style={{ position: "absolute", left: hourLeft(h), top: 0, width: CELL_W, height: "100%", borderLeft: "1px solid rgba(255,255,255,0.05)", cursor: blocked ? "default" : "pointer" }}
+                                  className={!blocked ? "hover:bg-white/[0.03] transition-colors group" : ""}>
+                                  {!blocked && (
+                                    <span className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                      <Plus size={12} className="text-rodeo-cream/20" />
+                                    </span>
+                                  )}
                                 </div>
-                                <div className="min-w-0">
-                                  <p className="text-sm font-black text-white truncate">{jugadorNombre}</p>
-                                  <div className="flex items-center gap-2 flex-wrap">
-                                    <span style={{ background: meta.bg, color: meta.color, border: `1px solid ${meta.border}`, borderRadius: "999px" }}
-                                      className="text-[10px] font-black px-2 py-0.5">{meta.label}</span>
-                                    {res.notas_usuario && <p className="text-[11px] text-rodeo-cream/40 truncate max-w-[160px]">{res.notas_usuario}</p>}
-                                  </div>
-                                </div>
-                              </div>
-                              <div className="flex items-center gap-2 shrink-0">
-                                <p className="text-sm font-black text-white">{formatMoney(res.precio_total)}</p>
-                                {res.jugador?.telefono && (
-                                  <a href={buildWhatsAppLink(res.jugador.telefono, jugadorNombre, formatDateShort(res.fecha), res.hora_inicio, court.nombre)}
-                                    target="_blank" rel="noopener noreferrer"
-                                    style={{ background: "rgba(37,211,102,0.12)", border: "1px solid rgba(37,211,102,0.25)", borderRadius: "8px" }}
-                                    className="p-2 text-green-400 hover:bg-green-500/20 transition-all">
-                                    <MessageCircle size={14} />
-                                  </a>
-                                )}
-                                {res.estado === "pendiente" && (
-                                  <button onClick={() => handleConfirm(res.id)} disabled={!!actionLoading}
-                                    style={{ background: "rgba(0,230,118,0.12)", border: "1px solid rgba(0,230,118,0.3)", borderRadius: "8px" }}
-                                    className="p-2 text-green-400 hover:bg-green-500/20 transition-all disabled:opacity-50">
-                                    {actionLoading === res.id + "_confirm"
-                                      ? <div className="w-3.5 h-3.5 border-2 border-green-400/30 border-t-green-400 rounded-full animate-spin" />
-                                      : <CheckCircle2 size={14} />}
-                                  </button>
-                                )}
-                                {(res.estado === "pendiente" || res.estado === "confirmada") && (
-                                  <button onClick={() => handleCancel(res.id)} disabled={!!actionLoading}
-                                    style={{ background: "rgba(255,64,64,0.08)", border: "1px solid rgba(255,64,64,0.25)", borderRadius: "8px" }}
-                                    className="p-2 text-red-400 hover:bg-red-500/15 transition-all disabled:opacity-50">
-                                    {actionLoading === res.id + "_cancel"
-                                      ? <div className="w-3.5 h-3.5 border-2 border-red-400/30 border-t-red-400 rounded-full animate-spin" />
-                                      : <XCircle size={14} />}
-                                  </button>
-                                )}
-                              </div>
+                              );
+                            })}
+
+                            {/* Reservation blocks */}
+                            {dayRes.map((res) => {
+                              const meta = STATUS_META[res.estado];
+                              const left = resLeft(res.hora_inicio);
+                              const width = resWidth(res.hora_inicio, res.hora_fin);
+                              const jugadorNombre = res.jugador?.nombre_completo || res.jugador?.email || "Jugador";
+                              return (
+                                <button key={res.id} onClick={() => setSelectedRes(res)}
+                                  style={{ position: "absolute", left, top: 5, width, height: ROW_H - 10, background: meta.bg, border: `1.5px solid ${meta.border}`, borderRadius: "10px", zIndex: 2, overflow: "hidden" }}
+                                  className="flex flex-col justify-center px-2 text-left hover:brightness-110 transition-all group">
+                                  <p className="text-[11px] font-black truncate leading-tight" style={{ color: meta.color }}>{jugadorNombre}</p>
+                                  <p className="text-[10px] text-rodeo-cream/50 truncate">{res.hora_inicio}–{res.hora_fin}</p>
+                                  {width > 100 && <p className="text-[10px] font-bold text-white/60 truncate">{formatMoney(res.precio_total)}</p>}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Reservation detail popover */}
+                <AnimatePresence>
+                  {selectedRes && (() => {
+                    const res = selectedRes;
+                    const meta = STATUS_META[res.estado];
+                    const jugadorNombre = res.jugador?.nombre_completo || res.jugador?.email || "Jugador";
+                    const courtName = courts.find(c => c.id === res.court_id)?.nombre ?? "Cancha";
+                    return (
+                      <motion.div key={res.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 8 }}
+                        style={{ borderTop: "1px solid rgba(255,255,255,0.08)", background: "rgba(26,18,11,0.98)" }}
+                        className="p-5 space-y-3">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <p className="font-black text-white">{jugadorNombre}</p>
+                              <span style={{ background: meta.bg, color: meta.color, border: `1px solid ${meta.border}`, borderRadius: "999px" }} className="text-[10px] font-black px-2 py-0.5">{meta.label}</span>
                             </div>
-                          );
-                        }
-
-                        // Free slot
-                        return (
-                          <button key={hora} onClick={() => openModal({ courtId: court.id, fecha: agendaDate, hora })}
-                            className="w-full flex items-center gap-3 px-4 py-2 rounded-[10px] transition-all group hover:bg-white/5"
-                            style={{ border: "1px solid transparent" }}>
-                            <span className="text-xs font-bold text-rodeo-cream/25 w-12 shrink-0 group-hover:text-rodeo-cream/50 transition-colors">{hora}</span>
-                            <div className="flex-1 h-px" style={{ background: "rgba(255,255,255,0.04)" }} />
-                            <span className="text-[11px] font-bold text-rodeo-lime/0 group-hover:text-rodeo-lime/60 transition-colors flex items-center gap-1">
-                              <Plus size={11} /> Libre — agregar
-                            </span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </motion.div>
-                );
-              })}
-            </div>
-          )}
+                            <p className="text-xs text-rodeo-cream/50">{courtName} · {res.hora_inicio}–{res.hora_fin} · {formatMoney(res.precio_total)}</p>
+                            {res.notas_usuario && <p className="text-xs text-rodeo-cream/40 italic">&ldquo;{res.notas_usuario}&rdquo;</p>}
+                          </div>
+                          <button onClick={() => setSelectedRes(null)} className="text-rodeo-cream/30 hover:text-white transition-colors text-lg font-bold shrink-0">×</button>
+                        </div>
+                        <div className="flex gap-2 flex-wrap">
+                          {res.jugador?.telefono && (
+                            <a href={buildWhatsAppLink(res.jugador.telefono, jugadorNombre, formatDateShort(res.fecha), res.hora_inicio, courtName)}
+                              target="_blank" rel="noopener noreferrer"
+                              style={{ background: "rgba(37,211,102,0.12)", border: "1px solid rgba(37,211,102,0.25)", borderRadius: "10px" }}
+                              className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-green-400 hover:bg-green-500/20 transition-all">
+                              <MessageCircle size={13} /> WhatsApp
+                            </a>
+                          )}
+                          {res.estado === "pendiente" && (
+                            <button onClick={async () => { await handleConfirm(res.id); setSelectedRes(p => p ? { ...p, estado: "confirmada" as EstadoReserva } : null); }}
+                              disabled={!!actionLoading}
+                              style={{ background: "rgba(0,230,118,0.12)", border: "1px solid rgba(0,230,118,0.3)", borderRadius: "10px" }}
+                              className="flex items-center gap-1.5 px-3 py-2 text-xs font-black text-green-400 disabled:opacity-50">
+                              <CheckCircle2 size={13} /> Confirmar
+                            </button>
+                          )}
+                          {(res.estado === "pendiente" || res.estado === "confirmada") && (
+                            <button onClick={async () => { await handleCancel(res.id); setSelectedRes(null); }}
+                              disabled={!!actionLoading}
+                              style={{ background: "rgba(255,64,64,0.08)", border: "1px solid rgba(255,64,64,0.25)", borderRadius: "10px" }}
+                              className="flex items-center gap-1.5 px-3 py-2 text-xs font-black text-red-400 disabled:opacity-50">
+                              <XCircle size={13} /> Cancelar
+                            </button>
+                          )}
+                          {res.estado === "confirmada" && (
+                            <button onClick={async () => { await handleComplete(res.id); setSelectedRes(null); }}
+                              disabled={!!actionLoading}
+                              style={{ background: "rgba(64,196,255,0.12)", border: "1px solid rgba(64,196,255,0.3)", borderRadius: "10px" }}
+                              className="flex items-center gap-1.5 px-3 py-2 text-xs font-black text-sky-400 disabled:opacity-50">
+                              <CheckCircle2 size={13} /> Completar
+                            </button>
+                          )}
+                        </div>
+                      </motion.div>
+                    );
+                  })()}
+                </AnimatePresence>
+              </div>
+            );
+          })()}
         </motion.div>
       )}
 
