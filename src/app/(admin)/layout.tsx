@@ -6,7 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import {
   Menu, X, LayoutDashboard, Building2, Users,
-  CreditCard, BarChart3, Settings, LogOut, Newspaper,
+  CreditCard, BarChart3, Settings, LogOut, Newspaper, FileCheck,
 } from "lucide-react";
 import { useAuth } from "@/lib/hooks/useAuth";
 
@@ -15,6 +15,7 @@ const ADMIN_MENU = [
   { icon: Building2,       label: "Complejos",       href: "/admin/complejos" },
   { icon: Users,           label: "Propietarios",    href: "/admin/duenos" },
   { icon: CreditCard,      label: "Suscripciones",   href: "/admin/suscripciones" },
+  { icon: FileCheck,       label: "Comprobantes",    href: "/admin/comprobantes" },
   { icon: Newspaper,       label: "Feed / Anuncios", href: "/admin/feed" },
   { icon: BarChart3,       label: "Reportes",        href: "/admin/reportes" },
   { icon: Settings,        label: "Configuración",   href: "/admin/settings" },
