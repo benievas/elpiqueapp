@@ -2,7 +2,7 @@
 export const dynamic = 'force-dynamic';
 
 import { useState, useEffect, useMemo } from "react";
-import dynamic from "next/dynamic";
+import dynamicImport from "next/dynamic";
 import { motion } from "framer-motion";
 import { ChevronLeft, Search, X, Star, MapPin, Users, Loader, List } from "lucide-react";
 import Link from "next/link";
@@ -12,7 +12,7 @@ import CityBanner from "@/components/CityBanner";
 import { useCityContext } from "@/lib/context/CityContext";
 import { supabase } from "@/lib/supabase";
 
-const MapaLeaflet = dynamic(() => import("@/components/MapaLeaflet"), {
+const MapaLeaflet = dynamicImport(() => import("@/components/MapaLeaflet"), {
   ssr: false,
   loading: () => <div className="flex items-center justify-center h-[60vh]"><Loader size={24} className="animate-spin text-rodeo-lime" /></div>,
 });
