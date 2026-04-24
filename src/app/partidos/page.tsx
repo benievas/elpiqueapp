@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Users, Plus, X, Calendar, Clock, MapPin,
   ChevronLeft, Loader, Zap, ChevronDown, AlertCircle, CheckCircle2,
-  Trash2, Building2,
+  Trash2, Building2, PlayCircle,
 } from "lucide-react";
 import Link from "next/link";
 import { supabase, supabaseMut } from "@/lib/supabase";
@@ -258,6 +258,15 @@ export default function PartidosPage() {
     fetchPartidos(ciudadCorta);
   };
 
+  const handleConfirmarConLosQueEstan = async (partido: Partido) => {
+    if (!user?.id || partido.creador_id !== user.id) return;
+    setCancelling(partido.id);
+    await supabaseMut.from("partidos").update({ estado: "completo" }).eq("id", partido.id);
+    showToast("¡Partido confirmado con los jugadores actuales!");
+    setCancelling(null);
+    fetchPartidos(ciudadCorta);
+  };
+
   const handleCancel = async (partido: Partido) => {
     if (!user?.id || partido.creador_id !== user.id) return;
     if (!confirm("¿Cancelar este partido? Los jugadores inscriptos serán notificados.")) return;
@@ -430,14 +439,26 @@ export default function PartidosPage() {
                     {/* Acciones */}
                     <div className="flex flex-col items-end gap-2 shrink-0">
                       {isCreador ? (
-                        <button
-                          onClick={() => handleCancel(partido)}
-                          disabled={cancelling === partido.id}
-                          className="flex items-center gap-1 px-2.5 py-1.5 rounded-[8px] text-xs font-bold transition-all disabled:opacity-50"
-                          style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)", color: "#EF4444" }}>
-                          {cancelling === partido.id ? <Loader size={11} className="animate-spin" /> : <Trash2 size={11} />}
-                          Cancelar
-                        </button>
+                        <div className="flex flex-col gap-1.5 items-end">
+                          {!isFull && partido.slots_ocupados >= 2 && (
+                            <button
+                              onClick={() => handleConfirmarConLosQueEstan(partido)}
+                              disabled={cancelling === partido.id}
+                              className="flex items-center gap-1 px-2.5 py-1.5 rounded-[8px] text-xs font-bold transition-all disabled:opacity-50"
+                              style={{ background: "rgba(200,255,0,0.1)", border: "1px solid rgba(200,255,0,0.3)", color: "#C8FF00" }}>
+                              {cancelling === partido.id ? <Loader size={11} className="animate-spin" /> : <PlayCircle size={11} />}
+                              Arrancar igual
+                            </button>
+                          )}
+                          <button
+                            onClick={() => handleCancel(partido)}
+                            disabled={cancelling === partido.id}
+                            className="flex items-center gap-1 px-2.5 py-1.5 rounded-[8px] text-xs font-bold transition-all disabled:opacity-50"
+                            style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)", color: "#EF4444" }}>
+                            {cancelling === partido.id ? <Loader size={11} className="animate-spin" /> : <Trash2 size={11} />}
+                            Cancelar
+                          </button>
+                        </div>
                       ) : user ? (
                         isFull && !isIn ? (
                           <span className="text-xs text-rodeo-cream/30 pt-1">Lleno</span>
@@ -524,14 +545,14 @@ export default function PartidosPage() {
                     )}
                   </AnimatePresence>
 
-                  {/* WhatsApp CTA — completo y el usuario está adentro */}
-                  {isFull && (isIn || isCreador) && (
+                  {/* WhatsApp CTA — estado completo y el usuario está adentro */}
+                  {partido.estado === "completo" && (isIn || isCreador) && (
                     <a
                       href={`https://wa.me/?text=${encodeURIComponent(
                         `⚽ PARTIDO DE ${partido.deporte.toUpperCase()}\n` +
                         `📅 ${fmtFecha(partido.fecha)} a las ${fmtHora(partido.hora_inicio)}\n` +
                         (partido.complejo_nombre ? `📍 ${partido.complejo_nombre}, ${partido.ciudad}\n` : `📍 ${partido.ciudad}\n`) +
-                        `👥 Somos ${partido.slots_totales} jugadores. ¡Nos vemos!`
+                        `👥 Somos ${partido.slots_ocupados} jugadores. ¡Nos vemos!`
                       )}`}
                       target="_blank" rel="noopener noreferrer"
                       className="flex items-center justify-center gap-2 py-2.5 rounded-[10px] font-black text-xs transition-all"

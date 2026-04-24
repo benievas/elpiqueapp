@@ -419,6 +419,8 @@ export default function Home() {
 
       {/* HERO SLIDER */}
       <section className="relative h-screen overflow-hidden">
+        {/* Fondo base — siempre visible si imagen/video no carga */}
+        <div className="absolute inset-0 z-0" style={{ background: "linear-gradient(135deg, #0d1a08 0%, #1A120B 60%, #0d1f07 100%)" }} />
         <AnimatePresence mode="wait">
           {(activeItem as any).video_url ? (
             <motion.video

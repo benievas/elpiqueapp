@@ -12,6 +12,7 @@ import {
   Heart,
   Share2,
   Check,
+  CheckCircle2,
   Star,
   MapPin,
   Clock,
@@ -101,6 +102,7 @@ export default function ComplejoPage({
   const { user, isAuthenticated } = useAuth();
   const [favorito, setFavorito] = useState(false);
   const [favLoading, setFavLoading] = useState(false);
+  const [whatsappSent, setWhatsappSent] = useState<string | null>(null);
   const [imagenActiva, setImagenActiva] = useState(0);
   const [linkCopiado, setLinkCopiado] = useState(false);
   const [showQR, setShowQR] = useState(false);
@@ -455,14 +457,33 @@ export default function ComplejoPage({
                         <span style={{ fontFamily: "'Barlow Condensed', system-ui, sans-serif", fontWeight: 900, fontSize: "24px", letterSpacing: "-0.01em", lineHeight: 1 }} className="text-rodeo-lime">${(cancha.precio_por_hora / 1000).toFixed(0)}K</span>
                       </div>
                       {disponible && (
-                        <a
-                          href={generarLinkWhatsApp(cancha)}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="liquid-button py-2 text-sm font-bold text-center transition-all hover:bg-white/20"
-                        >
-                          Reservar por WhatsApp →
-                        </a>
+                        whatsappSent === cancha.id ? (
+                          <div className="space-y-2 mt-1">
+                            <div className="flex items-center gap-2 text-xs font-bold text-green-400">
+                              <CheckCircle2 size={14} className="shrink-0" />
+                              Mensaje enviado — esperá la confirmación del dueño
+                            </div>
+                            <div className="text-[11px] text-rodeo-cream/40 leading-relaxed space-y-0.5">
+                              <p>• El dueño te responderá por WhatsApp a la brevedad.</p>
+                              <p>• La reserva queda confirmada cuando él te lo indique.</p>
+                              <p>• Podés contactarlo de nuevo si no responde en 30 min.</p>
+                            </div>
+                            <a href={generarLinkWhatsApp(cancha)} target="_blank" rel="noopener noreferrer"
+                              className="text-xs text-rodeo-lime/70 hover:text-rodeo-lime underline">
+                              Reenviar mensaje →
+                            </a>
+                          </div>
+                        ) : (
+                          <a
+                            href={generarLinkWhatsApp(cancha)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={() => setWhatsappSent(cancha.id)}
+                            className="liquid-button py-2 text-sm font-bold text-center transition-all hover:bg-white/20 block"
+                          >
+                            Reservar por WhatsApp →
+                          </a>
+                        )
                       )}
                       {!disponible && (
                         <div className="text-xs text-rodeo-cream/50 text-center py-1 border-t border-white/10">No disponible ahora</div>
