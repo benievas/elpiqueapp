@@ -6,12 +6,12 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import {
   ChevronLeft, LogOut, Building2, User, Star,
-  Calendar, MapPin, Loader, ArrowRight,
+  Calendar, MapPin, Loader, ArrowRight, Heart,
 } from "lucide-react";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { supabase } from "@/lib/supabase";
 
-type Tab = "reservas" | "resenas";
+type Tab = "reservas" | "resenas" | "favoritos";
 
 export default function PerfilPage() {
   const { user, profile, loading, signOut, isOwner, isAuthenticated } = useAuth();
@@ -29,6 +29,9 @@ export default function PerfilPage() {
     complex: { nombre: string } | null;
   }>>([]);
   const [loadingData, setLoadingData] = useState(false);
+  const [misFavoritos, setMisFavoritos] = useState<Array<{
+    id: string; complex_id: string; complex: { nombre: string; slug: string; imagen_principal: string | null; deporte_principal: string } | null;
+  }>>([]);
 
   useEffect(() => {
     if (!user?.id) return;
@@ -46,9 +49,15 @@ export default function PerfilPage() {
         .eq("user_id", user.id)
         .order("created_at", { ascending: false })
         .limit(10),
-    ]).then(([resRes, revRes]) => {
+      (supabase as any)
+        .from("favoritos")
+        .select("id, complex_id, complex:complexes(nombre, slug, imagen_principal, deporte_principal)")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false }),
+    ]).then(([resRes, revRes, favRes]) => {
       setReservaciones((resRes.data as any) ?? []);
       setMisReviews((revRes.data as any) ?? []);
+      setMisFavoritos((favRes.data as any) ?? []);
     }).catch(() => {
       // datos quedan vacíos, la UI muestra el estado vacío normalmente
     }).finally(() => {
@@ -170,7 +179,7 @@ export default function PerfilPage() {
           className="flex rounded-[16px] p-1"
           style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}
         >
-          {([["reservas", "Mis Reservas", Calendar], ["resenas", "Mis Reseñas", Star]] as const).map(([t, label, Icon]) => (
+          {([["reservas", "Reservas", Calendar], ["favoritos", "Favoritos", Heart], ["resenas", "Reseñas", Star]] as const).map(([t, label, Icon]) => (
             <button
               key={t}
               onClick={() => setTab(t)}
@@ -219,6 +228,43 @@ export default function PerfilPage() {
                     </span>
                   </div>
                 </div>
+              );
+            })}
+          </motion.div>
+        )}
+
+        {tab === "favoritos" && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-3">
+            {loadingData ? (
+              <div className="liquid-panel p-8 flex justify-center">
+                <Loader size={24} className="animate-spin text-rodeo-lime" />
+              </div>
+            ) : misFavoritos.length === 0 ? (
+              <div className="liquid-panel p-8 text-center space-y-3">
+                <Heart size={32} className="mx-auto text-rodeo-lime/40" />
+                <p className="text-rodeo-cream/50 text-sm">No tenés favoritos aún</p>
+                <p className="text-xs text-rodeo-cream/30">Tocá el corazón en el detalle de un complejo para guardarlo</p>
+                <Link href="/explorar" className="inline-flex items-center gap-2 mt-2 px-5 py-2.5 rounded-[14px] text-sm font-bold"
+                  style={{ background: "rgba(200,255,0,0.1)", border: "1px solid rgba(200,255,0,0.2)", color: "#C8FF00" }}>
+                  Explorar complejos <ArrowRight size={14} />
+                </Link>
+              </div>
+            ) : misFavoritos.map((fav) => {
+              const cx = fav.complex as any;
+              return (
+                <Link key={fav.id} href={`/complejo/${cx?.slug ?? ""}`}
+                  className="liquid-panel p-4 flex items-center gap-4 hover:bg-white/6 transition-colors">
+                  <div className="w-14 h-14 rounded-[12px] overflow-hidden shrink-0 bg-white/5">
+                    {cx?.imagen_principal
+                      ? <img src={cx.imagen_principal} alt={cx.nombre} className="w-full h-full object-cover" />
+                      : <div className="w-full h-full flex items-center justify-center"><Building2 size={20} className="text-rodeo-cream/20" /></div>}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-bold text-white truncate">{cx?.nombre ?? "Complejo"}</p>
+                    <p className="text-xs text-rodeo-cream/40 capitalize mt-0.5">{cx?.deporte_principal ?? "Deporte"}</p>
+                  </div>
+                  <Heart size={16} className="fill-red-400 text-red-400 shrink-0" />
+                </Link>
               );
             })}
           </motion.div>

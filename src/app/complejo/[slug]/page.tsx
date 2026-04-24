@@ -100,6 +100,7 @@ export default function ComplejoPage({
 
   const { user, isAuthenticated } = useAuth();
   const [favorito, setFavorito] = useState(false);
+  const [favLoading, setFavLoading] = useState(false);
   const [imagenActiva, setImagenActiva] = useState(0);
   const [linkCopiado, setLinkCopiado] = useState(false);
   const [showQR, setShowQR] = useState(false);
@@ -179,6 +180,17 @@ export default function ComplejoPage({
           .order("fecha_inicio", { ascending: false })
           .limit(12);
         if (torneosData) setTorneos(torneosData as typeof torneos);
+
+        // Cargar favorito si hay usuario logueado
+        if (user?.id) {
+          const { data: favData } = await (supabase as any)
+            .from("favoritos")
+            .select("id")
+            .eq("user_id", user.id)
+            .eq("complex_id", complexData.id)
+            .maybeSingle();
+          setFavorito(!!favData);
+        }
       } catch {
         setNotFound(true);
       } finally {
@@ -186,7 +198,7 @@ export default function ComplejoPage({
       }
     };
     fetchComplejo();
-  }, [slug]);
+  }, [slug, user?.id]);
 
   const handleShare = async () => {
     const url = `${typeof window !== "undefined" ? window.location.origin : "https://elpiqueapp.com"}/complejo/${slug}`;
@@ -300,8 +312,22 @@ export default function ComplejoPage({
             </button>
             <div className="flex gap-2">
               <button
-                onClick={() => setFavorito(!favorito)}
-                className="w-10 h-10 rounded-full bg-black/40 backdrop-blur-md border border-white/20 flex items-center justify-center hover:bg-black/60 transition-colors"
+                onClick={async () => {
+                  if (!user?.id || !complejo || favLoading) return;
+                  setFavLoading(true);
+                  if (favorito) {
+                    await (supabaseMut as any).from("favoritos").delete()
+                      .eq("user_id", user.id).eq("complex_id", complejo.id);
+                    setFavorito(false);
+                  } else {
+                    await (supabaseMut as any).from("favoritos").insert({ user_id: user.id, complex_id: complejo.id });
+                    setFavorito(true);
+                  }
+                  setFavLoading(false);
+                }}
+                disabled={!isAuthenticated || favLoading}
+                className="w-10 h-10 rounded-full bg-black/40 backdrop-blur-md border border-white/20 flex items-center justify-center hover:bg-black/60 transition-colors disabled:opacity-50"
+                title={isAuthenticated ? (favorito ? "Quitar de favoritos" : "Guardar en favoritos") : "Iniciá sesión para guardar"}
               >
                 <Heart size={18} className={favorito ? "fill-red-400 text-red-400" : "text-white"} />
               </button>

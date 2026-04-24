@@ -543,7 +543,13 @@ export default function Home() {
                     className="w-[320px] h-[460px] shrink-0 rounded-liquid-lg overflow-hidden relative cursor-pointer group shadow-glass border border-white/20"
                     onClick={() => setCurrentIndex(index)}
                   >
-                    <img src={(slide as { cardImage: string }).cardImage} alt={slide.title} className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
+                    {/* Fallback color cuando no hay imagen */}
+                    <div className="absolute inset-0" style={{ background: isPromo ? "linear-gradient(135deg, #1A3A0A 0%, #0d1f07 100%)" : "linear-gradient(135deg, #1A120B 0%, #291C0E 100%)" }} />
+                    {(slide as { cardImage?: string }).cardImage && (
+                      <img src={(slide as { cardImage: string }).cardImage} alt={slide.title}
+                        className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
+                        onError={e => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                    )}
                     <div className={`absolute inset-0 ${isPromo ? "bg-gradient-to-t from-black/90 via-rodeo-dark/60 to-rodeo-lime/10" : "bg-gradient-to-t from-black/80 via-black/20 to-transparent"}`} />
                     {isPromo && (
                       <div className="absolute top-4 left-4">

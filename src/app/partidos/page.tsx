@@ -237,12 +237,7 @@ export default function PartidosPage() {
 
     if (pjErr) { showToast(pjErr.message, "err"); setJoinLoading(null); return; }
 
-    const newOcupados = partido.slots_ocupados + 1;
-    await supabaseMut.from("partidos").update({
-      slots_ocupados: newOcupados,
-      estado: newOcupados >= partido.slots_totales ? "completo" : "abierto",
-    }).eq("id", partido.id);
-
+    // El trigger sync_partido_slots actualiza slots_ocupados y estado automáticamente
     showToast("¡Te uniste al partido!");
     setMisPartidos(prev => new Set([...prev, partido.id]));
     setJoinLoading(null);
@@ -255,10 +250,7 @@ export default function PartidosPage() {
 
     await supabaseMut.from("partido_jugadores").delete()
       .eq("partido_id", partido.id).eq("user_id", user.id);
-    await supabaseMut.from("partidos").update({
-      slots_ocupados: Math.max(1, partido.slots_ocupados - 1),
-      estado: "abierto",
-    }).eq("id", partido.id);
+    // El trigger sync_partido_slots actualiza slots_ocupados y estado automáticamente
 
     setMisPartidos(prev => { const s = new Set(prev); s.delete(partido.id); return s; });
     setJoinLoading(null);
