@@ -66,8 +66,8 @@ const PROMO_SLIDES = [
     title: "RESERVÁ EN SEGUNDOS",
     subtitle: "CONFIRMACIÓN VÍA WHATSAPP",
     description: "Elegí tu cancha, seleccioná el horario disponible y confirmá con el dueño directo por WhatsApp. Sin llamadas, sin esperas.",
-    bgImage: "https://images.unsplash.com/photo-1508098682722-e99c43a406b2?q=80&w=2000&auto=format&fit=crop",
-    cardImage: "https://images.unsplash.com/photo-1508098682722-e99c43a406b2?q=80&w=600&auto=format&fit=crop",
+    bgImage: "https://images.unsplash.com/photo-1546519638-68e109498ffc?q=80&w=2000&auto=format&fit=crop",
+    cardImage: "https://images.unsplash.com/photo-1546519638-68e109498ffc?q=80&w=600&auto=format&fit=crop",
     ctaLink: "/explorar",
     ctaLabel: "Explorar canchas",
   },
@@ -441,6 +441,7 @@ export default function Home() {
               exit={{ opacity: 0 }}
               transition={{ duration: 0.8, ease: "easeInOut" }}
               className="absolute inset-0 w-full h-full object-cover z-0"
+              onError={e => { (e.target as HTMLImageElement).style.display = "none"; }}
             />
           )}
         </AnimatePresence>
