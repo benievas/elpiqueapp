@@ -1,7 +1,7 @@
 "use client";
 export const dynamic = 'force-dynamic';
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Users, Plus, X, Calendar, Clock, MapPin,
@@ -94,7 +94,7 @@ interface FormState {
 
 const today = new Date().toISOString().split("T")[0];
 
-export default function PartidosPage() {
+function PartidosPageInner() {
   const { user, profile } = useAuth();
   const { ciudadCorta, loading: cityLoading } = useCityContext();
   const searchParams = useSearchParams();
@@ -955,5 +955,13 @@ export default function PartidosPage() {
         <PartidoFlyerModal partido={flyerPartido} onClose={() => setFlyerPartido(null)} />
       )}
     </div>
+  );
+}
+
+export default function PartidosPage() {
+  return (
+    <Suspense>
+      <PartidosPageInner />
+    </Suspense>
   );
 }
