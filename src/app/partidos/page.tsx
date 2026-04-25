@@ -6,13 +6,34 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Users, Plus, X, Calendar, Clock, MapPin,
   ChevronLeft, Loader, Zap, ChevronDown, AlertCircle, CheckCircle2,
-  Trash2, Building2, PlayCircle, Phone, Copy, MessageCircle, Pencil,
+  Trash2, Building2, PlayCircle, Phone, Copy, MessageCircle, Pencil, Image as ImageIcon,
 } from "lucide-react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import OwnerTooltip from "@/components/OwnerTooltip";
+import type { TooltipDef } from "@/lib/hooks/useOwnerTooltips";
+import PartidoFlyerModal from "@/components/PartidoFlyerModal";
 import { supabase, supabaseMut } from "@/lib/supabase";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { useCityContext } from "@/lib/context/CityContext";
 import CityBanner from "@/components/CityBanner";
+
+const TT_CREAR: TooltipDef = {
+  id: "partidos_crear",
+  text: "Publicá que te falta gente para jugar. Elegí el deporte, fecha, hora y cuántos jugadores necesitás. Cuando se completen los cupos te avisamos.",
+};
+const TT_SLOTS: TooltipDef = {
+  id: "partidos_slots",
+  text: "Cada círculo es un lugar en el partido. Los llenos muestran las iniciales del jugador, los punteados están libres. Cuando se llenan todos, el partido queda completo.",
+};
+const TT_UNIRSE: TooltipDef = {
+  id: "partidos_unirse",
+  text: "Al unirte quedás reservado en ese partido. El creador verá tu nombre y teléfono para coordinar. Podés salirte en cualquier momento antes de que empiece.",
+};
+const TT_COMPLETO: TooltipDef = {
+  id: "partidos_completo",
+  text: "Cuando el partido se completa aparece un botón para armar el grupo de WhatsApp con todos los jugadores y coordinar el encuentro.",
+};
 
 const DEPORTES = [
   { id: "todos",   label: "Todos",    emoji: "🏅" },
@@ -76,6 +97,7 @@ const today = new Date().toISOString().split("T")[0];
 export default function PartidosPage() {
   const { user, profile } = useAuth();
   const { ciudadCorta, loading: cityLoading } = useCityContext();
+  const searchParams = useSearchParams();
   const [partidos, setPartidos] = useState<Partido[]>([]);
   const [misPartidos, setMisPartidos] = useState<Set<string>>(new Set());
   const [complejos, setComplejos] = useState<Complejo[]>([]);
@@ -93,6 +115,7 @@ export default function PartidosPage() {
   const [phoneInput, setPhoneInput] = useState("");
   const [phoneLoading, setPhoneLoading] = useState(false);
   const [editingPartido, setEditingPartido] = useState<Partido | null>(null);
+  const [flyerPartido, setFlyerPartido] = useState<Partido | null>(null);
   const [form, setForm] = useState<FormState>({
     deporte: "futbol", fecha: today, hora: "18:00", slots: 10, descripcion: "", complex_id: "", fecha_confirmada: true,
   });
@@ -185,6 +208,24 @@ export default function PartidosPage() {
     fetchPartidos(ciudadCorta);
     fetchComplejos(ciudadCorta);
   }, [ciudadCorta, cityLoading]);
+
+  // Pre-fill modal si viene desde "Abrir partido" en perfil
+  useEffect(() => {
+    const fecha = searchParams.get("fecha");
+    const hora = searchParams.get("hora");
+    const deporte = searchParams.get("deporte");
+    const complex_id = searchParams.get("complex_id");
+    if (fecha && hora && user) {
+      setForm(f => ({
+        ...f,
+        fecha: fecha ?? f.fecha,
+        hora: hora ?? f.hora,
+        deporte: deporte ?? f.deporte,
+        complex_id: complex_id ?? f.complex_id,
+      }));
+      setModalOpen(true);
+    }
+  }, [searchParams, user]);
 
   useEffect(() => {
     if (user?.id) fetchMisPartidos(user.id);
@@ -364,13 +405,15 @@ export default function PartidosPage() {
               className="text-white"><span className="section-slash">/</span>Armá Partido</h1>
           </div>
           {user ? (
-            <motion.button
-              onClick={() => { setCreateError(null); setModalOpen(true); }}
-              whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.96 }}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-[12px] font-black text-sm"
-              style={{ background: "#C8FF00", color: "#1A120B" }}>
-              <Plus size={16} /> Crear
-            </motion.button>
+            <OwnerTooltip tooltip={TT_CREAR} position="bottom">
+              <motion.button
+                onClick={() => { setCreateError(null); setModalOpen(true); }}
+                whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.96 }}
+                className="flex items-center gap-2 px-4 py-2.5 rounded-[12px] font-black text-sm"
+                style={{ background: "#C8FF00", color: "#1A120B" }}>
+                <Plus size={16} /> Crear
+              </motion.button>
+            </OwnerTooltip>
           ) : (
             <Link href="/login"
               className="flex items-center gap-2 px-4 py-2.5 rounded-[12px] font-black text-sm"
@@ -382,8 +425,9 @@ export default function PartidosPage() {
 
         <CityBanner />
 
-        <p className="text-xs text-rodeo-cream/40 leading-relaxed">
+        <p className="text-xs text-rodeo-cream/40 leading-relaxed flex items-center gap-1.5 flex-wrap">
           Publicá que te falta gente para jugar. Cuando se completan los cupos aparece el link de WhatsApp para coordinar.
+          <OwnerTooltip tooltip={TT_COMPLETO} position="bottom" />
         </p>
 
         {/* Filtros por deporte */}
@@ -508,6 +552,12 @@ export default function PartidosPage() {
                             style={{ background: "rgba(200,255,0,0.08)", border: "1px solid rgba(200,255,0,0.2)", color: "#C8FF00" }}>
                             <Pencil size={11} /> Editar
                           </button>
+                          <button
+                            onClick={() => setFlyerPartido(partido)}
+                            className="flex items-center gap-1 px-2.5 py-1.5 rounded-[8px] text-xs font-bold transition-all"
+                            style={{ background: "rgba(96,165,250,0.08)", border: "1px solid rgba(96,165,250,0.2)", color: "#60A5FA" }}>
+                            <ImageIcon size={11} /> Flyer
+                          </button>
                           {!isFull && partido.slots_ocupados >= 2 && (
                             <button
                               onClick={() => handleConfirmarConLosQueEstan(partido)}
@@ -531,16 +581,18 @@ export default function PartidosPage() {
                         isFull && !isIn ? (
                           <span className="text-xs text-rodeo-cream/30 pt-1">Lleno</span>
                         ) : (
-                          <button
-                            onClick={() => isIn ? handleLeave(partido) : handleJoin(partido)}
-                            disabled={joinLoading === partido.id}
-                            className="px-3 py-2 rounded-[10px] text-xs font-black transition-all disabled:opacity-50"
-                            style={isIn
-                              ? { background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.3)", color: "#EF4444" }
-                              : { background: "rgba(200,255,0,0.12)", border: "1px solid rgba(200,255,0,0.3)", color: "#C8FF00" }
-                            }>
-                            {joinLoading === partido.id ? <Loader size={12} className="animate-spin" /> : isIn ? "Salir" : "Unirme"}
-                          </button>
+                          <OwnerTooltip tooltip={TT_UNIRSE} position="left">
+                            <button
+                              onClick={() => isIn ? handleLeave(partido) : handleJoin(partido)}
+                              disabled={joinLoading === partido.id}
+                              className="px-3 py-2 rounded-[10px] text-xs font-black transition-all disabled:opacity-50"
+                              style={isIn
+                                ? { background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.3)", color: "#EF4444" }
+                                : { background: "rgba(200,255,0,0.12)", border: "1px solid rgba(200,255,0,0.3)", color: "#C8FF00" }
+                              }>
+                              {joinLoading === partido.id ? <Loader size={12} className="animate-spin" /> : isIn ? "Salir" : "Unirme"}
+                            </button>
+                          </OwnerTooltip>
                         )
                       ) : (
                         <Link href="/login"
@@ -549,69 +601,78 @@ export default function PartidosPage() {
                           Ingresar
                         </Link>
                       )}
-                      {/* Toggle lista jugadores */}
-                      {(partido.jugadores?.length ?? 0) > 0 && (
-                        <button
-                          onClick={() => setExpandedId(isExpanded ? null : partido.id)}
-                          className="flex items-center gap-1 text-[10px] text-rodeo-cream/30 hover:text-rodeo-cream/60 transition-colors">
-                          <Users size={10} /> ver jugadores
-                          <ChevronDown size={10} className={`transition-transform ${isExpanded ? "rotate-180" : ""}`} />
-                        </button>
-                      )}
                     </div>
                   </div>
 
-                  {/* Barra de progreso */}
-                  <div className="space-y-1">
-                    <div className="flex justify-between text-[10px] text-rodeo-cream/40">
-                      <span className="flex items-center gap-1">
-                        <Users size={10} />{partido.slots_ocupados}/{partido.slots_totales} jugadores
-                      </span>
-                      {partido.creador_nombre && <span>por {partido.creador_nombre}</span>}
-                    </div>
-                    <div className="h-1.5 rounded-full bg-white/8 overflow-hidden">
-                      <motion.div className="h-full rounded-full"
-                        initial={{ width: 0 }}
-                        animate={{ width: `${pct}%` }}
-                        transition={{ duration: 0.6, ease: "easeOut" }}
-                        style={{ background: isFull ? "#C8FF00" : color, opacity: 0.75 }} />
-                    </div>
-                  </div>
-
-                  {/* Lista de jugadores expandida */}
-                  <AnimatePresence>
-                    {isExpanded && partido.jugadores && partido.jugadores.length > 0 && (
-                      <motion.div
-                        initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }}
-                        exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
-                        <div className="pt-2 border-t border-white/8">
-                          <p className="text-[10px] font-bold uppercase tracking-widest text-rodeo-cream/30 mb-2">Inscriptos</p>
-                          <div className="flex flex-wrap gap-1.5">
-                            {partido.jugadores.map((j, i) => (
-                              <span key={j.user_id ?? i}
-                                className="text-xs px-2 py-0.5 rounded-full"
-                                style={{
-                                  background: "rgba(255,255,255,0.06)",
-                                  color: j.user_id === user?.id ? color : "rgba(225,212,194,0.6)",
-                                  border: `1px solid ${j.user_id === user?.id ? color + "40" : "rgba(255,255,255,0.08)"}`,
-                                }}>
-                                {j.nombre_display ?? "Jugador"}
-                                {j.user_id === partido.creador_id && " 👑"}
-                              </span>
+                  {/* Slots visuales con avatares */}
+                  {(() => {
+                    const jugadores = partido.jugadores ?? [];
+                    const MAX_VISIBLE = 8;
+                    const libres = partido.slots_totales - partido.slots_ocupados;
+                    const totalVisible = Math.min(partido.slots_totales, MAX_VISIBLE);
+                    void libres; // used below
+                    const jugadoresVisible = jugadores.slice(0, Math.min(jugadores.length, totalVisible));
+                    const libresVisible = Math.max(0, totalVisible - jugadoresVisible.length);
+                    const extras = partido.slots_totales > MAX_VISIBLE ? partido.slots_totales - MAX_VISIBLE : 0;
+                    return (
+                      <div className="space-y-1.5">
+                        <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-1 flex-wrap">
+                            {jugadoresVisible.map((j, i) => {
+                              const initials = (j.nombre_display ?? "?").split(" ").map((w: string) => w[0]).join("").slice(0, 2).toUpperCase();
+                              const isMe = j.user_id === user?.id;
+                              const isCreatorSlot = j.user_id === partido.creador_id;
+                              return (
+                                <motion.div
+                                  key={j.user_id ?? i}
+                                  initial={{ scale: 0 }} animate={{ scale: 1 }}
+                                  transition={{ delay: i * 0.04, type: "spring", stiffness: 300 }}
+                                  title={`${j.nombre_display ?? "Jugador"}${isCreatorSlot ? " (creador)" : ""}`}
+                                  className="relative w-9 h-9 rounded-full flex items-center justify-center text-[11px] font-black shrink-0"
+                                  style={{
+                                    background: isMe ? `${color}30` : "rgba(255,255,255,0.08)",
+                                    border: `2px solid ${isMe ? color : isCreatorSlot ? "rgba(255,255,255,0.25)" : "rgba(255,255,255,0.1)"}`,
+                                    color: isMe ? color : "rgba(225,212,194,0.7)",
+                                    boxShadow: isMe ? `0 0 10px ${color}30` : "none",
+                                  }}>
+                                  {initials}
+                                  {isCreatorSlot && (
+                                    <span className="absolute -top-1 -right-1 text-[8px] leading-none">👑</span>
+                                  )}
+                                </motion.div>
+                              );
+                            })}
+                            {Array.from({ length: libresVisible }).map((_, i) => (
+                              <motion.div
+                                key={`libre-${i}`}
+                                initial={{ scale: 0 }} animate={{ scale: 1 }}
+                                transition={{ delay: (jugadoresVisible.length + i) * 0.04 }}
+                                className="w-9 h-9 rounded-full flex items-center justify-center shrink-0"
+                                style={{ border: "1.5px dashed rgba(255,255,255,0.12)", background: "rgba(255,255,255,0.02)" }}>
+                                <span className="text-[10px] text-rodeo-cream/20 font-bold">+</span>
+                              </motion.div>
                             ))}
-                            {/* Slots vacíos */}
-                            {Array.from({ length: partido.slots_totales - partido.slots_ocupados }).map((_, i) => (
-                              <span key={`empty-${i}`}
-                                className="text-xs px-2 py-0.5 rounded-full"
-                                style={{ background: "rgba(255,255,255,0.03)", color: "rgba(225,212,194,0.2)", border: "1px dashed rgba(255,255,255,0.08)" }}>
-                                libre
-                              </span>
-                            ))}
+                            {extras > 0 && (
+                              <div className="w-9 h-9 rounded-full flex items-center justify-center shrink-0"
+                                style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)" }}>
+                                <span className="text-[10px] text-rodeo-cream/40 font-black">+{extras}</span>
+                              </div>
+                            )}
+                          </div>
+                          <div className="ml-auto text-right shrink-0 flex flex-col items-end gap-0.5">
+                            <OwnerTooltip tooltip={TT_SLOTS} position="left" />
+                            <p className="text-[10px] font-black" style={{ color: isFull ? "#C8FF00" : "rgba(225,212,194,0.4)" }}>
+                              {partido.slots_ocupados}/{partido.slots_totales}
+                            </p>
+                            <p className="text-[9px] text-rodeo-cream/30">{libres > 0 ? `${libres} libre${libres !== 1 ? "s" : ""}` : "completo"}</p>
                           </div>
                         </div>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
+                        {partido.creador_nombre && (
+                          <p className="text-[10px] text-rodeo-cream/30">por {partido.creador_nombre}</p>
+                        )}
+                      </div>
+                    );
+                  })()}
 
                   {/* Panel coordinación — estado completo */}
                   {partido.estado === "completo" && (isIn || isCreador) && (() => {
@@ -888,6 +949,11 @@ export default function PartidosPage() {
           </>
         )}
       </AnimatePresence>
+
+      {/* Modal flyer partido */}
+      {flyerPartido && (
+        <PartidoFlyerModal partido={flyerPartido} onClose={() => setFlyerPartido(null)} />
+      )}
     </div>
   );
 }

@@ -4,6 +4,7 @@ import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
 import { Home, Search, MapPin, Rss, Trophy, User, Building2, Plus, Users } from "lucide-react";
 import { useAuth } from "@/lib/hooks/useAuth";
+import { useNotifications } from "@/lib/context/NotificationContext";
 import { useState, useEffect, useRef } from "react";
 
 const NAV_ITEMS = [
@@ -19,6 +20,7 @@ export default function BottomNav() {
   const pathname = usePathname();
   const router = useRouter();
   const { isOwner, isAdmin } = useAuth();
+  const { unreadCount, markAllRead } = useNotifications();
   const [scrolled, setScrolled] = useState(false);
   const lastScrollY = useRef(0);
 
@@ -66,10 +68,12 @@ export default function BottomNav() {
       >
         {allItems.map(({ href, label, Icon }) => {
           const isActive = href === "/" ? pathname === "/" : pathname.startsWith(href);
+          const showBadge = href === "/partidos" && unreadCount > 0;
           return (
             <Link
               key={href}
               href={href}
+              onClick={() => { if (href === "/partidos") markAllRead(); }}
               style={{
                 display: "flex",
                 alignItems: "center",
@@ -91,11 +95,25 @@ export default function BottomNav() {
                 whiteSpace: "nowrap",
               }}
             >
-              <Icon
-                size={scrolled ? 17 : 18}
-                strokeWidth={isActive ? 2.3 : 1.8}
-                style={{ flexShrink: 0, transition: "all 0.2s" }}
-              />
+              <span style={{ position: "relative", display: "inline-flex" }}>
+                <Icon
+                  size={scrolled ? 17 : 18}
+                  strokeWidth={isActive ? 2.3 : 1.8}
+                  style={{ flexShrink: 0, transition: "all 0.2s" }}
+                />
+                {showBadge && (
+                  <span style={{
+                    position: "absolute", top: -4, right: -5,
+                    minWidth: 14, height: 14, borderRadius: "999px",
+                    background: "#FF4040", border: "1.5px solid #040D07",
+                    fontSize: "9px", fontWeight: 800, color: "#fff",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    padding: "0 3px", lineHeight: 1,
+                  }}>
+                    {unreadCount > 9 ? "9+" : unreadCount}
+                  </span>
+                )}
+              </span>
               {/* Label only visible for active item */}
               <span
                 style={{

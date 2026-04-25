@@ -3,7 +3,9 @@ import "./globals.css";
 import DeviceDetection from "@/components/DeviceDetection";
 import BottomNav from "@/components/BottomNav";
 import SiteBgVideo from "@/components/SiteBgVideo";
+import GlobalToast from "@/components/GlobalToast";
 import { CityProvider } from "@/lib/context/CityContext";
+import { NotificationProvider } from "@/lib/context/NotificationContext";
 import QueryProvider from "@/components/providers/QueryProvider";
 
 export const metadata: Metadata = {
@@ -43,9 +45,11 @@ export const metadata: Metadata = {
   },
   manifest: "/manifest.json",
   icons: {
-    icon: "/assets/logo2.png",
-    shortcut: "/assets/logo2.png",
-    apple: "/assets/logo2.png",
+    icon: [
+      { url: "/assets/logoventana.png", sizes: "any" },
+    ],
+    shortcut: "/assets/logoventana.png",
+    apple: "/assets/logoventana.png",
   },
   robots: {
     index: true,
@@ -117,10 +121,13 @@ export default function RootLayout({
       <body suppressHydrationWarning className="antialiased min-h-screen" style={{ background: "linear-gradient(160deg, #040D07 0%, #081810 40%, #050F09 70%, #030A06 100%)" }}>
         <QueryProvider>
           <CityProvider>
-            <SiteBgVideo />
-            <DeviceDetection />
-            {children}
-            <BottomNav />
+            <NotificationProvider>
+              <SiteBgVideo />
+              <DeviceDetection />
+              {children}
+              <GlobalToast />
+              <BottomNav />
+            </NotificationProvider>
           </CityProvider>
         </QueryProvider>
       </body>

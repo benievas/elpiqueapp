@@ -17,6 +17,12 @@ import {
 type TipoMovimiento = "ingreso" | "egreso";
 type MetodoPago = "efectivo" | "transferencia" | "tarjeta" | "mercadopago" | "otro";
 
+type ReservaHoy = {
+  id: string; court_id: string; jugador_nombre: string | null; jugador_telefono: string | null;
+  hora_inicio: string; hora_fin: string; precio_total: number; estado: string; metodo_pago?: string | null;
+  court?: { nombre: string } | null;
+};
+
 type CashSession = {
   id: string; complex_id: string; opened_by: string; closed_by: string | null;
   opened_at: string; closed_at: string | null; fondo_inicial: number;
@@ -363,6 +369,9 @@ export default function CajaPage() {
   const [session, setSession] = useState<CashSession | null>(null);
   const [movimientos, setMovimientos] = useState<CashMovement[]>([]);
   const [loading, setLoading] = useState(true);
+  const [reservasHoy, setReservasHoy] = useState<ReservaHoy[]>([]);
+  const [importingId, setImportingId] = useState<string | null>(null);
+  const [showReservas, setShowReservas] = useState(false);
 
   // Abrir caja
   const [showOpenForm, setShowOpenForm] = useState(false);
@@ -388,14 +397,27 @@ export default function CajaPage() {
   const fetchSession = useCallback(async () => {
     if (!activeComplexId) return;
     setLoading(true);
-    const { data: sessionData } = await (supabase as any).from("cash_sessions")
-      .select("*").eq("complex_id", activeComplexId).eq("estado", "abierta").maybeSingle();
-    if (sessionData) {
-      setSession(sessionData);
+    const [sessionRes, reservasRes] = await Promise.all([
+      (supabase as any).from("cash_sessions")
+        .select("*").eq("complex_id", activeComplexId).eq("estado", "abierta").maybeSingle(),
+      (supabase as any).from("reservations")
+        .select("id, court_id, hora_inicio, hora_fin, precio_total, estado, court:courts(nombre), jugador:profiles!user_id(nombre_completo, telefono)")
+        .eq("complex_id", activeComplexId)
+        .eq("fecha", new Date().toISOString().slice(0, 10))
+        .in("estado", ["confirmada", "completada"])
+        .order("hora_inicio", { ascending: true }),
+    ]);
+    if (sessionRes.data) {
+      setSession(sessionRes.data);
       const { data: movsData } = await (supabase as any).from("cash_movements")
-        .select("*").eq("session_id", sessionData.id).order("fecha", { ascending: false });
+        .select("*").eq("session_id", sessionRes.data.id).order("fecha", { ascending: false });
       setMovimientos(movsData ?? []);
     } else { setSession(null); setMovimientos([]); }
+    setReservasHoy((reservasRes.data ?? []).map((r: any) => {
+      const jugador = Array.isArray(r.jugador) ? r.jugador[0] : r.jugador;
+      const court = Array.isArray(r.court) ? r.court[0] : r.court;
+      return { ...r, court, jugador_nombre: jugador?.nombre_completo ?? null, jugador_telefono: jugador?.telefono ?? null };
+    }));
     setLoading(false);
   }, [activeComplexId]);
 
@@ -454,10 +476,29 @@ export default function CajaPage() {
     await (supabaseMut as any).from("cash_movements").delete().eq("id", id);
   };
 
+  const handleImportarReserva = async (r: ReservaHoy) => {
+    if (!session || !user || !activeComplexId) return;
+    setImportingId(r.id);
+    const metodoMapeado: MetodoPago = "efectivo";
+    const corteName = r.court?.nombre ?? "cancha";
+    await (supabaseMut as any).from("cash_movements").insert({
+      complex_id: activeComplexId, user_id: user.id, session_id: session.id,
+      tipo: "ingreso", categoria: "Reserva cancha " + corteName.toLowerCase(),
+      monto: r.precio_total, metodo_pago: metodoMapeado,
+      fecha: new Date().toISOString(),
+      notas: `${r.jugador_nombre ?? "Jugador"} · ${r.hora_inicio}–${r.hora_fin}`,
+    });
+    await fetchSession();
+    setImportingId(null);
+  };
+
   // Computed
   const totalIngresos = useMemo(() => movimientos.filter(m => m.tipo === "ingreso").reduce((s, m) => s + m.monto, 0), [movimientos]);
   const totalEgresos  = useMemo(() => movimientos.filter(m => m.tipo === "egreso").reduce((s, m) => s + m.monto, 0), [movimientos]);
   const saldoActual   = session ? session.fondo_inicial + totalIngresos - totalEgresos : 0;
+  const totalReservasHoy = useMemo(() => reservasHoy.reduce((s, r) => s + r.precio_total, 0), [reservasHoy]);
+  // IDs already imported to caja as movements (matching by notas pattern)
+  const importedNotes = useMemo(() => new Set(movimientos.map(m => m.notas ?? "")), [movimientos]);
 
   const byMethod = useMemo(() => {
     const map: Record<string, number> = {};
@@ -585,6 +626,71 @@ export default function CajaPage() {
                 </div>
               ))}
             </div>
+
+            {/* ── Reservas del día ── */}
+            {reservasHoy.length > 0 && (
+              <div style={{ background: "rgba(200,255,0,0.04)", border: "1px solid rgba(200,255,0,0.15)", borderRadius: "14px" }} className="overflow-hidden">
+                <button
+                  className="w-full flex items-center justify-between px-4 py-3"
+                  onClick={() => setShowReservas(v => !v)}
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-rodeo-lime shrink-0" />
+                    <p className="text-xs font-black uppercase tracking-widest text-rodeo-lime">
+                      Reservas del día <span className="text-rodeo-lime/50">({reservasHoy.length})</span>
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="text-sm font-black text-rodeo-lime">{fmt(totalReservasHoy)}</span>
+                    <ChevronDown size={14} className={`text-rodeo-lime/60 transition-transform ${showReservas ? "rotate-180" : ""}`} />
+                  </div>
+                </button>
+                <AnimatePresence>
+                  {showReservas && (
+                    <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
+                      <div className="px-4 pb-4 space-y-2" style={{ borderTop: "1px solid rgba(200,255,0,0.1)" }}>
+                        <p className="text-[10px] text-rodeo-cream/30 pt-3 pb-1">
+                          Estas reservas no se cuentan en el saldo hasta que las importes manualmente.
+                        </p>
+                        {reservasHoy.map(r => {
+                          const noteKey = `${r.jugador_nombre ?? "Jugador"} · ${r.hora_inicio}–${r.hora_fin}`;
+                          const yaImportada = importedNotes.has(noteKey);
+                          return (
+                            <div key={r.id} className="flex items-center gap-3 px-3 py-2.5 rounded-[10px]"
+                              style={{ background: yaImportada ? "rgba(74,222,128,0.06)" : "rgba(255,255,255,0.03)", border: `1px solid ${yaImportada ? "rgba(74,222,128,0.15)" : "rgba(255,255,255,0.07)"}` }}>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-xs font-bold text-white truncate">
+                                  {r.court?.nombre ?? "Cancha"} · {r.hora_inicio}–{r.hora_fin}
+                                </p>
+                                <p className="text-[10px] text-rodeo-cream/40 truncate">
+                                  {r.jugador_nombre ?? "Sin nombre"}{r.jugador_telefono ? ` · ${r.jugador_telefono}` : ""}
+                                </p>
+                              </div>
+                              <span className="text-xs font-black text-green-400 shrink-0">{fmt(r.precio_total)}</span>
+                              {session && (
+                                yaImportada ? (
+                                  <span className="text-[10px] font-bold text-green-400/60 shrink-0">✓ Importada</span>
+                                ) : (
+                                  <button
+                                    onClick={() => handleImportarReserva(r)}
+                                    disabled={importingId === r.id}
+                                    className="shrink-0 px-2.5 py-1 rounded-[8px] text-[10px] font-black text-rodeo-dark flex items-center gap-1 disabled:opacity-50"
+                                    style={{ background: "rgba(200,255,0,0.85)" }}>
+                                    {importingId === r.id
+                                      ? <div className="w-3 h-3 border-2 border-rodeo-dark/30 border-t-rodeo-dark rounded-full animate-spin" />
+                                      : <><Plus size={10} /> Importar</>}
+                                  </button>
+                                )
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            )}
 
             {/* Breakdown por método */}
             {Object.keys(byMethod).length > 0 && (

@@ -454,7 +454,7 @@ export default function ComplejoPage({
                           <h4 style={{ fontFamily: "'Barlow Condensed', system-ui, sans-serif", fontWeight: 800, fontSize: "16px", letterSpacing: "-0.01em", textTransform: "uppercase", lineHeight: 1.1 }} className="text-white">{cancha.nombre}</h4>
                           <p className="text-xs text-rodeo-cream/50 mt-0.5">{cancha.deporte} • {jugadoresPorSide}v{jugadoresPorSide}</p>
                         </div>
-                        <span style={{ fontFamily: "'Barlow Condensed', system-ui, sans-serif", fontWeight: 900, fontSize: "24px", letterSpacing: "-0.01em", lineHeight: 1 }} className="text-rodeo-lime">${(cancha.precio_por_hora / 1000).toFixed(0)}K</span>
+                        <span style={{ fontFamily: "'Barlow Condensed', system-ui, sans-serif", fontWeight: 900, fontSize: "24px", letterSpacing: "-0.01em", lineHeight: 1 }} className="text-rodeo-lime">$ {(cancha.precio_por_hora / 1000).toFixed(0)}K</span>
                       </div>
                       {disponible && (
                         whatsappSent === cancha.id ? (

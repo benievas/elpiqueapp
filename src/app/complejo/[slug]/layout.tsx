@@ -40,7 +40,7 @@ export async function generateMetadata({
     };
   }
 
-  const title = `${complejo.nombre} — Reservar canchas | ElPiqueApp`;
+  const title = `${complejo.nombre} · ${complejo.ciudad} — Reservar canchas | ElPiqueApp`;
   const description =
     complejo.descripcion ||
     `${complejo.nombre} en ${complejo.ciudad}. Reservá tu cancha de ${complejo.deporte_principal} online con ElPiqueApp.`;
@@ -78,7 +78,7 @@ export default async function ComplejoLayout({
     ? {
         "@context": "https://schema.org",
         "@type": "SportsActivityLocation",
-        name: complejo.nombre,
+        name: `${complejo.nombre} — ${complejo.ciudad}`,
         description: complejo.descripcion || undefined,
         url: `https://elpiqueapp.com/complejo/${slug}`,
         image: complejo.foto_principal || undefined,

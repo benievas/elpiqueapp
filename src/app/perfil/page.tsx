@@ -6,21 +6,23 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import {
   ChevronLeft, LogOut, Building2, User, Star,
-  Calendar, MapPin, Loader, ArrowRight, Heart,
+  Calendar, MapPin, Loader, ArrowRight, Heart, Zap, Users,
 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { supabase } from "@/lib/supabase";
 
-type Tab = "reservas" | "resenas" | "favoritos";
+type Tab = "reservas" | "partidos" | "favoritos" | "resenas";
 
 export default function PerfilPage() {
   const { user, profile, loading, signOut, isOwner, isAuthenticated } = useAuth();
+  const router = useRouter();
   const [tab, setTab] = useState<Tab>("reservas");
   const [loggingOut, setLoggingOut] = useState(false);
   const [loginLoading, setLoginLoading] = useState(false);
   const [reservaciones, setReservaciones] = useState<Array<{
     id: string; fecha: string; hora_inicio: string; hora_fin: string;
-    estado: string; precio_total: number;
+    estado: string; precio_total: number; complex_id: string | null;
     court: { nombre: string; deporte: string } | null;
     complex: { nombre: string } | null;
   }>>([]);
@@ -29,6 +31,12 @@ export default function PerfilPage() {
     complex: { nombre: string } | null;
   }>>([]);
   const [loadingData, setLoadingData] = useState(false);
+  const [misPartidos, setMisPartidos] = useState<Array<{
+    id: string; deporte: string; fecha: string; hora_inicio: string;
+    estado: string; slots_totales: number; slots_ocupados: number;
+    complejo_nombre: string | null; ciudad: string; creador_id: string;
+    creador_nombre: string | null; fecha_confirmada: boolean;
+  }>>([]);
   const [misFavoritos, setMisFavoritos] = useState<Array<{
     id: string; complex_id: string; complex: { nombre: string; slug: string; imagen_principal: string | null; deporte_principal: string } | null;
   }>>([]);
@@ -39,7 +47,7 @@ export default function PerfilPage() {
     Promise.all([
       supabase
         .from("reservations")
-        .select("id, fecha, hora_inicio, hora_fin, estado, precio_total, court:courts(nombre, deporte), complex:complexes(nombre)")
+        .select("id, fecha, hora_inicio, hora_fin, estado, precio_total, complex_id, court:courts(nombre, deporte), complex:complexes(nombre)")
         .eq("user_id", user.id)
         .order("fecha", { ascending: false })
         .limit(20),
@@ -54,10 +62,43 @@ export default function PerfilPage() {
         .select("id, complex_id, complex:complexes(nombre, slug, imagen_principal, deporte_principal)")
         .eq("user_id", user.id)
         .order("created_at", { ascending: false }),
-    ]).then(([resRes, revRes, favRes]) => {
+      // Partidos donde el usuario está inscripto
+      supabase
+        .from("partido_jugadores")
+        .select("partido_id")
+        .eq("user_id", user.id)
+        .limit(30),
+    ]).then(async ([resRes, revRes, favRes, pjRes]) => {
       setReservaciones((resRes.data as any) ?? []);
       setMisReviews((revRes.data as any) ?? []);
       setMisFavoritos((favRes.data as any) ?? []);
+
+      const pids = ((pjRes.data as any) ?? []).map((r: any) => r.partido_id);
+      if (pids.length > 0) {
+        const { data: pData } = await supabase
+          .from("partidos")
+          .select("id, deporte, fecha, hora_inicio, estado, slots_totales, slots_ocupados, ciudad, complex_id, creador_id, fecha_confirmada")
+          .in("id", pids)
+          .order("fecha", { ascending: false });
+
+        const rows = (pData ?? []) as any[];
+        const creadorIds = [...new Set(rows.map((p: any) => p.creador_id).filter(Boolean))];
+        const complexIds = [...new Set(rows.map((p: any) => p.complex_id).filter(Boolean))];
+
+        const [perfilesRes, complejosRes] = await Promise.all([
+          creadorIds.length ? supabase.from("profiles").select("id, nombre_completo").in("id", creadorIds) : Promise.resolve({ data: [] }),
+          complexIds.length ? supabase.from("complexes").select("id, nombre").in("id", complexIds) : Promise.resolve({ data: [] }),
+        ]);
+
+        const perfilMap = Object.fromEntries(((perfilesRes.data ?? []) as any[]).map((p: any) => [p.id, p.nombre_completo]));
+        const complejoMap = Object.fromEntries(((complejosRes.data ?? []) as any[]).map((c: any) => [c.id, c.nombre]));
+
+        setMisPartidos(rows.map((p: any) => ({
+          ...p,
+          creador_nombre: perfilMap[p.creador_id] ?? null,
+          complejo_nombre: p.complex_id ? (complejoMap[p.complex_id] ?? null) : null,
+        })));
+      }
     }).catch(() => {
       // datos quedan vacíos, la UI muestra el estado vacío normalmente
     }).finally(() => {
@@ -179,7 +220,7 @@ export default function PerfilPage() {
           className="flex rounded-[16px] p-1"
           style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}
         >
-          {([["reservas", "Reservas", Calendar], ["favoritos", "Favoritos", Heart], ["resenas", "Reseñas", Star]] as const).map(([t, label, Icon]) => (
+          {([["reservas", "Reservas", Calendar], ["partidos", "Partidos", Users], ["favoritos", "Favoritos", Heart], ["resenas", "Reseñas", Star]] as const).map(([t, label, Icon]) => (
             <button
               key={t}
               onClick={() => setTab(t)}
@@ -214,19 +255,121 @@ export default function PerfilPage() {
               const estadoColor: Record<string, string> = { pendiente: "#FFB300", confirmada: "#00E676", cancelada: "#FF4040", completada: "#40C4FF" };
               const c = r.court as any;
               const cx = r.complex as any;
+              const today = new Date().toISOString().slice(0, 10);
+              const puedeAbrirPartido = r.estado === "confirmada" && r.fecha >= today;
+              const deporteCancha = c?.deporte ?? "futbol";
               return (
-                <div key={r.id} className="liquid-panel p-4 flex items-center gap-4">
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-bold text-white truncate">{c?.nombre ?? "Cancha"}</p>
-                    <p className="text-xs text-rodeo-cream/50 truncate">{cx?.nombre}</p>
-                    <p className="text-xs text-rodeo-cream/40 mt-0.5">{r.fecha} · {r.hora_inicio}–{r.hora_fin}</p>
+                <div key={r.id} className="liquid-panel p-4 space-y-3">
+                  <div className="flex items-center gap-4">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-bold text-white truncate">{c?.nombre ?? "Cancha"}</p>
+                      <p className="text-xs text-rodeo-cream/50 truncate">{cx?.nombre}</p>
+                      <p className="text-xs text-rodeo-cream/40 mt-0.5">{r.fecha} · {r.hora_inicio}–{r.hora_fin}</p>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <p className="text-sm font-black text-white">$ {r.precio_total.toLocaleString()}</p>
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: `${estadoColor[r.estado]}18`, color: estadoColor[r.estado] }}>
+                        {r.estado}
+                      </span>
+                    </div>
                   </div>
-                  <div className="text-right shrink-0">
-                    <p className="text-sm font-black text-white">${r.precio_total.toLocaleString()}</p>
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: `${estadoColor[r.estado]}18`, color: estadoColor[r.estado] }}>
-                      {r.estado}
-                    </span>
+                  {puedeAbrirPartido && (
+                    <button
+                      onClick={() => {
+                        const params = new URLSearchParams({
+                          fecha: r.fecha,
+                          hora: r.hora_inicio,
+                          deporte: deporteCancha,
+                          ...(r.complex_id ? { complex_id: r.complex_id } : {}),
+                        });
+                        router.push(`/partidos?${params.toString()}`);
+                      }}
+                      className="w-full flex items-center justify-center gap-2 py-2 rounded-[10px] text-xs font-black transition-all"
+                      style={{ background: "rgba(200,255,0,0.08)", border: "1px solid rgba(200,255,0,0.2)", color: "#C8FF00" }}>
+                      <Zap size={13} /> Abrir partido desde esta reserva
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+          </motion.div>
+        )}
+
+        {tab === "partidos" && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-3">
+            {loadingData ? (
+              <div className="liquid-panel p-8 flex justify-center">
+                <Loader size={24} className="animate-spin text-rodeo-lime" />
+              </div>
+            ) : misPartidos.length === 0 ? (
+              <div className="liquid-panel p-8 text-center space-y-3">
+                <Users size={32} className="mx-auto text-rodeo-lime/40" />
+                <p className="text-rodeo-cream/50 text-sm">No participaste en ningún partido aún</p>
+                <Link href="/partidos" className="inline-flex items-center gap-2 mt-2 px-5 py-2.5 rounded-[14px] text-sm font-bold"
+                  style={{ background: "rgba(200,255,0,0.1)", border: "1px solid rgba(200,255,0,0.2)", color: "#C8FF00" }}>
+                  Ver partidos <ArrowRight size={14} />
+                </Link>
+              </div>
+            ) : misPartidos.map((p) => {
+              const today = new Date().toISOString().slice(0, 10);
+              const esPasado = p.fecha < today;
+              const DEPORTE_COLOR: Record<string, string> = {
+                futbol: "#C8FF00", padel: "#00E5FF", tenis: "#FFD600",
+                voley: "#FF6B35", basquet: "#FF4081", hockey: "#A78BFA",
+              };
+              const DEPORTE_EMOJI: Record<string, string> = {
+                futbol: "⚽", padel: "🎾", tenis: "🏸", voley: "🏐", basquet: "🏀", hockey: "🏑",
+              };
+              const color = DEPORTE_COLOR[p.deporte] ?? "#C8FF00";
+              const emoji = DEPORTE_EMOJI[p.deporte] ?? "🏅";
+              const estadoMeta: Record<string, { label: string; color: string }> = {
+                abierto:  { label: "Abierto",   color: "#C8FF00" },
+                completo: { label: "Completo",  color: "#00E676" },
+                cancelado:{ label: "Cancelado", color: "#FF4040" },
+              };
+              const estado = estadoMeta[p.estado] ?? estadoMeta.abierto;
+              const isCreador = p.creador_id === user?.id;
+              const libres = p.slots_totales - p.slots_ocupados;
+
+              return (
+                <div key={p.id} className="liquid-panel p-4 space-y-3"
+                  style={{ borderLeft: `3px solid ${esPasado ? "rgba(255,255,255,0.08)" : color + "60"}`, opacity: esPasado ? 0.6 : 1 }}>
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap mb-1">
+                        <span className="font-black text-sm" style={{ color }}>{emoji} {p.deporte.charAt(0).toUpperCase() + p.deporte.slice(1)}</span>
+                        {isCreador && (
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full"
+                            style={{ background: "rgba(255,255,255,0.06)", color: "rgba(225,212,194,0.5)", border: "1px solid rgba(255,255,255,0.1)" }}>
+                            TU PARTIDO
+                          </span>
+                        )}
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full"
+                          style={{ background: `${estado.color}15`, color: estado.color, border: `1px solid ${estado.color}30` }}>
+                          {esPasado ? "Finalizado" : estado.label}
+                        </span>
+                      </div>
+                      <p className="text-xs text-rodeo-cream/50">
+                        {p.fecha_confirmada ? p.fecha : "Fecha a confirmar"} · {p.hora_inicio.slice(0, 5)} hs
+                      </p>
+                      {p.complejo_nombre && (
+                        <p className="text-xs text-rodeo-cream/40 mt-0.5">{p.complejo_nombre}</p>
+                      )}
+                    </div>
+                    <div className="text-right shrink-0">
+                      <p className="text-sm font-black" style={{ color: libres === 0 ? "#00E676" : "rgba(225,212,194,0.6)" }}>
+                        {p.slots_ocupados}/{p.slots_totales}
+                      </p>
+                      <p className="text-[10px] text-rodeo-cream/30">{libres > 0 ? `${libres} libres` : "completo"}</p>
+                    </div>
                   </div>
+                  {!esPasado && p.estado !== "cancelado" && (
+                    <Link href="/partidos"
+                      className="flex items-center justify-center gap-2 py-2 rounded-[10px] text-xs font-bold transition-all"
+                      style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "rgba(225,212,194,0.5)" }}>
+                      Ver en partidos →
+                    </Link>
+                  )}
                 </div>
               );
             })}

@@ -7,7 +7,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Menu, X, Building2, BarChart3, Calendar, ClipboardList,
   Settings, LogOut, Crown, Wallet, QrCode, AlertTriangle, Zap, ChevronDown,
-  Newspaper, Trophy,
+  Newspaper, Trophy, Image as ImageIcon,
 } from "lucide-react";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { useTrialStatus } from "@/lib/hooks/useTrialStatus";
@@ -21,6 +21,7 @@ const OWNER_MENU = [
   { icon: Trophy,        label: "Torneos",        href: "/owner/torneos" },
   { icon: Newspaper,     label: "Feed",           href: "/owner/feed" },
   { icon: Wallet,        label: "Caja y Cierre",  href: "/owner/caja" },
+  { icon: ImageIcon,     label: "Flyer Instagram", href: "/owner/flyer" },
   { icon: QrCode,        label: "Mi Link / QR",   href: "/owner/mi-link" },
   { icon: Settings,      label: "Configuración",  href: "/owner/settings" },
   { icon: Crown,         label: "Suscripción",    href: "/owner/suscripcion" },
