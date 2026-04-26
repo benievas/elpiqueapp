@@ -4,7 +4,7 @@ export const dynamic = 'force-dynamic';
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import Link from "next/link";
-import { supabase, supabaseMut } from "@/lib/supabase";
+import { supabase } from "@/lib/supabase";
 import { CreditCard, ChevronLeft, RefreshCw, CheckCircle2, Clock, AlertCircle, Search, Zap } from "lucide-react";
 
 interface Sub {
@@ -29,46 +29,48 @@ export default function AdminSuscripcionesPage() {
 
   useEffect(() => { load(); }, []);
 
+  async function getToken() {
+    const { data } = await supabase.auth.getSession();
+    return data.session?.access_token ?? null;
+  }
+
   async function load() {
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from("subscriptions")
-        .select("id, user_id, status, starts_at, ends_at, plan, profiles!user_id(email, nombre_completo)")
-        .order("created_at", { ascending: false });
-
-      if (error) {
-        console.error("Error loading subscriptions:", error);
-      }
-
-      const userIds = (data || []).map((s: any) => s.user_id);
-      let compMap: Record<string, string> = {};
-      if (userIds.length > 0) {
-        const { data: comps } = await supabase.from("complexes").select("owner_id, nombre").in("owner_id", userIds);
-        (comps || []).forEach((c: any) => { compMap[c.owner_id] = c.nombre; });
-      }
-
-      setSubs((data || []).map((s: any) => ({
-        ...s,
-        owner_email: Array.isArray(s.profiles) ? s.profiles[0]?.email : s.profiles?.email,
-        owner_nombre: Array.isArray(s.profiles) ? s.profiles[0]?.nombre_completo : s.profiles?.nombre_completo,
-        complejo_nombre: compMap[s.user_id],
-      })));
-    } catch (e) { console.error(e); }
+      const token = await getToken();
+      if (!token) throw new Error("Sin sesión");
+      const res = await fetch("/api/admin/subscriptions", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error(`Error ${res.status}`);
+      const data: Sub[] = await res.json();
+      setSubs(data);
+    } catch (e) { console.error("Error cargando suscripciones:", e); }
     finally { setLoading(false); }
+  }
+
+  async function patchSub(id: string, updates: object) {
+    const token = await getToken();
+    if (!token) return;
+    await fetch("/api/admin/subscriptions", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ id, ...updates }),
+    });
   }
 
   async function activarTrial(sub: Sub) {
     setActivating(sub.id);
     const now = new Date();
     const fin = new Date(now); fin.setDate(fin.getDate() + 14);
-    await supabaseMut.from("subscriptions").update({
+    const updates = {
       status: "trial",
       starts_at: now.toISOString().split("T")[0],
       ends_at: fin.toISOString().split("T")[0],
       is_trial: true,
-    }).eq("id", sub.id);
-    setSubs(prev => prev.map(s => s.id === sub.id ? { ...s, status: "trial", starts_at: now.toISOString().split("T")[0], ends_at: fin.toISOString().split("T")[0] } : s));
+    };
+    await patchSub(sub.id, updates);
+    setSubs(prev => prev.map(s => s.id === sub.id ? { ...s, ...updates } : s));
     setActivating(null);
   }
 
@@ -76,13 +78,14 @@ export default function AdminSuscripcionesPage() {
     setActivating(sub.id);
     const now = new Date();
     const fin = new Date(now); fin.setFullYear(fin.getFullYear() + 1);
-    await supabaseMut.from("subscriptions").update({
+    const updates = {
       status: "active",
       starts_at: now.toISOString().split("T")[0],
       ends_at: fin.toISOString().split("T")[0],
       is_trial: false,
-    }).eq("id", sub.id);
-    setSubs(prev => prev.map(s => s.id === sub.id ? { ...s, status: "active", starts_at: now.toISOString().split("T")[0], ends_at: fin.toISOString().split("T")[0] } : s));
+    };
+    await patchSub(sub.id, updates);
+    setSubs(prev => prev.map(s => s.id === sub.id ? { ...s, ...updates } : s));
     setActivating(null);
   }
 
@@ -159,7 +162,7 @@ export default function AdminSuscripcionesPage() {
                   <CreditCard size={15} style={{ color: m.color }} />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-bold text-white">{s.owner_nombre ?? s.owner_email}</p>
+                  <p className="text-sm font-bold text-white">{s.owner_nombre ?? s.owner_email ?? "—"}</p>
                   <p className="text-xs text-rodeo-cream/40">{s.complejo_nombre ?? "Sin complejo"}</p>
                   {s.ends_at && (
                     <p className="text-[11px] text-rodeo-cream/30 mt-0.5">

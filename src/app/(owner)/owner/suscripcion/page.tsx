@@ -118,7 +118,7 @@ export default function SuscripcionPage() {
           .from("subscriptions")
           .select("status, ends_at, is_trial")
           .eq("plan", "owner")
-          .eq("complex_id", activeComplexId)
+          .eq("user_id", user.id)
           .in("status", ["active", "trial"])
           .maybeSingle();
         if (data) {

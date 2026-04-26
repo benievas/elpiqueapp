@@ -3,7 +3,7 @@ export const dynamic = 'force-dynamic';
 
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { supabase, supabaseMut } from "@/lib/supabase";
+import { supabase } from "@/lib/supabase";
 import {
   Calendar, Search, RefreshCw, Loader, Building2,
   CheckCircle2, Clock, XCircle, AlertCircle, User,
@@ -36,21 +36,21 @@ export default function AdminReservasPage() {
 
   useEffect(() => { load(); }, [periodo]);
 
+  async function getToken() {
+    const { data } = await supabase.auth.getSession();
+    return data.session?.access_token ?? null;
+  }
+
   async function load() {
     setLoading(true);
     try {
-      let q = supabase
-        .from("reservations")
-        .select("id, fecha, hora_inicio, hora_fin, estado, precio_total, notas, user_id, court_id, complex_id, profiles!user_id(nombre_completo, email), courts!court_id(nombre), complexes!complex_id(nombre)")
-        .order("fecha", { ascending: false })
-        .order("hora_inicio", { ascending: false });
-
-      if (periodo > 0) {
-        const desde = new Date(); desde.setDate(desde.getDate() - periodo);
-        q = q.gte("fecha", desde.toISOString().split("T")[0]);
-      }
-
-      const { data } = await q.limit(200);
+      const token = await getToken();
+      if (!token) throw new Error("Sin sesión");
+      const res = await fetch(`/api/admin/reservations?days=${periodo}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error(`Error ${res.status}`);
+      const data = await res.json();
       setReservas((data || []).map((r: any) => ({
         ...r,
         jugador_nombre: r.profiles?.nombre_completo,
@@ -63,7 +63,14 @@ export default function AdminReservasPage() {
   }
 
   async function cambiarEstado(id: string, estado: string) {
-    await supabaseMut.from("reservations").update({ estado }).eq("id", id);
+    const token = await getToken();
+    if (token) {
+      await fetch("/api/admin/reservations", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ id, estado }),
+      });
+    }
     setReservas(prev => prev.map(r => r.id === id ? { ...r, estado } : r));
   }
 

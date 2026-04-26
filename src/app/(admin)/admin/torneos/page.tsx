@@ -42,25 +42,30 @@ export default function AdminTorneosPage() {
     try {
       const { data } = await supabase
         .from("tournaments")
-        .select("id, nombre, slug, deporte, estado, fecha_inicio, cupos, imagen_url, complex_id, complexes!complex_id(nombre, profiles!owner_id(nombre_completo))")
+        .select("id, nombre, slug, deporte, estado, fecha_inicio, cupos, imagen_url, complex_id, complexes!complex_id(nombre, owner_id)")
         .order("fecha_inicio", { ascending: false });
 
       const rows = data || [];
-      const complexIds = [...new Set(rows.map((t: any) => t.complex_id))];
       let equiposMap: Record<string, number> = {};
-      if (complexIds.length) {
+      if (rows.length) {
         const { data: equipos } = await supabase
           .from("tournament_teams").select("tournament_id")
           .in("tournament_id", rows.map((t: any) => t.id));
         (equipos || []).forEach((e: any) => { equiposMap[e.tournament_id] = (equiposMap[e.tournament_id] || 0) + 1; });
       }
 
+      const ownerIds = [...new Set(rows.map((t: any) => t.complexes?.owner_id).filter(Boolean))];
+      let ownersMap: Record<string, string> = {};
+      if (ownerIds.length) {
+        const { data: owners } = await supabase
+          .from("profiles").select("id, nombre_completo").in("id", ownerIds);
+        (owners || []).forEach((o: any) => { ownersMap[o.id] = o.nombre_completo; });
+      }
+
       setTorneos(rows.map((t: any) => ({
         ...t,
         complejo_nombre: t.complexes?.nombre,
-        owner_nombre: Array.isArray(t.complexes?.profiles)
-          ? t.complexes.profiles[0]?.nombre_completo
-          : t.complexes?.profiles?.nombre_completo,
+        owner_nombre: ownersMap[t.complexes?.owner_id] ?? null,
         total_equipos: equiposMap[t.id] || 0,
       })));
     } catch (e) { console.error(e); }

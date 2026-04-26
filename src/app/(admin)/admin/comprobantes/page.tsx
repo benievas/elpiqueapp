@@ -80,10 +80,8 @@ export default function AdminComprobantesPage() {
       const endsAt = new Date(now);
       endsAt.setDate(endsAt.getDate() + PLAN_DAYS[comp.plan]);
 
-      // Upsert subscription for this complex
       const subPayload = {
         user_id: comp.user_id,
-        complex_id: comp.complex_id,
         plan: "owner",
         status: "active",
         is_trial: false,
@@ -93,12 +91,12 @@ export default function AdminComprobantesPage() {
         notes: `Activado por comprobante ${comp.id} (${comp.plan})`,
       };
 
-      // Check if subscription exists for this complex
+      // Check if subscription exists for this user
       const { data: existingSub } = await (supabase as any)
         .from("subscriptions")
         .select("id")
         .eq("user_id", comp.user_id)
-        .eq("complex_id", comp.complex_id ?? null)
+        .eq("plan", "owner")
         .maybeSingle();
 
       if (existingSub?.id) {

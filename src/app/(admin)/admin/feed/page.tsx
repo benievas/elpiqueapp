@@ -41,7 +41,7 @@ export default function AdminFeedPage() {
     try {
       const { data, error } = await supabase
         .from("feed_posts")
-        .select("id, titulo, contenido, tipo, imagen_principal, visible, created_at, complexes(nombre)")
+        .select("id, titulo, contenido, tipo, imagen_principal, visible, created_at, complexes!complex_id(nombre)")
         .order("created_at", { ascending: false });
       if (error) console.error("Error loading feed:", error);
       setPosts((data || []).map((p: any) => ({
