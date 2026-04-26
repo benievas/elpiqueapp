@@ -15,7 +15,7 @@ export default function SiteBgVideo() {
     (async () => {
       try {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const { data } = await (supabase as any).from("app_config").select("value").eq("key", "site_bg_video").single();
+        const { data } = await (supabase as any).from("app_config").select("value").eq("key", "site_bg_video").maybeSingle();
         if (data?.value) setVideoUrl(String(data.value));
       } catch { /* no config */ }
     })();

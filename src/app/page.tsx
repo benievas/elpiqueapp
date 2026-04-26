@@ -218,7 +218,7 @@ export default function Home() {
   useEffect(() => {
     (async () => {
       try {
-        const { data } = await (supabase as any).from("app_config").select("value").eq("key", "home_promo_slides").single();
+        const { data } = await (supabase as any).from("app_config").select("value").eq("key", "home_promo_slides").maybeSingle();
         if (data?.value && Array.isArray(data.value) && (data.value as any[]).length > 0) {
           setPromoSlides((data.value as any[]).map((s: any) => ({
             id: s.id,
