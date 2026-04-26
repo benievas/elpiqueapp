@@ -21,6 +21,7 @@ const securityHeaders = [
       "font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com",
       "img-src 'self' data: blob: https: http:",
       "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.resend.com https://api.mercadopago.com https://nominatim.openstreetmap.org https://*.tile.openstreetmap.org",
+      "media-src 'self' https://*.supabase.co blob:",
       "frame-src https://www.mercadopago.com",
       "object-src 'none'",
       "base-uri 'self'",

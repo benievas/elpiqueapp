@@ -101,7 +101,7 @@ export default function HomeConfigPage() {
         .from("app_config")
         .select("value")
         .eq("key", "home_promo_slides")
-        .single();
+        .maybeSingle();
       if (data?.value && Array.isArray(data.value) && data.value.length > 0) {
         setSlides((data.value as Slide[]).sort((a, b) => a.orden - b.orden));
       } else {
@@ -114,7 +114,7 @@ export default function HomeConfigPage() {
   async function loadGlobalBg() {
     try {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data } = await (supabase as any).from("app_config").select("value").eq("key", "site_bg_video").single();
+      const { data } = await (supabase as any).from("app_config").select("value").eq("key", "site_bg_video").maybeSingle();
       if (data?.value) setGlobalBgVideo(String(data.value));
     } catch { /* no config yet */ }
   }
@@ -122,7 +122,7 @@ export default function HomeConfigPage() {
   async function saveGlobalBg() {
     setSavingGlobalVid(true);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await (supabaseMut as any).from("app_config").upsert({ key: "site_bg_video", value: globalBgVideo, updated_at: new Date().toISOString() });
+    await (supabaseMut as any).from("app_config").upsert({ key: "site_bg_video", value: globalBgVideo, updated_at: new Date().toISOString() }, { onConflict: "key" });
     setSavingGlobalVid(false);
   }
 
@@ -145,7 +145,7 @@ export default function HomeConfigPage() {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { error } = await (supabaseMut as any)
       .from("app_config")
-      .upsert({ key: "home_promo_slides", value: ordenados, updated_at: new Date().toISOString() });
+      .upsert({ key: "home_promo_slides", value: ordenados, updated_at: new Date().toISOString() }, { onConflict: "key" });
     if (error) setErrorText("Error al guardar: " + error.message);
     else setSlides(ordenados);
     setSaving(false);
