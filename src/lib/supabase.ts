@@ -2,34 +2,51 @@ import { createBrowserClient } from '@supabase/ssr';
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from '@/types/database';
 
-// Fallback vacío para que el módulo no explote en build time (force-dynamic lo maneja en runtime)
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co';
-const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-anon-key';
+type BrowserClient = ReturnType<typeof createBrowserClient<Database>>;
+type AdminClient = ReturnType<typeof createClient<Database>>;
 
-// ─── Browser client ────────────────────────────────────────────────────────────
-// Singleton por tab. createBrowserClient maneja cookies + localStorage de forma
-// nativa con @supabase/ssr — no se necesita Proxy ni lazy-init personalizado.
-let _client: ReturnType<typeof createBrowserClient<Database>> | null = null;
+// ─── Lazy singletons ────────────────────────────────────────────────────────
+// No se crean en module-level para evitar errores durante el build de Next.js.
+// El cliente real se instancia la primera vez que se accede a una propiedad.
 
-export function getSupabaseClient() {
-  if (!_client) {
-    _client = createBrowserClient<Database>(SUPABASE_URL, SUPABASE_ANON_KEY);
+let _browser: BrowserClient | null = null;
+let _admin: AdminClient | null = null;
+
+export function getSupabaseClient(): BrowserClient {
+  if (!_browser) {
+    _browser = createBrowserClient<Database>(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    );
   }
-  return _client;
+  return _browser;
 }
 
-export const supabase = getSupabaseClient();
+function makeProxy<T extends object>(factory: () => T): T {
+  return new Proxy({} as T, {
+    get(_, prop: string | symbol) {
+      const client = factory();
+      const value = (client as any)[prop as string];
+      return typeof value === 'function' ? value.bind(client) : value;
+    },
+  });
+}
 
-// supabaseMut es el mismo cliente — existe por compatibilidad con código que hace writes
+// Cliente browser (singleton por tab) — usar en componentes cliente y páginas
+export const supabase = makeProxy<BrowserClient>(getSupabaseClient);
+
+// Alias para writes — mismo cliente, existe por compatibilidad
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const supabaseMut = supabase as any;
 
-// ─── Admin client (solo server-side) ──────────────────────────────────────────
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const supabaseAdmin: ReturnType<typeof createClient<Database>> = typeof window === 'undefined'
-  ? createClient<Database>(
+// Cliente admin con service role — solo usar en API routes (server-side)
+export const supabaseAdmin = makeProxy<AdminClient>(() => {
+  if (!_admin) {
+    _admin = createClient<Database>(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    )
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  : (null as any);
+      { auth: { persistSession: false } }
+    );
+  }
+  return _admin;
+});
