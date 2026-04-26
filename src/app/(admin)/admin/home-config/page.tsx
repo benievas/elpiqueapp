@@ -93,17 +93,36 @@ export default function HomeConfigPage() {
 
   useEffect(() => { load(); loadGlobalBg(); }, []);
 
+  async function getToken() {
+    const { data } = await supabase.auth.getSession();
+    return data.session?.access_token ?? null;
+  }
+
+  async function configGet(key: string) {
+    const res = await fetch(`/api/admin/app-config?key=${key}`);
+    const json = await res.json();
+    return json.value ?? null;
+  }
+
+  async function configSet(key: string, value: unknown) {
+    const token = await getToken();
+    const res = await fetch("/api/admin/app-config", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ key, value }),
+    });
+    if (!res.ok) {
+      const json = await res.json();
+      throw new Error(json.error || `Error ${res.status}`);
+    }
+  }
+
   async function load() {
     setLoading(true);
     try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data } = await (supabase as any)
-        .from("app_config")
-        .select("value")
-        .eq("key", "home_promo_slides")
-        .maybeSingle();
-      if (data?.value && Array.isArray(data.value) && data.value.length > 0) {
-        setSlides((data.value as Slide[]).sort((a, b) => a.orden - b.orden));
+      const value = await configGet("home_promo_slides");
+      if (value && Array.isArray(value) && value.length > 0) {
+        setSlides((value as Slide[]).sort((a, b) => a.orden - b.orden));
       } else {
         setSlides(SLIDES_DEFAULT);
       }
@@ -113,17 +132,20 @@ export default function HomeConfigPage() {
 
   async function loadGlobalBg() {
     try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data } = await (supabase as any).from("app_config").select("value").eq("key", "site_bg_video").maybeSingle();
-      if (data?.value) setGlobalBgVideo(String(data.value));
+      const value = await configGet("site_bg_video");
+      if (value) setGlobalBgVideo(String(value));
     } catch { /* no config yet */ }
   }
 
   async function saveGlobalBg() {
     setSavingGlobalVid(true);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await (supabaseMut as any).from("app_config").upsert({ key: "site_bg_video", value: globalBgVideo, updated_at: new Date().toISOString() }, { onConflict: "key" });
-    setSavingGlobalVid(false);
+    try {
+      await configSet("site_bg_video", globalBgVideo);
+    } catch (e) {
+      setErrorText((e as Error).message);
+    } finally {
+      setSavingGlobalVid(false);
+    }
   }
 
   async function uploadGlobalVideo(e: React.ChangeEvent<HTMLInputElement>) {
@@ -142,14 +164,16 @@ export default function HomeConfigPage() {
   async function saveAll(newSlides: Slide[]) {
     setSaving(true);
     const ordenados = newSlides.map((s, i) => ({ ...s, orden: i }));
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { error } = await (supabaseMut as any)
-      .from("app_config")
-      .upsert({ key: "home_promo_slides", value: ordenados, updated_at: new Date().toISOString() }, { onConflict: "key" });
-    if (error) setErrorText("Error al guardar: " + error.message);
-    else setSlides(ordenados);
-    setSaving(false);
-    return !error;
+    try {
+      await configSet("home_promo_slides", ordenados);
+      setSlides(ordenados);
+      setSaving(false);
+      return true;
+    } catch (e) {
+      setErrorText("Error al guardar: " + (e as Error).message);
+      setSaving(false);
+      return false;
+    }
   }
 
   async function uploadFile(file: File, tipo: "imagen" | "video"): Promise<string | null> {
